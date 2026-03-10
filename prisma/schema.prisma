@@ -1,4 +1,6 @@
-// 1. Config
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,193 +8,137 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  directUrl = env("DIRECT_URL") // Required for Supabase to bypass connection pooling for migrations
 }
 
-// 2. Enums
-enum UserRole {
-  OWNER       // Pays the bills, full access
-  MANAGER     // Can see all properties, but can't change billing
-  STAFF       // Restricted to assigned properties only (Receptionist)
+// ------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------
+
+enum UnitType {
+  STUDIO
+  ONE_BEDROOM
+  TWO_BEDROOM
+  VILLA
 }
 
-enum PropertyType {
-  RESIDENTIAL
-  COMMERCIAL
-  HOTEL
-}
-
-enum ReservationStatus {
-  PENDING
-  CONFIRMED
-  CHECKED_IN
-  COMPLETED
-  CANCELLED
-}
-
-// 3. The New Powerhouse: Organization
-model Organization {
-  id                String   @id @default(uuid())
-  name              String   // e.g. "Salalah Real Estate Co."
-  
-  // Subscription / Limits Logic
-  plan              String   @default("FREE") // FREE, STARTER, PRO
-  maxProperties     Int      @default(1)
-  subscriptionStatus String  @default("ACTIVE") // ACTIVE, PAST_DUE
-  
-  createdAt         DateTime @default(now())
-  
-  // Everything belongs to the Org now, not the User
-  users             User[]
-  properties        Property[]
-  tenants           Tenant[]
-}
-
-// 4. Users (Staff Members)
-model User {
-  id             String       @id @default(uuid())
-  email          String       @unique
-  firstName      String?
-  lastName       String?
-  role           UserRole     @default(OWNER)
-  
-  // Link to Organization
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  
-  // Access Control: Which properties can this user see?
-  assignedProperties PropertyAssignment[]
-
-  createdAt      DateTime     @default(now())
-}
-
-// 5. Explicit Assignments (For Receptionists)
-model PropertyAssignment {
-  id          String   @id @default(uuid())
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  propertyId  String
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, propertyId]) // Prevent duplicate assignments
-}
-
-// 6. Properties
-model Property {
-  id             String   @id @default(uuid())
-  name           String
-  type           PropertyType @default(RESIDENTIAL)
-  
-  // Location
-  address        String?
-  city           String       @default("Salalah")
-  governorate    String       @default("Dhofar")
-  
-  // Link to Org
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  // Relations
-  units          Unit[]
-  assignments    PropertyAssignment[] // Who works here?
-  
-  createdAt      DateTime @default(now())
-}
-
-// ... (Unit, Tenant, Reservation models remain mostly the same, 
-// just ensure Tenant links to OrganizationId if you want shared tenants)
-
-model Unit {
-  id          String   @id @default(uuid())
-  name        String   // e.g. "Room 101"
-  floor       Int      @default(0)
-  bedrooms    Int      @default(1)
-  bathrooms   Int      @default(1)
-  
-  basePrice   Decimal  @db.Decimal(10, 2)
-  
-  propertyId  String
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  
-  reservations Reservation[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Tenant {
-  id             String   @id @default(uuid())
-  
-  firstName      String
-  lastName       String   // Added this
-  
-  email          String?
-  phone          String
-  
-  // Identity Fields (Added these for Omani context)
-  nationalId     String?  
-  nationality    String?
-  
-  // Link to Organization
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  
-  reservations   Reservation[]
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-
-enum PaymentFrequency {
+enum RentType {
   DAILY
   MONTHLY
-  YEARLY
+  BOTH
 }
 
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
 
-model Reservation {
+// ------------------------------------------------------
+// MODELS
+// ------------------------------------------------------
+
+model Building {
   id          String   @id @default(uuid())
-  
-  startDate   DateTime
-  endDate     DateTime
-  status      ReservationStatus @default(PENDING)
-  amount      Decimal          @db.Decimal(10, 2)
-  frequency   PaymentFrequency @default(MONTHLY)
+  nameEn      String
+  nameAr      String
+  locationEn  String
+  locationAr  String
+  latitude    Float?   // For the Leaflet Map
+  longitude   Float?   // For the Leaflet Map
+  descriptionEn String?
+  descriptionAr String?
+
+  imageUrl      String?
   
   // Relations
-  unitId      String
-  unit        Unit     @relation(fields: [unitId], references: [id])
-  
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-
-  payments    Payment[]
+  units       Unit[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-enum PaymentMethod {
-  CASH
-  BANK_TRANSFER
-  CARD
-  CHEQUE
-  OTHER
+model Unit {
+  id            String   @id @default(uuid())
+  buildingId    String
+  
+  // Content
+  titleEn       String
+  titleAr       String
+  descriptionEn String   @db.Text
+  descriptionAr String   @db.Text
+  
+  // Categorization
+  unitType      UnitType
+  rentType      RentType
+  
+  // Pricing (Stored as Decimal/Float for OMR)
+  dailyPrice    Float?
+  monthlyPrice  Float?
+  
+  // Specifications
+  guests        Int      @default(1)
+  bedrooms      Int      @default(1)
+  beds          Int      @default(1)
+  bathrooms     Int      @default(1)
+  
+  // State
+  isPublished   Boolean  @default(false)
+  
+  // Relations
+  building      Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  images        UnitImage[]
+  amenities     Amenity[]   // Implicit Many-to-Many relation
+  bookings      Booking[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-model Payment {
+model UnitImage {
+  id          String   @id @default(uuid())
+  unitId      String
+  url         String   // The Supabase Storage URL
+  isMain      Boolean  @default(false) // To identify the cover image
+  displayOrder Int     @default(0)     // To control the slider order
+  
+  // Relations
+  unit        Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+}
+
+model Amenity {
+  id          String   @id @default(uuid())
+  nameEn      String   @unique
+  nameAr      String   @unique
+  iconSvg     String?  // Store the SVG path string here so the UI can render it dynamically
+  
+  // Relations
+  units       Unit[]   // Implicit Many-to-Many relation
+
+  createdAt   DateTime @default(now())
+}
+
+model Booking {
   id            String   @id @default(uuid())
-  amount        Decimal  @db.Decimal(10, 2)
-  date          DateTime @default(now())
-  method        PaymentMethod @default(CASH)
-  reference     String?  // e.g. "Receipt #123" or "Transaction ID"
-  notes         String?
+  unitId        String
   
-  reservationId String
-  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  // Guest Info (In a full app, this might link to a User model)
+  guestName     String
+  guestEmail    String
+  guestPhone    String
   
+  // Booking Details
+  checkIn       DateTime
+  checkOut      DateTime
+  totalPrice    Float
+  status        BookingStatus @default(PENDING)
+  
+  // Relations
+  unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

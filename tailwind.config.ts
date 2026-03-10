@@ -8,9 +8,16 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        english: ["var(--font-inter)", "sans-serif"],
+        arabic: ["var(--font-tajawal)", "sans-serif"],
+      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        nassayem: {
+          DEFAULT: "#2a7475",
+          light: "#3b9293",
+          dark: "#1d5455",
+        },
       },
     },
   },

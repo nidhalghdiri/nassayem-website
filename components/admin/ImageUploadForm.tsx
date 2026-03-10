@@ -1,0 +1,107 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { uploadUnitImage } from "@/app/actions/image";
+
+export default function ImageUploadForm({
+  unitId,
+  locale,
+}: {
+  unitId: string;
+  locale: string;
+}) {
+  const isEn = locale === "en";
+  const [isPending, startTransition] = useTransition();
+  const [preview, setPreview] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    startTransition(async () => {
+      await uploadUnitImage(formData, unitId, locale);
+      setPreview(null);
+      formRef.current?.reset();
+    });
+  };
+
+  return (
+    <form
+      ref={formRef}
+      onSubmit={handleUpload}
+      className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8"
+    >
+      <h3 className="text-lg font-bold text-gray-900 mb-4">
+        {isEn ? "Upload New Image" : "رفع صورة جديدة"}
+      </h3>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex-1 w-full relative">
+          <input
+            type="file"
+            name="image"
+            accept="image/jpeg, image/png, image/webp"
+            required
+            onChange={handleFileChange}
+            className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-nassayem/10 file:text-nassayem hover:file:bg-nassayem/20 cursor-pointer border border-gray-200 rounded-xl"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isPending || !preview}
+          className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-white bg-nassayem hover:bg-nassayem-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px]"
+        >
+          {isPending ? (
+            <svg
+              className="animate-spin h-5 w-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          ) : isEn ? (
+            "Upload"
+          ) : (
+            "رفع الصورة"
+          )}
+        </button>
+      </div>
+
+      {preview && (
+        <div className="mt-4">
+          <p className="text-sm font-medium text-gray-500 mb-2">
+            {isEn ? "Preview:" : "معاينة:"}
+          </p>
+          <img
+            src={preview}
+            alt="Preview"
+            className="h-32 w-auto rounded-lg object-cover shadow-sm"
+          />
+        </div>
+      )}
+    </form>
+  );
+}
