@@ -5,6 +5,7 @@ import { differenceInDays, parseISO, startOfDay } from "date-fns"; // We'll need
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { BookingStatus } from "@prisma/client";
+import { encryptSmartPayRequest } from "@/lib/smartpay";
 
 // Define our standard fees (In a full SaaS, these might live in the database per-building)
 const CLEANING_FEE_OMR = 25;
@@ -165,8 +166,26 @@ export async function createBooking(
     },
   });
 
-  // 4. Redirect to the success page
-  redirect(`/${locale}/checkout/success?bookingId=${booking.id}`);
+  // 2. Prepare SmartPay Request String
+  const merchantId = process.env.SMARTPAY_MERCHANT_ID;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+  // Create the exact redirect URLs where the bank will send the user back
+  const redirectUrl = `${baseUrl}/api/payment/smartpay?locale=${locale}`;
+  const cancelUrl = `${baseUrl}/api/payment/smartpay?locale=${locale}`;
+
+  // Form the string using ampersand delimiters [cite: 95]
+  const requestString = `merchant_id=${merchantId}&order_id=${booking.id}&currency=OMR&amount=${pricing.grandTotal}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&billing_name=${guestName}&billing_email=${guestEmail}`;
+
+  // 3. Encrypt the string [cite: 100]
+  const encRequest = encryptSmartPayRequest(requestString);
+
+  return {
+    success: true,
+    paymentUrl: process.env.SMARTPAY_PAYMENT_URL,
+    accessCode: process.env.SMARTPAY_ACCESS_CODE,
+    encRequest: encRequest,
+  };
 }
 /**
  * CORE FUNCTION 4: Update Booking Status
