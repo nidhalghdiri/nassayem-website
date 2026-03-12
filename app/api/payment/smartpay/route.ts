@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const encResponse = formData.get("encResponse") as string; // [cite: 118]
 
     if (!encResponse) {
-      return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
+      return NextResponse.redirect(`${baseUrl}/en/checkout/error`);
     }
 
     // 1. Decrypt the response string [cite: 124, 125]
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
 
     // NEW: Extract the real Prisma booking ID from merchant_param1
     const realBookingId = responseParams.get("merchant_param1");
+    const locale = responseParams.get("merchant_param2") || "en";
 
     if (!realBookingId) {
       return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);

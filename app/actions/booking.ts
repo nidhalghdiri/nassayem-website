@@ -174,12 +174,11 @@ export async function createBooking(
   // 4. Prepare URLs
   const merchantId = process.env.SMARTPAY_MERCHANT_ID;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-  const redirectUrl = `${baseUrl}/api/payment/smartpay?locale=${locale}`;
-  const cancelUrl = `${baseUrl}/api/payment/smartpay?locale=${locale}`;
+  const redirectUrl = `${baseUrl}/api/payment/smartpay`;
+  const cancelUrl = `${baseUrl}/api/payment/smartpay`;
 
   // 5. Form the exact request string mandated by Bank Muscat
-  const requestString = `merchant_id=${merchantId}&order_id=${shortOrderId}&currency=OMR&amount=${formattedAmount}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&billing_name=${guestName}&billing_email=${guestEmail}`;
-  // 3. Encrypt the string [cite: 100]
+  const requestString = `merchant_id=${merchantId}&order_id=${shortOrderId}&currency=OMR&amount=${formattedAmount}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&merchant_param1=${booking.id}&merchant_param2=${locale}`;
   const encRequest = encryptSmartPayRequest(requestString);
 
   return {
