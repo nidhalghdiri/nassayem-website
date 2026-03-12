@@ -23,13 +23,19 @@ export async function POST(req: NextRequest) {
     // 2. Parse the decrypted string into an object (it's formatted like key=value&key2=value2)
     const responseParams = new URLSearchParams(decryptedString);
     const orderStatus = responseParams.get("order_status"); // [cite: 113]
-    const bankRefNo = responseParams.get("bank_ref_no"); // [cite: 113]
+
+    // NEW: Extract the real Prisma booking ID from merchant_param1
+    const realBookingId = responseParams.get("merchant_param1");
+
+    if (!realBookingId) {
+      return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
+    }
 
     // 3. Update the Prisma database based on the order status [cite: 126, 127]
     if (orderStatus === "Success") {
       // [cite: 162]
       await prisma.booking.update({
-        where: { id: orderId },
+        where: { id: realBookingId },
         data: {
           status: "CONFIRMED",
           // You could also save the bankRefNo to a new field in your DB if you wish
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
       });
       // Redirect to the success page
       return NextResponse.redirect(
-        `${baseUrl}/${locale}/checkout/success?bookingId=${orderId}`,
+        `${baseUrl}/${locale}/checkout/success?bookingId=${realBookingId}`,
       );
     } else if (
       orderStatus === "Aborted" ||

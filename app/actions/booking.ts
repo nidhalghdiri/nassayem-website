@@ -169,6 +169,8 @@ export async function createBooking(
   // 4. Format Amount for OMR (Must be 3 decimal places, e.g., 120.000)
   const formattedAmount = Number(pricing.grandTotal).toFixed(3);
 
+  const shortOrderId = Date.now().toString();
+
   // 4. Prepare URLs
   const merchantId = process.env.SMARTPAY_MERCHANT_ID;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -176,7 +178,7 @@ export async function createBooking(
   const cancelUrl = `${baseUrl}/api/payment/smartpay?locale=${locale}`;
 
   // 5. Form the exact request string mandated by Bank Muscat
-  const requestString = `merchant_id=${merchantId}&order_id=${booking.id}&currency=OMR&amount=${formattedAmount}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&billing_name=${guestName}&billing_email=${guestEmail}`;
+  const requestString = `merchant_id=${merchantId}&order_id=${shortOrderId}&currency=OMR&amount=${formattedAmount}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&billing_name=${guestName}&billing_email=${guestEmail}`;
   // 3. Encrypt the string [cite: 100]
   const encRequest = encryptSmartPayRequest(requestString);
 
