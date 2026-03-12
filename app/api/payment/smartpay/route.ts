@@ -3,8 +3,6 @@ import prisma from "@/lib/prisma";
 import { decryptSmartPayResponse } from "@/lib/smartpay";
 
 export async function POST(req: NextRequest) {
-  // Get the locale from the query parameter we passed in the redirect_url
-  const locale = req.nextUrl.searchParams.get("locale") || "en";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
   try {
@@ -13,9 +11,14 @@ export async function POST(req: NextRequest) {
     console.log("RAW BANK RESPONSE:", textBody);
 
     // Read the form data sent by the bank
-    const formData = await req.formData();
+    const formData = new URLSearchParams(textBody);
+
     const orderId = formData.get("order_id") as string; // [cite: 117]
-    const encResponse = formData.get("encResponse") as string; // [cite: 118]
+
+    const encResponse =
+      formData.get("encResp") ||
+      formData.get("encResponse") ||
+      formData.get("enc_response");
 
     if (!encResponse) {
       console.error("ERROR: No encrypted response received from bank.");
@@ -28,7 +31,8 @@ export async function POST(req: NextRequest) {
 
     // 2. Parse the decrypted string into an object (it's formatted like key=value&key2=value2)
     const responseParams = new URLSearchParams(decryptedString);
-    const orderStatus = responseParams.get("order_status"); // [cite: 113]
+    const orderStatus =
+      responseParams.get("order_status") || formData.get("orderStatus");
 
     // NEW: Extract the real Prisma booking ID from merchant_param1
     const realBookingId = responseParams.get("merchant_param1");
@@ -43,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Update the Prisma database based on the order status [cite: 126, 127]
-    if (orderStatus === "Success") {
+    if (orderStatus === "Successful" || orderStatus === "Success") {
       // [cite: 162]
       await prisma.booking.update({
         where: { id: realBookingId },
@@ -52,26 +56,22 @@ export async function POST(req: NextRequest) {
           // You could also save the bankRefNo to a new field in your DB if you wish
         },
       });
-      console.log("SUCCESS: Booking Confirmed!");
+      console.log("SUCCESS: Booking Confirmed in Prisma!");
       // Redirect to the success page
       return NextResponse.redirect(
         `${baseUrl}/${locale}/checkout/success?bookingId=${realBookingId}`,
       );
     } else {
-      console.warn("PAYMENT NOT SUCCESSFUL. Status received:", orderStatus);
-      // [cite: 162]
+      console.warn("PAYMENT NOT SUCCESSFUL. Status received:", orderStatus); // [cite: 162]
       await prisma.booking.update({
-        where: { id: orderId },
+        where: { id: realBookingId },
         data: { status: "CANCELLED" },
       });
       // Redirect to a failure page
       return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
     }
-
-    // Fallback redirect
-    return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
   } catch (error) {
     console.error("WEBHOOK CRASHED:", error);
-    return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
+    return NextResponse.redirect(`${baseUrl}/en/checkout/error`);
   }
 }
