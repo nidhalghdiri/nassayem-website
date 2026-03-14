@@ -8,8 +8,8 @@ import { BookingStatus } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 
 // Define our standard fees (In a full SaaS, these might live in the database per-building)
-const CLEANING_FEE_OMR = 25;
-const TAX_RATE = 0.05; // 5% VAT or Tourism Tax
+const CLEANING_FEE_OMR = 0;
+const TAX_RATE = 0; // 5% VAT or Tourism Tax
 
 /**
  * CORE FUNCTION 1: Overlap Prevention
