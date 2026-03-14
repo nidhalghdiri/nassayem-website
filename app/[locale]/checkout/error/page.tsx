@@ -3,6 +3,7 @@ import Link from "next/link";
 type PageProps = {
   params: Promise<{ locale: string }>;
 };
+// Done
 
 export default async function CheckoutErrorPage({ params }: PageProps) {
   const { locale } = await params;

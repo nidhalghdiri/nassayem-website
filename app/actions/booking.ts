@@ -165,6 +165,7 @@ export async function createBooking(
       status: "PENDING", // Defaults to PENDING until payment is confirmed in Stage 3.3
     },
   });
+  // Done
 
   // 4. Format Amount for OMR (Must be 3 decimal places, e.g., 120.000)
   const formattedAmount = Number(pricing.grandTotal).toFixed(3);
