@@ -37,6 +37,13 @@ export async function generateMetadata({
   return {
     title: unitTitle,
     description: unitDescription?.substring(0, 160), // SEO descriptions should be ~160 chars
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/units/${id}`,
+      languages: {
+        en: `https://www.nassayem.com/en/units/${id}`,
+        ar: `https://www.nassayem.com/ar/units/${id}`,
+      },
+    },
     openGraph: {
       title: unitTitle,
       description: unitDescription?.substring(0, 160),

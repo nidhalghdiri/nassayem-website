@@ -26,6 +26,14 @@ export const metadata: Metadata = {
   },
   description:
     "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today.",
+  alternates: {
+    canonical: "https://www.nassayem.com",
+    languages: {
+      en: "https://www.nassayem.com/en",
+      ar: "https://www.nassayem.com/ar",
+      "x-default": "https://www.nassayem.com/en", // Fallback for other languages
+    },
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
