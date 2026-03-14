@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import BookingWidget from "@/components/properties/BookingWidget";
@@ -7,6 +8,48 @@ import Link from "next/link";
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
 };
+
+// This function runs on the server BEFORE the page renders
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { id, locale } = await params;
+
+  // Fetch the specific unit from your database (Adjust 'unit' to match your Prisma schema)
+  const unit = await prisma.unit.findUnique({
+    where: { id: id },
+    include: {
+      images: {
+        orderBy: { displayOrder: "asc" },
+      },
+    },
+  });
+
+  if (!unit) {
+    return { title: "Property Not Found" };
+  }
+
+  // Choose the correct language title/description based on the locale
+  const isEn = locale === "en";
+  const unitTitle = isEn ? unit.titleEn : unit.titleAr; // Adjust to your actual DB fields
+  const unitDescription = isEn ? unit.descriptionEn : unit.descriptionAr;
+
+  return {
+    title: unitTitle,
+    description: unitDescription?.substring(0, 160), // SEO descriptions should be ~160 chars
+    openGraph: {
+      title: unitTitle,
+      description: unitDescription?.substring(0, 160),
+      images: [
+        {
+          url: unit.images[0]?.url || "https://www.nassayem.com/og-image.jpg",
+          width: 1200,
+          height: 630,
+        },
+      ],
+    },
+  };
+}
 
 export default async function PropertyDetailsPage({ params }: PageProps) {
   const { locale, id } = await params;

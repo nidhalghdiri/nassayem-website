@@ -19,14 +19,27 @@ const tajawal = Tajawal({
   display: "swap",
 });
 
-// Global SEO - Can be overridden on individual pages
 export const metadata: Metadata = {
   title: {
-    template: "%s | Salalah Premium Properties",
-    default: "Salalah Premium Properties | Daily & Monthly Rentals",
+    template: "%s | Nassayem Salalah", // Automatically appends your brand to page titles
+    default: "Nassayem Salalah | Premium Property Rentals in Oman",
   },
   description:
-    "Book the best apartments and buildings in Salalah. Discover premium daily and monthly rentals with seamless booking.",
+    "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today.",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://www.nassayem.com",
+    siteName: "Nassayem Salalah",
+    images: [
+      {
+        url: "https://www.nassayem.com/_next/image?url=%2Fimages%2Fns-logo.jpeg&w=128&q=75",
+        width: 1200,
+        height: 630,
+        alt: "Nassayem Salalah Premium Properties",
+      },
+    ],
+  },
 };
 
 // In Next.js 15, layout params are asynchronous Promises
