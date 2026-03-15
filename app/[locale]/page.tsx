@@ -6,6 +6,7 @@ import ContactSection from "@/components/home/ContactSection";
 import PropertyCard from "@/components/properties/PropertyCard";
 import LocationsMap from "@/components/home/LocationsMap";
 import prisma from "@/lib/prisma";
+import KhareefBanner from "@/components/marketing/KhareefBanner";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -342,6 +343,8 @@ export default async function HomePage({ params }: PageProps) {
           </div>
         </AnimatedSection>
       </section>
+
+      <KhareefBanner locale={locale} />
       {/* 7. CONTACT US & SOCIAL MEDIA */}
       <ContactSection locale={locale} />
       {/* 8. LOCATIONS MAP (New Interactive Map Section) */}
