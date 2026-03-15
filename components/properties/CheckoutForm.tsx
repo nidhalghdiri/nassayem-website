@@ -115,7 +115,7 @@ export default function CheckoutForm({
                 type="tel"
                 name="guestPhone"
                 required
-                placeholder="+968 1234 5678"
+                placeholder="+968 99551237"
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all dir-ltr"
               />
             </div>

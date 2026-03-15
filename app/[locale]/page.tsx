@@ -33,8 +33,29 @@ export default async function HomePage({ params }: PageProps) {
     },
   });
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateAgent",
+    name: "Nassayem Salalah",
+    image: "https://www.nassayem.com/logo.png",
+    "@id": "https://www.nassayem.com",
+    url: "https://www.nassayem.com",
+    telephone: "+968 99551237",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Salalah",
+      addressRegion: "Dhofar",
+      addressCountry: "OM",
+    },
+    priceRange: "$$",
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* 1. HERO SECTION */}
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center">
         <div className="absolute inset-0 bg-gray-900/40 z-10" />

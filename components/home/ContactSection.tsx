@@ -111,7 +111,7 @@ export default function ContactSection({ locale }: { locale: string }) {
                   <h4 className="text-lg font-bold text-gray-900">
                     {isEn ? "Call Us" : "اتصل بنا"}
                   </h4>
-                  <p className="text-gray-600 mt-1">+968 1234 5678</p>
+                  <p className="text-gray-600 mt-1">+968 99551237</p>
                 </div>
               </div>
             </div>

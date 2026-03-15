@@ -85,9 +85,51 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
   const currentPrice =
     unit.rentType === "MONTHLY" ? unit.monthlyPrice : unit.dailyPrice;
 
+  // 1. Build the JSON-LD Schema Object
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VacationRental",
+    name: isEn ? unit.titleEn : unit.titleAr,
+    description: isEn ? unit.descriptionEn : unit.descriptionAr,
+    image: [
+      unit.images[0]?.url || "https://www.nassayem.com/og-image.jpg",
+      unit.images[1]?.url || "https://www.nassayem.com/og-image.jpg",
+      unit.images[2]?.url || "https://www.nassayem.com/og-image.jpg",
+      unit.images[3]?.url || "https://www.nassayem.com/og-image.jpg",
+      unit.images[4]?.url || "https://www.nassayem.com/og-image.jpg",
+    ],
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Salalah",
+      addressRegion: "Dhofar",
+      addressCountry: "OM",
+    },
+    // The 'offers' block creates the price tag in Google Search
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "OMR",
+      price: unit.dailyPrice, // e.g., 25.000
+      availability: true
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: `https://www.nassayem.com/${locale}/units/${unit.id}`,
+    },
+    // Optional but highly recommended if you have a review system
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.8", // Replace with dynamic data when you have reviews
+      reviewCount: "24",
+    },
+  };
+
   return (
     <div className="min-h-screen bg-white pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        {/* 2. Inject the Schema into the DOM */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {/* 1. Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -336,7 +378,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             {isEn ? "Reserve" : "احجز"}
           </Link>
         </div>
-      </div>
+      </article>
     </div>
   );
 }
