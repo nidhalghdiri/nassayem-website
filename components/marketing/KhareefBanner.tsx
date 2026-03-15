@@ -24,7 +24,7 @@ export default function KhareefBanner({ locale }: { locale: string }) {
 
         {/* Call to Action Button */}
         <Link
-          href={`/${locale}/units`} // Change this to your actual properties/search route
+          href={`/${locale}/properties`} // Change this to your actual properties/search route
           className="inline-block bg-white text-emerald-900 font-bold text-lg px-10 py-4 rounded-full shadow-xl hover:bg-emerald-50 hover:scale-105 transition-transform duration-300"
         >
           {isEn ? "Book Your Family Suite Today" : "احجز جناحك العائلي اليوم"}

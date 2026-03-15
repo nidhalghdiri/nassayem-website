@@ -344,11 +344,12 @@ export default async function HomePage({ params }: PageProps) {
         </AnimatedSection>
       </section>
 
-      <KhareefBanner locale={locale} />
       {/* 7. CONTACT US & SOCIAL MEDIA */}
       <ContactSection locale={locale} />
       {/* 8. LOCATIONS MAP (New Interactive Map Section) */}
       <LocationsMap locale={locale} />
+
+      <KhareefBanner locale={locale} />
     </div>
   );
 }
