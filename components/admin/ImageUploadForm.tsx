@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { uploadUnitImage } from "@/app/actions/image";
+import Image from "next/image";
 
 export default function ImageUploadForm({
   unitId,
@@ -95,11 +96,18 @@ export default function ImageUploadForm({
           <p className="text-sm font-medium text-gray-500 mb-2">
             {isEn ? "Preview:" : "معاينة:"}
           </p>
-          <img
+          <Image
+            src={preview}
+            alt="Preview"
+            width={300}
+            height={300}
+            className="h-32 w-auto rounded-lg object-cover shadow-sm"
+          />
+          {/* <img
             src={preview}
             alt="Preview"
             className="h-32 w-auto rounded-lg object-cover shadow-sm"
-          />
+          /> */}
         </div>
       )}
     </form>

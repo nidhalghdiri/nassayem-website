@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { format, differenceInDays } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
+import Image from "next/image";
 
 type BookingDetailsModalProps = {
   booking: any; // Passing the full booking object from Prisma (including unit and building)
@@ -205,9 +206,11 @@ export default function BookingDetailsModal({
                   <div className="flex gap-4 items-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0 relative">
                       {booking.unit.images && booking.unit.images[0] ? (
-                        <img
+                        <Image
                           src={booking.unit.images[0].url}
                           alt="Unit"
+                          width={100}
+                          height={100}
                           className="w-full h-full object-cover"
                         />
                       ) : (

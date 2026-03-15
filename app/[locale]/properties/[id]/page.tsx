@@ -144,7 +144,11 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             <div className="col-span-1 md:col-span-2 md:row-span-2 relative h-full w-full cursor-pointer overflow-hidden">
               <Image
                 src={getImageUrl(0)}
-                alt="Main View"
+                alt={
+                  isEn
+                    ? `Spacious living room in ${unit.titleEn}, a premium Salalah apartment`
+                    : `غرفة معيشة واسعة في ${unit.titleAr}، شقة مفروشة في صلالة`
+                }
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />
