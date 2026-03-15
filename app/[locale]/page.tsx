@@ -46,6 +46,8 @@ export default async function HomePage({ params }: PageProps) {
       addressLocality: "Salalah",
       addressRegion: "Dhofar",
       addressCountry: "OM",
+      postalCode: "211",
+      streetAddress: "Al Luban Street, Awqad Ash Shamaliyah, Salalah",
     },
     priceRange: "$$",
   };
