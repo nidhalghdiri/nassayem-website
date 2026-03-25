@@ -125,21 +125,34 @@ model Amenity {
 model Booking {
   id            String   @id @default(uuid())
   unitId        String
-  
+
   // Guest Info (In a full app, this might link to a User model)
   guestName     String
   guestEmail    String
   guestPhone    String
-  
+
   // Booking Details
   checkIn       DateTime
   checkOut      DateTime
   totalPrice    Float
   status        BookingStatus @default(PENDING)
-  
+
   // Relations
   unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Admin users who can log in to the /admin panel.
+// Authentication is handled by Supabase Auth — this model stores
+// profile data and links back via supabaseId.
+model AdminUser {
+  id          String   @id @default(uuid())
+  supabaseId  String   @unique  // Maps to Supabase auth.users.id
+  email       String   @unique
+  name        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

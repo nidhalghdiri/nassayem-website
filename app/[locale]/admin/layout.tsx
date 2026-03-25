@@ -1,4 +1,6 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { createClient } from "@/utils/supabase/server";
+import { logoutAdmin } from "@/app/actions/auth";
 
 type AdminLayoutProps = {
   children: React.ReactNode;
@@ -10,31 +12,54 @@ export default async function AdminLayout({
   params,
 }: AdminLayoutProps) {
   const { locale } = await params;
+  const isEn = locale === "en";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // No user means the middleware is sending them to /admin/login.
+  // Render children bare (no sidebar) so the login page gets a clean full-screen layout.
+  if (!user) {
+    return <>{children}</>;
+  }
+
+  // The first character of the email as the avatar letter
+  const avatarLetter = user.email?.charAt(0).toUpperCase() ?? "A";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 font-english">
-      {/* We force 'font-english' or 'font-arabic' based on your global settings.
-        Assuming your body tag handles the main font, we just need the structural layout here. 
-      */}
-
-      {/* Sidebar Component */}
+      {/* Sidebar */}
       <AdminSidebar locale={locale} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Optional Admin Header (for search, profile, or notifications) */}
-        <header className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center justify-end px-8 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-600">
-              Admin User
-            </span>
-            <div className="w-10 h-10 bg-nassayem text-white rounded-full flex items-center justify-center font-bold">
-              A
-            </div>
+        {/* Top header bar */}
+        <header className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center justify-end px-8 shadow-sm gap-4">
+          {/* User email */}
+          <span className="text-sm font-medium text-gray-600">
+            {user.email}
+          </span>
+
+          {/* Avatar */}
+          <div className="w-9 h-9 bg-nassayem text-white rounded-full flex items-center justify-center font-bold text-sm select-none">
+            {avatarLetter}
           </div>
+
+          {/* Sign-out form — works from a Server Component via form action */}
+          <form action={logoutAdmin}>
+            <input type="hidden" name="locale" value={locale} />
+            <button
+              type="submit"
+              className="text-sm text-gray-500 hover:text-red-600 font-medium transition-colors duration-200"
+            >
+              {isEn ? "Sign out" : "تسجيل الخروج"}
+            </button>
+          </form>
         </header>
 
-        {/* Dynamic Page Content goes here */}
+        {/* Page content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">{children}</div>
       </main>
     </div>
