@@ -4,6 +4,7 @@ import "../globals.css";
 import "leaflet/dist/leaflet.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { headers } from "next/headers";
 
 // Optimize fonts for both languages
 const inter = Inter({
@@ -65,25 +66,34 @@ export default async function RootLayout({
   // Determine text direction for Tailwind and browser rendering
   const direction = locale === "ar" ? "rtl" : "ltr";
 
+  // Read the current pathname set by middleware to decide whether to show
+  // the public Navbar/Footer (admin pages have their own layout/chrome).
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const isAdmin = pathname.includes("/admin");
+
   return (
     <html
       lang={locale}
       dir={direction}
-      // Inject CSS variables for fonts
       className={`${inter.variable} ${tajawal.variable} scroll-smooth`}
     >
       <body
         className={`
-          min-h-screen flex flex-col bg-gray-50 text-gray-900 antialiased
+          min-h-screen bg-gray-50 text-gray-900 antialiased
           ${locale === "ar" ? "font-arabic" : "font-english"}
+          ${!isAdmin ? "flex flex-col" : ""}
         `}
       >
-        <Navbar locale={locale} />
+        {!isAdmin && <Navbar locale={locale} />}
 
-        {/* Main content expands to push footer to the bottom */}
-        <main className="flex-grow flex flex-col">{children}</main>
+        {isAdmin ? (
+          children
+        ) : (
+          <main className="flex-grow flex flex-col">{children}</main>
+        )}
 
-        <Footer locale={locale} />
+        {!isAdmin && <Footer locale={locale} />}
       </body>
     </html>
   );

@@ -31,7 +31,7 @@ export default async function AdminLayout({
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 font-english">
       {/* Sidebar */}
-      <AdminSidebar locale={locale} />
+      <AdminSidebar locale={locale} userEmail={user.email ?? undefined} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">

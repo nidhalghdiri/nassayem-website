@@ -18,8 +18,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(request.nextUrl);
   }
 
-  // ── 2. Supabase session refresh (must happen on every request) ──────────
-  let response = NextResponse.next({ request });
+  // ── 2. Clone request headers and add x-pathname so Server Components
+  //       (e.g. the root layout) can detect the current route ────────────
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  // ── 3. Supabase session refresh ─────────────────────────────────────────
+  // We create the initial response with the modified request headers so
+  // x-pathname is preserved even if setAll re-creates the response object.
+  let response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +42,10 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          // Always pass requestHeaders so x-pathname is not lost
+          response = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -42,13 +54,12 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // getUser() refreshes the token and returns the authenticated user (or null).
-  // Do NOT use getSession() here — it is not reliable in middleware.
+  // getUser() refreshes the token. Do NOT use getSession() in middleware.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // ── 3. Admin route protection ───────────────────────────────────────────
+  // ── 4. Admin route protection ───────────────────────────────────────────
   const locale =
     locales.find(
       (l) => pathname.startsWith(`/${l}/`) || pathname === `/${l}`,
@@ -57,13 +68,11 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute = pathname.startsWith(`/${locale}/admin`);
   const isLoginPage = pathname.startsWith(`/${locale}/admin/login`);
 
-  // Unauthenticated on a protected admin route → send to login
   if (isAdminRoute && !isLoginPage && !user) {
     request.nextUrl.pathname = `/${locale}/admin/login`;
     return NextResponse.redirect(request.nextUrl);
   }
 
-  // Already authenticated but visiting login → send to dashboard
   if (isLoginPage && user) {
     request.nextUrl.pathname = `/${locale}/admin`;
     return NextResponse.redirect(request.nextUrl);
@@ -73,6 +82,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Skip static files, API routes, and Next.js internals
   matcher: ["/((?!_next|api|favicon.ico|.*\\..*).*)"],
 };
