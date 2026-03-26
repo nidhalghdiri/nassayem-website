@@ -87,9 +87,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const validTransitions =
-      STATUS_TRANSITIONS[task.type]?.[task.status as never] ?? [];
-    if (!validTransitions.includes(newStatus as never)) {
+    const validTransitions: string[] =
+      (STATUS_TRANSITIONS as Record<string, Record<string, string[]>>)[task.type]?.[task.status] ?? [];
+    if (!validTransitions.includes(newStatus)) {
       return NextResponse.json(
         { error: `Cannot transition from ${task.status} to ${newStatus}` },
         { status: 422 },
