@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { createClient } from "@/utils/supabase/server";
-import { deleteAdminUser } from "@/app/actions/users";
 import InviteUserForm from "@/components/admin/InviteUserForm";
+import DeleteUserButton from "@/components/admin/DeleteUserButton";
 import { format } from "date-fns";
 
 type PageProps = {
@@ -108,25 +108,12 @@ export default async function AdminUsersPage({ params }: PageProps) {
 
                   {/* Delete — hidden for self */}
                   {!isSelf && (
-                    <form action={deleteAdminUser}>
-                      <input type="hidden" name="adminUserId" value={adminUser.id} />
-                      <input type="hidden" name="supabaseId" value={adminUser.supabaseId} />
-                      <input type="hidden" name="locale" value={locale} />
-                      <button
-                        type="submit"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        onClick={(e) => {
-                          if (!confirm(isEn ? "Remove this user's admin access?" : "هل تريد إزالة صلاحية هذا المستخدم؟")) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
-                        </svg>
-                        {isEn ? "Remove" : "إزالة"}
-                      </button>
-                    </form>
+                    <DeleteUserButton
+                      adminUserId={adminUser.id}
+                      supabaseId={adminUser.supabaseId}
+                      locale={locale}
+                      isEn={isEn}
+                    />
                   )}
                 </li>
               );
