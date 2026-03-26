@@ -14,15 +14,18 @@ type BuildingWithUnits = {
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
 
+type ParentTask = { id: string; title: string; type: string } | null;
+
 type Props = {
   buildings: BuildingWithUnits[];
   assignableStaff: StaffUser[];
   locale: string;
+  parentTask?: ParentTask;
 };
 
 const initialState = { error: null };
 
-export default function CreateTaskForm({ buildings, assignableStaff, locale }: Props) {
+export default function CreateTaskForm({ buildings, assignableStaff, locale, parentTask }: Props) {
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
@@ -34,6 +37,22 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale }: P
   return (
     <form action={formAction} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
       <input type="hidden" name="locale" value={locale} />
+      {parentTask && (
+        <input type="hidden" name="parentTaskId" value={parentTask.id} />
+      )}
+
+      {/* Parent task banner */}
+      {parentTask && (
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+          <svg className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <p>
+            {isEn ? "Sub-task of: " : "مهمة فرعية لـ: "}
+            <span className="font-semibold">{parentTask.title}</span>
+          </p>
+        </div>
+      )}
 
       {/* Error banner */}
       {state.error && (

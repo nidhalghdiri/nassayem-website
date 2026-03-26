@@ -7,10 +7,14 @@ import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { StaffRole } from "@prisma/client";
 
-type PageProps = { params: Promise<{ locale: string }> };
+type PageProps = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+};
 
-export default async function NewTaskPage({ params }: PageProps) {
-  const { locale } = await params;
+export default async function NewTaskPage({ params, searchParams }: PageProps) {
+  const [{ locale }, sp] = await Promise.all([params, searchParams]);
+  const parentTaskId = sp.parentTaskId ?? null;
   const adminUser = await getCurrentAdminUser();
 
   if (!adminUser) redirect(`/${locale}/admin/login`);
@@ -19,7 +23,7 @@ export default async function NewTaskPage({ params }: PageProps) {
   const allowedRoles = ASSIGNABLE_ROLES[adminUser.role as TStaffRole] as StaffRole[];
   const isEn = locale === "en";
 
-  const [buildings, assignableStaff] = await Promise.all([
+  const [buildings, assignableStaff, parentTask] = await Promise.all([
     prisma.building.findMany({
       select: {
         id: true,
@@ -37,6 +41,12 @@ export default async function NewTaskPage({ params }: PageProps) {
       select: { id: true, name: true, email: true, role: true },
       orderBy: { name: "asc" },
     }),
+    parentTaskId
+      ? prisma.task.findUnique({
+          where: { id: parentTaskId },
+          select: { id: true, title: true, type: true },
+        })
+      : null,
   ]);
 
   return (
@@ -68,6 +78,7 @@ export default async function NewTaskPage({ params }: PageProps) {
         buildings={buildings}
         assignableStaff={assignableStaff}
         locale={locale}
+        parentTask={parentTask ?? null}
       />
     </div>
   );

@@ -13,7 +13,7 @@ import {
   TRANSITION_BUTTON_LABEL,
   TERMINAL_STATUSES,
 } from "@/lib/tasks/statuses";
-import { canUpdateTaskStatus, canApproveRequests } from "@/lib/tasks/permissions";
+import { canUpdateTaskStatus, canApproveRequests, canSpawnSubtasks } from "@/lib/tasks/permissions";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -561,6 +561,21 @@ export default function TaskDetailPanel({
                     })}
                   </div>
                 )}
+
+                {/* Spawn sub-task — shown when Inspection has Issues Found */}
+                {task.type === "INSPECTION" &&
+                  task.status === "ISSUES_FOUND" &&
+                  canSpawnSubtasks(currentUserRole as TStaffRole) && (
+                    <a
+                      href={`/${locale}/admin/tasks/new?parentTaskId=${task.id}`}
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-xl hover:bg-orange-100 transition-colors w-fit"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      {isEn ? "Spawn Work Order / Maintenance" : "إنشاء أمر عمل / صيانة"}
+                    </a>
+                  )}
 
                 {isTerminal && (
                   <p className="text-xs text-gray-400 italic">

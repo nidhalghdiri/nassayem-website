@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canCreateTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canCreateTasks, canCreateMaintenanceRequest, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
@@ -72,6 +72,61 @@ export async function createTask(
       details: requiresApproval
         ? "Task submitted for approval."
         : `Task created and assigned to ${assignee.name ?? assignee.email}.`,
+    },
+  });
+
+  revalidatePath(`/${locale}/admin/tasks`);
+  redirect(`/${locale}/admin/tasks`);
+}
+
+// ── Submit a maintenance request (HOUSEKEEPING only) ─────────────────────────
+// Creates a MAINTENANCE task with requiresApproval=true, assigned to self.
+// Bypasses ASSIGNABLE_ROLES — HOUSEKEEPING can't normally assign tasks.
+export async function createMaintenanceRequest(
+  _prevState: { error: string | null },
+  formData: FormData,
+): Promise<{ error: string | null }> {
+  const adminUser = await getCurrentAdminUser();
+  if (!adminUser) return { error: "Unauthorized." };
+  if (!canCreateMaintenanceRequest(adminUser.role as TStaffRole)) {
+    return { error: "Only Housekeeping staff can submit maintenance requests." };
+  }
+
+  const locale = (formData.get("locale") as string) || "en";
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const buildingId = formData.get("buildingId") as string;
+  const unitId = (formData.get("unitId") as string) || null;
+  const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
+  const dueDate = formData.get("dueDate") as string;
+
+  if (!title || !buildingId || !dueDate) {
+    return { error: "Please fill in all required fields." };
+  }
+
+  const task = await prisma.task.create({
+    data: {
+      type: "MAINTENANCE",
+      title,
+      description,
+      buildingId,
+      unitId,
+      priority,
+      status: "PENDING_APPROVAL",
+      createdById: adminUser.id,
+      assignedToId: adminUser.id, // assigned to self; manager will reassign on approval
+      dueDate: new Date(dueDate),
+      requiresApproval: true,
+      approvalStatus: "PENDING",
+    },
+  });
+
+  await prisma.taskActivity.create({
+    data: {
+      taskId: task.id,
+      userId: adminUser.id,
+      action: "task_created",
+      details: "Maintenance request submitted for approval.",
     },
   });
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
+import type { TaskStatus } from "@prisma/client";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -32,12 +34,18 @@ export default async function AdminDashboard({ params }: PageProps) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const adminUser = await getCurrentAdminUser();
+  const TASK_TERMINAL: TaskStatus[] = [
+    "CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED",
+  ];
+
   const [
     totalBuildings,
     totalUnits,
     activeBookings,
     monthlyRevenueResult,
     recentBookings,
+    taskStats,
   ] = await Promise.all([
     prisma.building.count(),
     prisma.unit.count(),
@@ -64,6 +72,31 @@ export default async function AdminDashboard({ params }: PageProps) {
         },
       },
     }),
+    // Task stats — scoped by role visibility
+    (async () => {
+      const visibilityFilter =
+        adminUser?.role === "MANAGER"
+          ? {}
+          : adminUser
+            ? { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] }
+            : {};
+      const [activeTasks, pendingApproval, overdueTasks] = await Promise.all([
+        prisma.task.count({
+          where: { ...visibilityFilter, status: { notIn: TASK_TERMINAL } },
+        }),
+        prisma.task.count({
+          where: { ...visibilityFilter, status: "PENDING_APPROVAL" },
+        }),
+        prisma.task.count({
+          where: {
+            ...visibilityFilter,
+            dueDate: { lt: now },
+            status: { notIn: TASK_TERMINAL },
+          },
+        }),
+      ]);
+      return { activeTasks, pendingApproval, overdueTasks };
+    })(),
   ]);
 
   const monthlyRevenue = monthlyRevenueResult._sum.totalPrice ?? 0;
@@ -168,6 +201,59 @@ export default async function AdminDashboard({ params }: PageProps) {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* Task Stats */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-base md:text-lg font-bold text-gray-900">
+            {isEn ? "Tasks Overview" : "نظرة عامة على المهام"}
+          </h3>
+          <Link
+            href={`/${locale}/admin/tasks`}
+            className="text-sm text-nassayem font-semibold hover:underline"
+          >
+            {isEn ? "View Board →" : "← عرض اللوحة"}
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-gray-100">
+          {[
+            {
+              labelEn: "Active Tasks",
+              labelAr: "مهام نشطة",
+              value: taskStats.activeTasks,
+              href: `/${locale}/admin/tasks`,
+              color: "text-blue-600",
+            },
+            {
+              labelEn: "Pending Approval",
+              labelAr: "قيد الموافقة",
+              value: taskStats.pendingApproval,
+              href: `/${locale}/admin/tasks/approvals`,
+              color: taskStats.pendingApproval > 0 ? "text-yellow-600" : "text-gray-400",
+            },
+            {
+              labelEn: "Overdue",
+              labelAr: "متأخرة",
+              value: taskStats.overdueTasks,
+              href: `/${locale}/admin/tasks`,
+              color: taskStats.overdueTasks > 0 ? "text-red-600" : "text-gray-400",
+            },
+          ].map((s) => (
+            <Link
+              key={s.labelEn}
+              href={s.href}
+              className="flex flex-col items-center justify-center py-5 px-4 hover:bg-gray-50 transition-colors text-center"
+            >
+              <span className={`text-2xl md:text-3xl font-extrabold leading-none ${s.color}`}>
+                {s.value}
+              </span>
+              <span className="text-xs text-gray-500 mt-1">
+                {isEn ? s.labelEn : s.labelAr}
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Recent Bookings */}

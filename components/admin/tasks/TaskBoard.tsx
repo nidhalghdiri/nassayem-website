@@ -168,7 +168,20 @@ export default function TaskBoard({
             </button>
           </div>
 
-          {/* New Task — wired up in Phase 3 */}
+          {/* Approvals link — Manager/Supervisor only */}
+          {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && (
+            <button
+              onClick={() => router.push(`${pathname.replace("/tasks", "")}/tasks/approvals`)}
+              className="relative flex items-center gap-1.5 px-3 py-2 border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-lg text-sm font-medium hover:bg-yellow-100 transition-colors"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">{isEn ? "Approvals" : "الموافقات"}</span>
+            </button>
+          )}
+
+          {/* New Task */}
           <button
             onClick={() => router.push(`${pathname}/new`)}
             className="flex items-center gap-1.5 bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-nassayem/90 transition-colors shadow-sm"
