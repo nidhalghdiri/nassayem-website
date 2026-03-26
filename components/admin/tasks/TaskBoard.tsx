@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import TaskKanbanView from "./TaskKanbanView";
 import TaskListView from "./TaskListView";
+import TaskDetailPanel from "./TaskDetailPanel";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import type { SerializedTask, Building, StaffUser } from "./types";
 
@@ -30,6 +31,7 @@ export default function TaskBoard({
   staffUsers,
   stats,
   locale,
+  currentUserId,
   currentUserRole,
 }: Props) {
   const isEn = locale === "en";
@@ -112,6 +114,7 @@ export default function TaskBoard({
     : [];
 
   return (
+    <>
     <div className="p-4 md:p-6 space-y-5">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-3">
@@ -294,5 +297,12 @@ export default function TaskBoard({
         <TaskListView tasks={tasks} locale={locale} onTaskClick={handleTaskClick} />
       )}
     </div>
+
+    <TaskDetailPanel
+      locale={locale}
+      currentUserId={currentUserId}
+      currentUserRole={currentUserRole}
+    />
+  </>
   );
 }
