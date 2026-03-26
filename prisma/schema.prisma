@@ -12,7 +12,7 @@ datasource db {
 }
 
 // ------------------------------------------------------
-// ENUMS
+// ENUMS — Property rental
 // ------------------------------------------------------
 
 enum UnitType {
@@ -37,122 +37,265 @@ enum BookingStatus {
 }
 
 // ------------------------------------------------------
-// MODELS
+// ENUMS — Staff & Task management
+// ------------------------------------------------------
+
+enum StaffRole {
+  MANAGER
+  SUPERVISOR
+  RECEPTIONIST
+  HOUSEKEEPING
+  MAINTENANCE
+}
+
+enum TaskType {
+  CLEANING
+  INSPECTION
+  MAINTENANCE
+  WORK_ORDER
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Unified status enum — valid values depend on TaskType (enforced in app logic)
+enum TaskStatus {
+  PENDING_APPROVAL    // Maintenance requests awaiting Manager/Supervisor approval
+  ASSIGNED            // Task created and assigned, work not started
+  CLEANING_STARTED
+  CLEANING_COMPLETED
+  INSPECTING
+  ISSUES_FOUND
+  NO_ISSUES
+  WORK_STARTED
+  WORK_COMPLETED
+  IN_PROGRESS         // Work Order
+  COMPLETED           // Work Order final
+  ON_HOLD
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ------------------------------------------------------
+// MODELS — Property rental
 // ------------------------------------------------------
 
 model Building {
-  id          String   @id @default(uuid())
-  nameEn      String
-  nameAr      String
-  locationEn  String
-  locationAr  String
-  latitude    Float?   // For the Leaflet Map
-  longitude   Float?   // For the Leaflet Map
+  id            String   @id @default(uuid())
+  nameEn        String
+  nameAr        String
+  locationEn    String
+  locationAr    String
+  latitude      Float?
+  longitude     Float?
   descriptionEn String?
   descriptionAr String?
-
   imageUrl      String?
-  
+
   // Relations
-  units       Unit[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  units         Unit[]
+  tasks         Task[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Unit {
   id            String   @id @default(uuid())
   buildingId    String
-  
-  // Content
+
   titleEn       String
   titleAr       String
   descriptionEn String   @db.Text
   descriptionAr String   @db.Text
-  
-  // Categorization
+
   unitType      UnitType
   rentType      RentType
-  
-  // Pricing (Stored as Decimal/Float for OMR)
+
   dailyPrice    Float?
   monthlyPrice  Float?
-  
-  // Specifications
+
   guests        Int      @default(1)
   bedrooms      Int      @default(1)
   beds          Int      @default(1)
   bathrooms     Int      @default(1)
-  
-  // State
+
   isPublished   Boolean  @default(false)
-  
+
   // Relations
   building      Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   images        UnitImage[]
-  amenities     Amenity[]   // Implicit Many-to-Many relation
+  amenities     Amenity[]
   bookings      Booking[]
+  tasks         Task[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
 model UnitImage {
-  id          String   @id @default(uuid())
-  unitId      String
-  url         String   // The Supabase Storage URL
-  isMain      Boolean  @default(false) // To identify the cover image
-  displayOrder Int     @default(0)     // To control the slider order
-  
-  // Relations
-  unit        Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  unitId       String
+  url          String
+  isMain       Boolean  @default(false)
+  displayOrder Int      @default(0)
 
-  createdAt   DateTime @default(now())
+  unit         Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
 }
 
 model Amenity {
-  id          String   @id @default(uuid())
-  nameEn      String   @unique
-  nameAr      String   @unique
-  iconSvg     String?  // Store the SVG path string here so the UI can render it dynamically
-  
-  // Relations
-  units       Unit[]   // Implicit Many-to-Many relation
+  id        String  @id @default(uuid())
+  nameEn    String  @unique
+  nameAr    String  @unique
+  iconSvg   String?
 
-  createdAt   DateTime @default(now())
+  units     Unit[]
+
+  createdAt DateTime @default(now())
 }
 
 model Booking {
-  id            String   @id @default(uuid())
-  unitId        String
+  id           String        @id @default(uuid())
+  unitId       String
 
-  // Guest Info (In a full app, this might link to a User model)
-  guestName     String
-  guestEmail    String
-  guestPhone    String
+  guestName    String
+  guestEmail   String
+  guestPhone   String
 
-  // Booking Details
-  checkIn       DateTime
-  checkOut      DateTime
-  totalPrice    Float
-  status        BookingStatus @default(PENDING)
+  checkIn      DateTime
+  checkOut     DateTime
+  totalPrice   Float
+  status       BookingStatus @default(PENDING)
 
-  // Relations
-  unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
-// Admin users who can log in to the /admin panel.
-// Authentication is handled by Supabase Auth — this model stores
-// profile data and links back via supabaseId.
-model AdminUser {
-  id          String   @id @default(uuid())
-  supabaseId  String   @unique  // Maps to Supabase auth.users.id
-  email       String   @unique
-  name        String?
+// ------------------------------------------------------
+// MODELS — Admin users & Task management
+// ------------------------------------------------------
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model AdminUser {
+  id         String    @id @default(uuid())
+  supabaseId String    @unique
+  email      String    @unique
+  name       String?
+  role       StaffRole @default(MANAGER)
+
+  // Task relations
+  createdTasks    Task[]         @relation("TaskCreatedBy")
+  assignedTasks   Task[]         @relation("TaskAssignedTo")
+  approvedTasks   Task[]         @relation("TaskApprovedBy")
+  taskNotes       TaskNote[]
+  taskPhotos      TaskPhoto[]
+  taskActivities  TaskActivity[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  type        TaskType
+  title       String
+  description String?      @db.Text
+
+  // Location
+  buildingId  String
+  unitId      String?      // null = common area
+
+  // Priority & status
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(ASSIGNED)
+
+  // People
+  createdById  String
+  assignedToId String
+
+  dueDate      DateTime
+
+  // Sub-task / parent link (Inspection → spawns Cleaning or Maintenance)
+  parentTaskId String?
+
+  // Maintenance request approval
+  requiresApproval Boolean        @default(false)
+  approvedById     String?
+  approvalStatus   ApprovalStatus?
+
+  // Relations
+  building     Building       @relation(fields: [buildingId], references: [id])
+  unit         Unit?          @relation(fields: [unitId], references: [id])
+  createdBy    AdminUser      @relation("TaskCreatedBy",  fields: [createdById],  references: [id])
+  assignedTo   AdminUser      @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  approvedBy   AdminUser?     @relation("TaskApprovedBy", fields: [approvedById], references: [id])
+  parentTask   Task?          @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks     Task[]         @relation("SubTasks")
+
+  notes        TaskNote[]
+  photos       TaskPhoto[]
+  activities   TaskActivity[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([buildingId])
+  @@index([dueDate])
+  @@index([type])
+}
+
+model TaskNote {
+  id        String    @id @default(uuid())
+  taskId    String
+  userId    String
+  text      String    @db.Text
+
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      AdminUser @relation(fields: [userId], references: [id])
+
+  createdAt DateTime  @default(now())
+}
+
+model TaskPhoto {
+  id        String    @id @default(uuid())
+  taskId    String
+  userId    String
+  photoUrl  String
+  caption   String?
+
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      AdminUser @relation(fields: [userId], references: [id])
+
+  createdAt DateTime  @default(now())
+}
+
+// Auto-generated audit log — one record per meaningful action on a task
+model TaskActivity {
+  id      String    @id @default(uuid())
+  taskId  String
+  userId  String
+  // action: "task_created" | "status_changed" | "note_added" | "photo_uploaded" | "approved" | "rejected"
+  action  String
+  details String    @db.Text
+
+  task    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user    AdminUser @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
 }
