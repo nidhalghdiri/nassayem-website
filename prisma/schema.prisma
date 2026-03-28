@@ -244,9 +244,10 @@ model Task {
   parentTask   Task?          @relation("SubTasks", fields: [parentTaskId], references: [id])
   subTasks     Task[]         @relation("SubTasks")
 
-  notes        TaskNote[]
-  photos       TaskPhoto[]
-  activities   TaskActivity[]
+  notes                TaskNote[]
+  photos               TaskPhoto[]
+  activities           TaskActivity[]
+  inspectionChecklist  InspectionChecklist?
 
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -298,4 +299,41 @@ model TaskActivity {
   createdAt DateTime @default(now())
 
   @@index([taskId])
+}
+
+// ── Inspection checklist — created automatically for INSPECTION tasks ─────────
+
+model InspectionChecklist {
+  id             String                    @id @default(uuid())
+  taskId         String                    @unique
+  task           Task                      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items          InspectionChecklistItem[]
+  overallRating  String?                   // "excellent" | "good" | "fair" | "poor"
+  inspectorNotes String?                   @db.Text
+  completedAt    DateTime?
+
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([taskId])
+}
+
+model InspectionChecklistItem {
+  id             String              @id @default(uuid())
+  checklistId    String
+  checklist      InspectionChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  category       String
+  label          String
+  status         String              @default("pending") // "pending" | "pass" | "fail" | "na"
+  notes          String?             @db.Text
+  severity       String?             // "minor" | "major" | "critical"
+  photoUrls      String[]            @default([])
+  displayOrder   Int                 @default(0)
+  followUpTaskId String?
+
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([checklistId])
 }

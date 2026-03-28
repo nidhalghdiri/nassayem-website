@@ -29,12 +29,15 @@ export async function GET(_req: Request, { params }: RouteContext) {
         orderBy: { createdAt: "asc" },
       },
       photos: {
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { createdAt: "asc" },
       },
       activities: {
         include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { createdAt: "asc" },
+      },
+      inspectionChecklist: {
+        select: { id: true, completedAt: true },
       },
     },
   });

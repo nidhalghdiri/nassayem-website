@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canCreateTasks, canCreateMaintenanceRequest, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
+import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
 
@@ -74,6 +75,22 @@ export async function createTask(
         : `Task created and assigned to ${assignee.name ?? assignee.email}.`,
     },
   });
+
+  // Auto-create inspection checklist with default items
+  if (type === "INSPECTION") {
+    const checklist = await prisma.inspectionChecklist.create({
+      data: { taskId: task.id },
+    });
+    await prisma.inspectionChecklistItem.createMany({
+      data: DEFAULT_CHECKLIST_ITEMS.map((item, idx) => ({
+        checklistId: checklist.id,
+        category: item.category,
+        label: item.labelEn,
+        displayOrder: idx,
+        status: "pending",
+      })),
+    });
+  }
 
   revalidatePath(`/${locale}/admin/tasks`);
   redirect(`/${locale}/admin/tasks`);
