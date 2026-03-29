@@ -202,6 +202,7 @@ model AdminUser {
   taskNotes       TaskNote[]
   taskPhotos      TaskPhoto[]
   taskActivities  TaskActivity[]
+  posts           Post[]
 
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -336,4 +337,33 @@ model InspectionChecklistItem {
   updatedAt      DateTime            @updatedAt
 
   @@index([checklistId])
+}
+
+// ------------------------------------------------------
+// MODELS — Blog & Content
+// ------------------------------------------------------
+
+model Post {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  
+  titleEn       String
+  titleAr       String
+  contentEn     String   @db.Text
+  contentAr     String   @db.Text
+  excerptEn     String?  @db.Text
+  excerptAr     String?  @db.Text
+  
+  coverImage    String?
+  isPublished   Boolean  @default(false)
+
+  // Relations
+  authorId      String?
+  author        AdminUser? @relation(fields: [authorId], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isPublished])
 }

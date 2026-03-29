@@ -52,6 +52,13 @@ export default function AdminSidebar({ locale, userEmail }: Props) {
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
     },
     {
+      nameEn: "Blog",
+      nameAr: "المدونة",
+      href: `/${locale}/admin/blog`,
+      exact: false,
+      icon: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2z M14 2v4a2 2 0 002 2h4 M10 9H8m2 4H8m5 4h-5",
+    },
+    {
       nameEn: "Users",
       nameAr: "المستخدمون",
       href: `/${locale}/admin/users`,

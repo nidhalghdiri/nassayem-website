@@ -20,6 +20,10 @@ export default function Navbar({ locale }: { locale: string }) {
       href: `/${locale}/properties`,
     },
     {
+      name: locale === "en" ? "Blog" : "المدونة",
+      href: `/${locale}/blog`,
+    },
+    {
       name: locale === "en" ? "Contact" : "اتصل بنا",
       href: `/${locale}/contact`,
     },

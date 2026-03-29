@@ -7,6 +7,7 @@ import PropertyCard from "@/components/properties/PropertyCard";
 import LocationsMap from "@/components/home/LocationsMap";
 import prisma from "@/lib/prisma";
 import KhareefBanner from "@/components/marketing/KhareefBanner";
+import BlogSection from "@/components/home/BlogSection";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -367,9 +368,12 @@ export default async function HomePage({ params }: PageProps) {
         </AnimatedSection>
       </section>
 
-      {/* 7. CONTACT US & SOCIAL MEDIA */}
+      {/* 7. BLOG SECTION */}
+      <BlogSection locale={locale} />
+
+      {/* 8. CONTACT US & SOCIAL MEDIA */}
       <ContactSection locale={locale} />
-      {/* 8. LOCATIONS MAP (New Interactive Map Section) */}
+      {/* 9. LOCATIONS MAP (New Interactive Map Section) */}
       <LocationsMap locale={locale} />
 
       <KhareefBanner locale={locale} />
