@@ -24,7 +24,7 @@ export default function UnitForm({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(() => {
-      if (isEditing && initialData.id) {
+      if (isEditing && initialData?.id) {
         updateUnit(initialData.id, formData, locale);
       } else {
         createUnit(formData, locale);
@@ -241,7 +241,7 @@ export default function UnitForm({
                 type="number"
                 name={spec}
                 min="1"
-                defaultValue={initialData[spec]}
+                defaultValue={initialData?.[spec] || 1}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-nassayem/50 text-center font-bold"
               />
             </div>
