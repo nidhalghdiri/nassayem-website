@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import imageCompression from "browser-image-compression";
 import {
   OVERALL_RATING_CONFIG,
   SEVERITY_CONFIG,
@@ -139,10 +140,24 @@ export default function InspectionMode({ task, checklist: initial, locale }: Pro
     e: React.ChangeEvent<HTMLInputElement>,
     itemId: string,
   ) {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
     setPhotoUploading(itemId);
     try {
+      // Compress if > 1MB
+      if (file.size > 1024 * 1024) {
+        try {
+          const options = {
+            maxSizeMB: 0.8,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true,
+          };
+          file = await imageCompression(file, options);
+        } catch (error) {
+          console.error("Compression failed:", error);
+        }
+      }
+
       const fd = new FormData();
       fd.append("file", file);
       fd.append("caption", `Inspection item: ${items.find((i) => i.id === itemId)?.label ?? ""}`);

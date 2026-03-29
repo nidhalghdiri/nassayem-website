@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import imageCompression from "browser-image-compression";
 import {
   TASK_TYPE_CONFIG,
   TASK_PRIORITY_CONFIG,
@@ -414,13 +415,29 @@ export default function TaskDetailPanel({
     setPhotoLoading(true);
     let successCount = 0;
     let lastError: string | null = null;
-    for (const file of files) {
+    for (let file of files) {
+      // If file is > 1MB, compress it
+      if (file.size > 1024 * 1024) {
+        try {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          file = await imageCompression(file, options);
+        } catch (error) {
+          console.error("Compression failed:", error);
+        }
+      }
+
+      // Final safety check (if compression failed or was still too large)
       if (file.size > 10 * 1024 * 1024) {
         lastError = isEn
           ? `"${file.name}" exceeds 10 MB.`
           : `"${file.name}" أكبر من 10 ميغابايت.`;
         continue;
       }
+
       const fd = new FormData();
       fd.append("file", file);
       if (photoCaption.trim()) fd.append("caption", photoCaption.trim());

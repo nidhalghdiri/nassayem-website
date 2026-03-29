@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { createBuilding, updateBuilding } from "@/app/actions/building";
 import Link from "next/link";
+import imageCompression from "browser-image-compression";
 
 export default function BuildingForm({
   locale,
@@ -13,11 +14,46 @@ export default function BuildingForm({
 }) {
   const isEn = locale === "en";
   const [isPending, startTransition] = useTransition();
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressedFile, setCompressedFile] = useState<File | null>(null);
   const isEditing = !!initialData;
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setCompressedFile(null);
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      setIsCompressing(true);
+      try {
+        const options = {
+          maxSizeMB: 0.9,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        const compressed = await imageCompression(file, options);
+        setCompressedFile(compressed);
+      } catch (error) {
+        console.error("Compression failed:", error);
+        setCompressedFile(file);
+      } finally {
+        setIsCompressing(false);
+      }
+    } else {
+      setCompressedFile(file);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    // If we have a compressed file, replace the one in formData
+    if (compressedFile) {
+      formData.set("image", compressedFile);
+    }
 
     // Use React transition to show loading state while the Server Action runs
     startTransition(() => {
@@ -171,8 +207,15 @@ export default function BuildingForm({
             type="file"
             name="image"
             accept="image/jpeg, image/png, image/webp"
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-nassayem/10 file:text-nassayem hover:file:bg-nassayem/20 cursor-pointer border border-gray-200 rounded-xl"
+            onChange={handleFileChange}
+            disabled={isPending || isCompressing}
+            className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-nassayem/10 file:text-nassayem hover:file:bg-nassayem/20 cursor-pointer border border-gray-200 rounded-xl disabled:opacity-50"
           />
+          {isCompressing && (
+            <p className="text-xs text-nassayem font-bold mt-1 animate-pulse">
+              {isEn ? "Optimizing image..." : "جاري تحسين الصورة..."}
+            </p>
+          )}
         </div>
       </div>
 
@@ -186,8 +229,8 @@ export default function BuildingForm({
         </Link>
         <button
           type="submit"
-          disabled={isPending}
-          className="px-8 py-3 rounded-xl font-bold text-white bg-nassayem hover:bg-nassayem-dark transition-colors flex items-center justify-center min-w-[140px]"
+          disabled={isPending || isCompressing}
+          className="px-8 py-3 rounded-xl font-bold text-white bg-nassayem hover:bg-nassayem-dark transition-colors flex items-center justify-center min-w-[140px] disabled:opacity-50"
         >
           {isPending ? (
             <svg
