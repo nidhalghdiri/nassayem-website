@@ -1,24 +1,12 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { supabaseAdmin } from "@/lib/supabase";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "tasks", "photos");
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
-
-function ensureUploadDir() {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-}
 
 // ── GET /api/tasks/:id/photos ─────────────────────────────────────────────────
 export async function GET(_req: Request, { params }: RouteContext) {
@@ -42,9 +30,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
 }
 
 // ── POST /api/tasks/:id/photos ────────────────────────────────────────────────
-// Accepts multipart/form-data:
-//   file    — image file (jpg/png/webp, max 10 MB)
-//   caption — optional text caption
 export async function POST(request: Request, { params }: RouteContext) {
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,7 +49,6 @@ export async function POST(request: Request, { params }: RouteContext) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "file is required" }, { status: 400 });
 
-  // Validate type
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
       { error: "Invalid file type. Only JPG, PNG, and WebP are allowed." },
@@ -72,7 +56,6 @@ export async function POST(request: Request, { params }: RouteContext) {
     );
   }
 
-  // Validate size
   if (file.size > MAX_SIZE) {
     return NextResponse.json(
       { error: "File too large. Maximum size is 10 MB." },
@@ -82,47 +65,58 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const caption = (formData.get("caption") as string | null)?.trim() ?? null;
 
-  // Build unique filename
+  // Build unique path in Supabase bucket
   const ext = file.name.split(".").pop() ?? "jpg";
-  const safeName = sanitizeFilename(file.name.replace(/\.[^.]+$/, ""));
-  const filename = `${taskId}_${Date.now()}_${safeName}.${ext}`;
-  const filepath = path.join(UPLOAD_DIR, filename);
-  const publicUrl = `/uploads/tasks/photos/${filename}`;
+  const filename = `${taskId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
-  // Write to disk
+  // Upload to Supabase Storage
   try {
-    ensureUploadDir();
-    const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(filepath, buffer);
+    const buffer = await file.arrayBuffer();
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("task-photos")
+      .upload(filename, buffer, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+      return NextResponse.json({ error: "Failed to upload to storage." }, { status: 500 });
+    }
+
+    // Get Public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from("task-photos")
+      .getPublicUrl(filename);
+
+    // Persist record + activity in transaction
+    const [photo] = await prisma.$transaction([
+      prisma.taskPhoto.create({
+        data: {
+          taskId,
+          userId: adminUser.id,
+          photoUrl: publicUrl,
+          caption,
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true, role: true } },
+        },
+      }),
+      prisma.taskActivity.create({
+        data: {
+          taskId,
+          userId: adminUser.id,
+          action: "photo_uploaded",
+          details: caption
+            ? `Photo uploaded with caption: "${caption}"`
+            : "Photo uploaded",
+        },
+      }),
+    ]);
+
+    return NextResponse.json(photo, { status: 201 });
   } catch (err) {
-    console.error("Photo write error:", err);
-    return NextResponse.json({ error: "Failed to save file." }, { status: 500 });
+    console.error("Task photo error:", err);
+    return NextResponse.json({ error: "Server error during photo upload." }, { status: 500 });
   }
-
-  // Persist record + activity in transaction
-  const [photo] = await prisma.$transaction([
-    prisma.taskPhoto.create({
-      data: {
-        taskId,
-        userId: adminUser.id,
-        photoUrl: publicUrl,
-        caption,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true } },
-      },
-    }),
-    prisma.taskActivity.create({
-      data: {
-        taskId,
-        userId: adminUser.id,
-        action: "photo_uploaded",
-        details: caption
-          ? `Photo uploaded with caption: "${caption}"`
-          : "Photo uploaded",
-      },
-    }),
-  ]);
-
-  return NextResponse.json(photo, { status: 201 });
 }
