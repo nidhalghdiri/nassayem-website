@@ -72,6 +72,18 @@ export async function POST(request: Request, { params }: RouteContext) {
   // Upload to Supabase Storage
   try {
     const buffer = await file.arrayBuffer();
+
+    // Ensure bucket exists (best effort, service role has permission)
+    try {
+      await supabaseAdmin.storage.createBucket("task-photos", {
+        public: true,
+        fileSizeLimit: MAX_SIZE,
+        allowedMimeTypes: ALLOWED_TYPES,
+      });
+    } catch {
+      // Ignore if bucket already exists
+    }
+
     const { error: uploadError } = await supabaseAdmin.storage
       .from("task-photos")
       .upload(filename, buffer, {
