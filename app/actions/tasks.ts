@@ -76,20 +76,39 @@ export async function createTask(
     },
   });
 
-  // Auto-create inspection checklist with default items
+  // Auto-create inspection checklist with custom or default items
   if (type === "INSPECTION") {
     const checklist = await prisma.inspectionChecklist.create({
       data: { taskId: task.id },
     });
-    await prisma.inspectionChecklistItem.createMany({
-      data: DEFAULT_CHECKLIST_ITEMS.map((item, idx) => ({
-        checklistId: checklist.id,
-        category: item.category,
-        label: item.labelEn,
-        displayOrder: idx,
-        status: "pending",
-      })),
+
+    const customCategories = await prisma.inspectionCategory.findMany({
+      include: { items: { orderBy: { displayOrder: "asc" } } },
+      orderBy: { displayOrder: "asc" },
     });
+
+    if (customCategories.length > 0) {
+      const itemsToCreate = customCategories.flatMap((cat) =>
+        cat.items.map((item, idx) => ({
+          checklistId: checklist.id,
+          category: locale === "ar" ? cat.nameAr : cat.nameEn,
+          label: locale === "ar" ? item.labelAr : item.labelEn,
+          displayOrder: idx,
+          status: "pending",
+        }))
+      );
+      await prisma.inspectionChecklistItem.createMany({ data: itemsToCreate });
+    } else {
+      await prisma.inspectionChecklistItem.createMany({
+        data: DEFAULT_CHECKLIST_ITEMS.map((item, idx) => ({
+          checklistId: checklist.id,
+          category: item.category,
+          label: locale === "ar" ? item.labelAr : item.labelEn,
+          displayOrder: idx,
+          status: "pending",
+        })),
+      });
+    }
   }
 
   revalidatePath(`/${locale}/admin/tasks`);

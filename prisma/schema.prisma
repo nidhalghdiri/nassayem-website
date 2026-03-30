@@ -333,11 +333,38 @@ model InspectionChecklistItem {
   photoUrls      String[]            @default([])
   displayOrder   Int                 @default(0)
   followUpTaskId String?
+  maintenanceTaskId String?           // ID of the maintenance task if requested from here
 
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
   @@index([checklistId])
+}
+
+// ── Custom Inspection Settings ───────────────────────────────────────────────
+
+model InspectionCategory {
+  id           String           @id @default(uuid())
+  nameEn       String
+  nameAr       String
+  displayOrder Int              @default(0)
+  items        InspectionItem[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model InspectionItem {
+  id           String             @id @default(uuid())
+  categoryId   String
+  category     InspectionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  labelEn      String
+  labelAr      String
+  displayOrder Int                @default(0)
+
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 }
 
 // ------------------------------------------------------

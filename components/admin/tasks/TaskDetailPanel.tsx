@@ -66,7 +66,17 @@ type FullTask = {
   photos: PhotoItem[];
   activities: ActivityItem[];
   subTasks: { id: string; title: string; type: string; status: string }[];
-  inspectionChecklist?: { id: string; completedAt: string | null } | null;
+  inspectionChecklist?: {
+    id: string;
+    completedAt: string | null;
+    items: {
+      id: string;
+      label: string;
+      status: string;
+      notes: string | null;
+      maintenanceTaskId: string | null;
+    }[];
+  } | null;
 };
 
 type ToastData = { msg: string; type: "success" | "error" };
@@ -880,6 +890,54 @@ export default function TaskDetailPanel({
                   <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {task.description}
                   </p>
+                </section>
+              )}
+
+              {/* ── Inspection Summary ────────────────────────────────────────── */}
+              {task.type === "INSPECTION" && task.inspectionChecklist && (
+                <section className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">
+                      {isEn ? "Inspection Summary" : "ملخص الفحص"}
+                    </h3>
+                    {task.inspectionChecklist.completedAt && (
+                      <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                        {isEn ? "Completed" : "مكتمل"}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-white border-2 border-green-500/20 rounded-2xl p-3 text-center shadow-sm">
+                      <p className="text-xl font-black text-green-600">
+                        {task.inspectionChecklist.items.filter(i => i.status === 'pass').length}
+                      </p>
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{isEn ? "OK" : "سليم"}</p>
+                    </div>
+                    <div className="bg-white border-2 border-red-500/20 rounded-2xl p-3 text-center shadow-sm">
+                      <p className="text-xl font-black text-red-600">
+                        {task.inspectionChecklist.items.filter(i => i.status === 'fail').length}
+                      </p>
+                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{isEn ? "Not OK" : "معطوب"}</p>
+                    </div>
+                  </div>
+
+                  {/* Issues list */}
+                  <div className="space-y-2">
+                    {task.inspectionChecklist.items.filter(i => i.status === 'fail').map(item => (
+                      <div key={item.id} className="text-xs p-3 bg-white rounded-xl border border-red-100 shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-bold text-gray-800">{item.label}</p>
+                          {item.maintenanceTaskId && (
+                            <span className="shrink-0 bg-orange-100 text-orange-700 font-black px-1.5 py-0.5 rounded text-[8px] uppercase">
+                              {isEn ? "Maint. Req" : "طلب صيانة"}
+                            </span>
+                          )}
+                        </div>
+                        {item.notes && <p className="text-gray-500 mt-1 italic">"{item.notes}"</p>}
+                      </div>
+                    ))}
+                  </div>
                 </section>
               )}
 

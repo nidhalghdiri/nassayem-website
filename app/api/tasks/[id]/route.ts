@@ -37,7 +37,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
         orderBy: { createdAt: "asc" },
       },
       inspectionChecklist: {
-        select: { id: true, completedAt: true },
+        include: {
+          items: {
+            orderBy: { displayOrder: "asc" }
+          }
+        }
       },
     },
   });
