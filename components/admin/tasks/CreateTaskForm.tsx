@@ -9,7 +9,7 @@ type BuildingWithUnits = {
   id: string;
   nameEn: string;
   nameAr: string;
-  units: { id: string; titleEn: string; titleAr: string }[];
+  units: { id: string; unitCode: string | null; titleEn: string; titleAr: string }[];
 };
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
@@ -178,7 +178,7 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
             </option>
             {units.map((u) => (
               <option key={u.id} value={u.id}>
-                {isEn ? u.titleEn : u.titleAr}
+                {u.unitCode ? `${u.unitCode} - ` : ""}{isEn ? u.titleEn : u.titleAr}
               </option>
             ))}
           </select>

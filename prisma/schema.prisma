@@ -113,6 +113,7 @@ model Unit {
   id            String   @id @default(uuid())
   buildingId    String
 
+  unitCode      String?  @unique
   titleEn       String
   titleAr       String
   descriptionEn String   @db.Text

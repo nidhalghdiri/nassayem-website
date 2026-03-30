@@ -108,7 +108,9 @@ export default function TaskCard({
           <p className="text-xs text-gray-500 truncate">
             {isEn ? task.building.nameEn : task.building.nameAr}
             {task.unit && (
-              <span className="text-gray-400"> · {isEn ? task.unit.titleEn : task.unit.titleAr}</span>
+              <span className="text-gray-400">
+                {" "}· {task.unit.unitCode ? `[${task.unit.unitCode}] ` : ""}{isEn ? task.unit.titleEn : task.unit.titleAr}
+              </span>
             )}
           </p>
         )}

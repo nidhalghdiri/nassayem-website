@@ -86,6 +86,26 @@ export default function UnitForm({
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Unit Code (Shared context) */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              {isEn ? "Unit Code (Internal) *" : "رمز الوحدة (داخلي) *"}
+            </label>
+            <input
+              type="text"
+              name="unitCode"
+              defaultValue={initialData?.unitCode}
+              required
+              placeholder="e.g. OK-101, BS-505"
+              className="w-full max-w-xs bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all font-mono"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {isEn 
+                ? "This is used for internal tracking and tasks (e.g., OK-101)."
+                : "يستخدم للتتبع الداخلي والمهام (مثل OK-101)."}
+            </p>
+          </div>
+
           {/* English Side */}
           <div className="space-y-5">
             <div>

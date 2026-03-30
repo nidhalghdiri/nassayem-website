@@ -58,7 +58,7 @@ type FullTask = {
   requiresApproval: boolean;
   approvalStatus: string | null;
   building: { id: string; nameEn: string; nameAr: string } | null;
-  unit: { id: string; titleEn: string; titleAr: string } | null;
+  unit: { id: string; unitCode: string | null; titleEn: string; titleAr: string } | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
   approvedBy: { id: string; name: string | null; email: string } | null;
@@ -794,8 +794,15 @@ export default function TaskDetailPanel({
                         : "—"}
                     </dd>
                     {task.unit && (
-                      <dd className="text-xs text-gray-500 mt-0.5">
-                        {isEn ? task.unit.titleEn : task.unit.titleAr}
+                      <dd className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                        {task.unit.unitCode && (
+                          <span className="shrink-0 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-mono font-bold border border-gray-200">
+                            {task.unit.unitCode}
+                          </span>
+                        )}
+                        <span className="truncate">
+                          {isEn ? task.unit.titleEn : task.unit.titleAr}
+                        </span>
                       </dd>
                     )}
                   </div>

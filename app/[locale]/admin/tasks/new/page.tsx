@@ -30,8 +30,8 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
         nameEn: true,
         nameAr: true,
         units: {
-          select: { id: true, titleEn: true, titleAr: true },
-          orderBy: { titleEn: "asc" },
+          select: { id: true, unitCode: true, titleEn: true, titleAr: true },
+          orderBy: { unitCode: "asc" },
         },
       },
       orderBy: { nameEn: "asc" },

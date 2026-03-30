@@ -103,10 +103,17 @@ export default async function UnitsPage({ params }: PageProps) {
                   {units.map((unit) => (
                     <tr key={unit.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900 text-sm">
-                          {isEn ? unit.titleEn : unit.titleAr}
+                        <div className="flex items-center gap-2">
+                          {unit.unitCode && (
+                            <span className="shrink-0 px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-mono font-bold uppercase tracking-wider border border-gray-200">
+                              {unit.unitCode}
+                            </span>
+                          )}
+                          <div className="font-bold text-gray-900 text-sm truncate max-w-[150px]">
+                            {isEn ? unit.titleEn : unit.titleAr}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="text-xs text-gray-400 mt-1 pl-1">
                           {unit.bedrooms} {isEn ? "bed" : "غرفة"} · {unit.bathrooms} {isEn ? "bath" : "حمام"} · {unit.guests} {isEn ? "guests" : "ضيف"}
                         </div>
                       </td>
@@ -179,10 +186,17 @@ export default async function UnitsPage({ params }: PageProps) {
                   {/* Title + status */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">
-                        {isEn ? unit.titleEn : unit.titleAr}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        {unit.unitCode && (
+                          <span className="shrink-0 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px] font-mono font-bold border border-gray-200 uppercase">
+                            {unit.unitCode}
+                          </span>
+                        )}
+                        <p className="font-bold text-gray-900 text-sm truncate">
+                          {isEn ? unit.titleEn : unit.titleAr}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500">
                         {isEn ? unit.building.nameEn : unit.building.nameAr}
                       </p>
                     </div>

@@ -12,7 +12,7 @@ export type SerializedTask = {
   requiresApproval: boolean;
   approvalStatus: string | null;
   building: { id: string; nameEn: string; nameAr: string } | null;
-  unit: { id: string; titleEn: string; titleAr: string } | null;
+  unit: { id: string; unitCode: string | null; titleEn: string; titleAr: string } | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
   _count: { notes: number; photos: number; subTasks: number };

@@ -8,6 +8,7 @@ import { RentType, UnitType } from "@prisma/client";
 export async function createUnit(formData: FormData, locale: string) {
   // 1. Extract Strings
   const buildingId = formData.get("buildingId") as string;
+  const unitCode = formData.get("unitCode") as string;
   const titleEn = formData.get("titleEn") as string;
   const titleAr = formData.get("titleAr") as string;
   const descriptionEn = formData.get("descriptionEn") as string;
@@ -36,6 +37,7 @@ export async function createUnit(formData: FormData, locale: string) {
   await prisma.unit.create({
     data: {
       buildingId,
+      unitCode: unitCode || null,
       titleEn,
       titleAr,
       descriptionEn,
@@ -63,6 +65,7 @@ export async function updateUnit(
 ) {
   // Extract all the same fields as createUnit
   const buildingId = formData.get("buildingId") as string;
+  const unitCode = formData.get("unitCode") as string;
   const titleEn = formData.get("titleEn") as string;
   const titleAr = formData.get("titleAr") as string;
   const descriptionEn = formData.get("descriptionEn") as string;
@@ -83,6 +86,7 @@ export async function updateUnit(
     where: { id },
     data: {
       buildingId,
+      unitCode: unitCode || null,
       titleEn,
       titleAr,
       descriptionEn,
