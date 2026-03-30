@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import { STATUS_CONFIG, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import type { SerializedTask } from "./types";
@@ -18,7 +19,7 @@ type Props = {
   onTaskClick: (id: string) => void;
 };
 
-export default function TaskListView({ tasks, locale, onTaskClick }: Props) {
+const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: Props) {
   const isEn = locale === "en";
 
   if (tasks.length === 0) {
@@ -188,4 +189,6 @@ export default function TaskListView({ tasks, locale, onTaskClick }: Props) {
       </div>
     </>
   );
-}
+});
+
+export default TaskListView;

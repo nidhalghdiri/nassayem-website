@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import { STATUS_CONFIG, STATUS_TRANSITIONS, TRANSITION_BUTTON_LABEL, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import type { SerializedTask } from "./types";
@@ -29,7 +29,7 @@ type Props = {
   onMobileMove?: (taskId: string, newStatus: TTaskStatus) => void;
 };
 
-export default function TaskCard({
+const TaskCard = memo(function TaskCard({
   task,
   locale,
   onClick,
@@ -204,4 +204,6 @@ export default function TaskCard({
       </div>
     </div>
   );
-}
+});
+
+export default TaskCard;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo, useMemo } from "react";
 import TaskCard from "./TaskCard";
 import type { SerializedTask } from "./types";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
@@ -49,7 +49,7 @@ type Props = {
   onToast: (msg: string, type?: "success" | "error") => void;
 };
 
-export default function TaskKanbanView({
+const TaskKanbanView = memo(function TaskKanbanView({
   tasks,
   locale,
   currentUserId,
@@ -66,12 +66,15 @@ export default function TaskKanbanView({
   const [dropValid, setDropValid] = useState<boolean>(false);
   const draggedTask = useRef<SerializedTask | null>(null);
 
-  // Group tasks by status
-  const tasksByStatus = new Map<TTaskStatus, SerializedTask[]>();
-  for (const task of tasks) {
-    const existing = tasksByStatus.get(task.status as TTaskStatus) ?? [];
-    tasksByStatus.set(task.status as TTaskStatus, [...existing, task]);
-  }
+  // Group tasks by status — MEMOIZED
+  const tasksByStatus = useMemo(() => {
+    const map = new Map<TTaskStatus, SerializedTask[]>();
+    for (const task of tasks) {
+      const existing = map.get(task.status as TTaskStatus) ?? [];
+      map.set(task.status as TTaskStatus, [...existing, task]);
+    }
+    return map;
+  }, [tasks]);
 
   // ── Drag handlers (passed to TaskCard) ────────────────────────────────────
 
@@ -265,4 +268,6 @@ export default function TaskKanbanView({
       })}
     </div>
   );
-}
+});
+
+export default TaskKanbanView;
