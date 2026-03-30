@@ -11,7 +11,7 @@ type PendingTask = {
   priority: string;
   dueDate: string;
   building: { nameEn: string; nameAr: string } | null;
-  unit: { titleEn: string; titleAr: string } | null;
+  unit: { unitCode: string | null; titleEn: string; titleAr: string } | null;
   createdBy: { name: string | null; email: string } | null;
   createdAt: string;
 };
@@ -157,7 +157,11 @@ export default function ApprovalsQueue({ initialTasks, locale }: Props) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16" />
                     </svg>
                     {isEn ? task.building.nameEn : task.building.nameAr}
-                    {task.unit && ` · ${isEn ? task.unit.titleEn : task.unit.titleAr}`}
+                    {task.unit && (
+                      <span className="flex items-center">
+                        {" "}· {task.unit.unitCode ? `[${task.unit.unitCode}] ` : ""}{isEn ? task.unit.titleEn : task.unit.titleAr}
+                      </span>
+                    )}
                   </span>
                 )}
                 <span className="flex items-center gap-1">

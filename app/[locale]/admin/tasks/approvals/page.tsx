@@ -29,7 +29,7 @@ export default async function ApprovalsPage({ params }: PageProps) {
       dueDate: true,
       createdAt: true,
       building: { select: { nameEn: true, nameAr: true } },
-      unit: { select: { titleEn: true, titleAr: true } },
+      unit: { select: { unitCode: true, titleEn: true, titleAr: true } },
       createdBy: { select: { name: true, email: true } },
     },
     orderBy: { createdAt: "asc" }, // oldest first — FIFO
