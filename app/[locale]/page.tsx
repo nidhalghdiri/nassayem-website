@@ -8,6 +8,9 @@ import LocationsMap from "@/components/home/LocationsMap";
 import prisma from "@/lib/prisma";
 import KhareefBanner from "@/components/marketing/KhareefBanner";
 import BlogSection from "@/components/home/BlogSection";
+import TestimonialsSection from "@/components/home/TestimonialsSection";
+import VideoSection from "@/components/home/VideoSection";
+import WhatsAppButton from "@/components/home/WhatsAppButton";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -59,6 +62,7 @@ export default async function HomePage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
       {/* 1. HERO SECTION */}
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center">
         <div className="absolute inset-0 bg-gray-900/40 z-10" />
@@ -87,91 +91,107 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* 2. THE NASSAYEM STANDARD (New: Highlighting Hospitality Services) */}
+      {/* 2. NASSAYEM SALALAH VISION — single unified card */}
       <section className="py-20 bg-white">
         <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="text-center max-w-3xl mx-auto mb-12">
             <h2 className="text-sm font-bold text-nassayem tracking-widest uppercase mb-3">
-              {isEn ? "The Nassayem Standard" : "معيار نسائم"}
+              {isEn ? "Nassayem Salalah Vision" : "رؤية نسائم صلالة"}
             </h2>
             <h3 className="text-3xl md:text-4xl font-bold text-gray-900">
               {isEn
-                ? "Redefining Serviced Apartments"
-                : "إعادة تعريف الشقق المخدومة"}
+                ? "Redefining Furnished Apartments"
+                : "إعادة تعريف الشقق المفروشة"}
             </h3>
+            <p className="text-gray-500 mt-4 text-lg leading-relaxed">
+              {isEn
+                ? "At Nassayem, we blend the comfort of home with the quality of a five-star hotel — giving every guest an experience that goes beyond just accommodation."
+                : "في نسائم، ندمج راحة المنزل مع جودة فندق خمس نجوم — لنمنح كل ضيف تجربة تتجاوز مجرد الإقامة."}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: "M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5",
-                titleEn: "24/7 Concierge",
-                titleAr: "خدمة كونسيرج 24/7",
-                descEn:
-                  "Round-the-clock support to ensure your stay is flawless.",
-                descAr: "دعم على مدار الساعة لضمان إقامة خالية من العيوب.",
-              },
-              {
-                icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
-                titleEn: "Hotel-Grade Cleaning",
-                titleAr: "تنظيف بمستوى فندقي",
-                descEn:
-                  "Meticulous housekeeping and premium linens for every guest.",
-                descAr: "عناية فائقة بالنظافة وبياضات فاخرة لكل ضيف.",
-              },
-              {
-                icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
-                titleEn: "Secure & Maintained",
-                titleAr: "أمن وصيانة دورية",
-                descEn:
-                  "Smart locks, secure buildings, and rapid-response maintenance.",
-                descAr: "أقفال ذكية، مباني آمنة، واستجابة سريعة للصيانة.",
-              },
-              {
-                icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-                titleEn: "Local Experiences",
-                titleAr: "تجارب محلية",
-                descEn:
-                  "Curated guides and partnerships to explore the best of Dhofar.",
-                descAr: "أدلة وشراكات منتقاة لاستكشاف أفضل ما في ظفار.",
-              },
-            ].map((service, idx) => (
-              <div
-                key={idx}
-                className="bg-gray-50 rounded-2xl p-8 hover:shadow-lg transition-shadow border border-gray-100"
-              >
-                <div className="w-12 h-12 bg-nassayem text-white rounded-xl flex items-center justify-center mb-6">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+          {/* Single unified card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 rtl:md:divide-x-reverse">
+              {[
+                {
+                  icon: "M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5",
+                  titleEn: "24/7 Concierge",
+                  titleAr: "خدمة كونسيرج 24/7",
+                  descEn:
+                    "Round-the-clock support to ensure your stay is flawless.",
+                  descAr: "دعم على مدار الساعة لضمان إقامة خالية من العيوب.",
+                  accent: "bg-nassayem/10 text-nassayem",
+                },
+                {
+                  icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+                  titleEn: "Hotel-Grade Cleaning",
+                  titleAr: "تنظيف بمستوى فندقي",
+                  descEn:
+                    "Meticulous housekeeping and premium linens for every guest.",
+                  descAr: "عناية فائقة بالنظافة وبياضات فاخرة لكل ضيف.",
+                  accent: "bg-blue-50 text-blue-600",
+                },
+                {
+                  icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+                  titleEn: "Secure & Maintained",
+                  titleAr: "أمن وصيانة دورية",
+                  descEn:
+                    "Smart locks, secure buildings, and rapid-response maintenance.",
+                  descAr: "أقفال ذكية، مباني آمنة، واستجابة سريعة للصيانة.",
+                  accent: "bg-green-50 text-green-600",
+                },
+                {
+                  icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+                  titleEn: "Local Experiences",
+                  titleAr: "تجارب محلية",
+                  descEn:
+                    "Curated guides and partnerships to explore the best of Dhofar.",
+                  descAr: "أدلة وشراكات منتقاة لاستكشاف أفضل ما في ظفار.",
+                  accent: "bg-orange-50 text-orange-600",
+                },
+              ].map((feature, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-5 p-8 hover:bg-nassayem/[0.02] transition-colors"
+                >
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${feature.accent}`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d={service.icon}
-                    />
-                  </svg>
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={feature.icon}
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-900 mb-1.5">
+                      {isEn ? feature.titleEn : feature.titleAr}
+                    </h4>
+                    <p className="text-gray-500 leading-relaxed text-sm">
+                      {isEn ? feature.descEn : feature.descAr}
+                    </p>
+                  </div>
                 </div>
-                <h4 className="text-xl font-bold text-gray-900 mb-3">
-                  {isEn ? service.titleEn : service.titleAr}
-                </h4>
-                <p className="text-gray-600 leading-relaxed">
-                  {isEn ? service.descEn : service.descAr}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </AnimatedSection>
       </section>
 
-      {/* 3. EXPLORE BY BUILDING (Grid Layout) */}
+      {/* 3. EXPLORE BY BUILDING */}
       <section className="py-20 bg-gray-50 w-full">
         <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {isEn ? "Our Managed Buildings" : "مبانينا المدارة"}
+            {isEn ? "Our Branches" : "فروعنا"}
           </h2>
           <p className="text-gray-600 mb-10">
             {isEn
@@ -179,16 +199,14 @@ export default async function HomePage({ params }: PageProps) {
               : "مواقع استراتيجية مع مرافق نسائم الحصرية."}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {buildings.map((building, idx) => (
+            {buildings.map((building) => (
               <Link
                 href={`/${locale}/buildings/${building.id}`}
                 key={building.id}
                 className="group block relative h-80 rounded-2xl overflow-hidden"
               >
                 <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors z-10" />
-                {/* Fallback image logic for buildings since we don't have a building image table yet */}
                 <Image
-                  // Use the uploaded image, or a fallback if you forgot to upload one
                   src={
                     building.imageUrl ||
                     "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?q=80&w=800&auto=format&fit=crop"
@@ -198,15 +216,12 @@ export default async function HomePage({ params }: PageProps) {
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute bottom-0 inset-x-0 p-6 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                  <div className="bg-nassayem text-white text-xs font-bold px-2 py-1 rounded-md inline-block mb-2">
-                    {isEn ? "Exclusive Management" : "إدارة حصرية"}
-                  </div>
                   <h3 className="text-2xl font-bold text-white mb-1">
                     {isEn ? building.nameEn : building.nameAr}
                   </h3>
                   <p className="text-white/90 font-medium">
                     {building._count.units}{" "}
-                    {isEn ? "Serviced Units" : "وحدات مخدومة"}
+                    {isEn ? "Furnished Units" : "وحدات مفروشة"}
                   </p>
                 </div>
               </Link>
@@ -221,7 +236,7 @@ export default async function HomePage({ params }: PageProps) {
           <div className="flex justify-between items-end mb-10">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {isEn ? "Handpicked Serviced Stays" : "إقامات مخدومة منتقاة لك"}
+                {isEn ? "Handpicked Furnished Stays" : "إقامات مفروشة منتقاة لك"}
               </h2>
               <p className="text-gray-600">
                 {isEn
@@ -251,11 +266,10 @@ export default async function HomePage({ params }: PageProps) {
         </AnimatedSection>
       </section>
 
-      {/* 5. PROPERTY MANAGEMENT CTA (New: Targeting Owners) */}
+      {/* 5. PROPERTY MANAGEMENT CTA */}
       <section className="py-16">
         <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-3xl overflow-hidden bg-nassayem flex flex-col md:flex-row items-center justify-between shadow-2xl">
-            {/* Abstract Background Pattern */}
             <div
               className="absolute inset-0 opacity-10"
               style={{
@@ -263,17 +277,17 @@ export default async function HomePage({ params }: PageProps) {
                   "radial-gradient(#ffffff 1px, transparent 1px)",
                 backgroundSize: "20px 20px",
               }}
-            ></div>
+            />
           </div>
         </AnimatedSection>
       </section>
 
-      {/* 6. MISSION, VISION, MESSAGE (Upgraded UI with your exact text) */}
+      {/* 6. ABOUT NASSAYEM SALALAH */}
       <section className="py-24 bg-gray-50 border-t border-gray-200">
         <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900">
-              {isEn ? "The Nassayem Philosophy" : "فلسفة نسائم"}
+              {isEn ? "About Nassayem Salalah" : "نبذة عن نسائم صلالة"}
             </h2>
           </div>
 
@@ -333,8 +347,8 @@ export default async function HomePage({ params }: PageProps) {
               </h3>
               <p className="text-gray-600 leading-relaxed text-lg">
                 {isEn
-                  ? "To create a new and ideal image in the world of serviced apartments and to become the leading real estate development company in Dhofar."
-                  : "خلق صوره جديدة مثالية في عالم الشقق الفندقية و نكون شركة التطوير العقاري الرائدة في ظفار"}
+                  ? "To create a new and ideal image in the world of furnished apartments and to become the leading real estate development company in Dhofar."
+                  : "خلق صوره جديدة مثالية في عالم الشقق المفروشة و نكون شركة التطوير العقاري الرائدة في ظفار"}
               </p>
             </div>
 
@@ -368,15 +382,25 @@ export default async function HomePage({ params }: PageProps) {
         </AnimatedSection>
       </section>
 
-      {/* 7. BLOG SECTION */}
+      {/* 7. TESTIMONIALS */}
+      <TestimonialsSection locale={locale} />
+
+      {/* 8. BUILDING TOUR VIDEOS */}
+      <VideoSection locale={locale} />
+
+      {/* 9. BLOG SECTION */}
       <BlogSection locale={locale} />
 
-      {/* 8. CONTACT US & SOCIAL MEDIA */}
+      {/* 10. CONTACT US & SOCIAL MEDIA */}
       <ContactSection locale={locale} />
-      {/* 9. LOCATIONS MAP (New Interactive Map Section) */}
+
+      {/* 11. LOCATIONS MAP */}
       <LocationsMap locale={locale} />
 
       <KhareefBanner locale={locale} />
+
+      {/* STICKY WHATSAPP BUTTON */}
+      <WhatsAppButton locale={locale} />
     </div>
   );
 }

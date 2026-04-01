@@ -133,9 +133,6 @@ export default function FilterSidebar({ locale }: { locale: string }) {
         <div className="space-y-3">
           {[
             { id: "wifi", labelEn: "High-speed WiFi", labelAr: "واي فاي سريع" },
-            { id: "pool", labelEn: "Swimming Pool", labelAr: "مسبح" },
-            { id: "gym", labelEn: "Fitness Center", labelAr: "صالة رياضية" },
-            { id: "sea_view", labelEn: "Sea View", labelAr: "إطلالة بحرية" },
             { id: "parking", labelEn: "Free Parking", labelAr: "موقف مجاني" },
           ].map((amenity) => (
             <label

@@ -45,9 +45,6 @@ export default async function BuildingDetailsPage({ params }: PageProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent" />
         <div className="absolute bottom-0 inset-x-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <div className="bg-nassayem text-white text-xs font-bold px-3 py-1.5 rounded-md inline-block mb-4 shadow-sm">
-            {isEn ? "Exclusive Management" : "إدارة حصرية"}
-          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
             {isEn ? building.nameEn : building.nameAr}
           </h1>
