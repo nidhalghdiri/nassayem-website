@@ -124,7 +124,13 @@ export default function ContactSection({ locale }: { locale: string }) {
               <div className="flex gap-4">
                 {/* WhatsApp */}
                 <a
-                  href="#"
+                  href={`https://wa.me/96899551237?text=${encodeURIComponent(
+                    isEn
+                      ? "Hello Nassayem! I would like to inquire about your services."
+                      : "مرحباً نسائم! أود الاستفسار عن خدماتكم.",
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-gray-200 hover:border-green-500 hover:bg-green-50 shadow-sm transition-all duration-300 hover:-translate-y-1"
                 >
                   <svg

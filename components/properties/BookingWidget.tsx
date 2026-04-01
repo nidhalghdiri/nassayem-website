@@ -44,10 +44,41 @@ export default function BookingWidget({
         ? "OMR / night"
         : "ر.ع / ليلة";
 
+  const [isKhareefSeason, setIsKhareefSeason] = useState(false);
+
+  // Helper to check if dates fall in July (6) or August (7)
+  const checkKhareef = (start: string, end: string) => {
+    if (!start || !end) return false;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    
+    // Check if any date in the range is in July or August
+    let current = new Date(startDate);
+    while (current <= endDate) {
+      const month = current.getMonth();
+      if (month === 6 || month === 7) return true;
+      current.setDate(current.getDate() + 1);
+    }
+    return false;
+  };
+
   // Effect to trigger calculation when both dates are filled
   useEffect(() => {
     async function fetchPricing() {
       if (checkIn && checkOut) {
+        const khareef = checkKhareef(checkIn, checkOut);
+        setIsKhareefSeason(khareef);
+
+        if (khareef) {
+          setError(
+            isEn
+              ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
+              : "إذا كنت ترغب في الحجز خلال موسم الخريف (يوليو وأغسطس)، يرجى التواصل مع الإدارة على الرقم 96899551237+",
+          );
+          setPriceDetails(null);
+          return;
+        }
+
         setIsCalculating(true);
         setError(null);
         try {

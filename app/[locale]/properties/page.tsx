@@ -17,18 +17,30 @@ export default async function PropertiesPage({
   const isEn = locale === "en";
 
   const rentTypeFilter =
-    resolvedSearchParams.rent === "monthly"
+    resolvedSearchParams.type === "monthly"
       ? "MONTHLY"
-      : resolvedSearchParams.rent === "daily"
+      : resolvedSearchParams.type === "daily"
         ? "DAILY"
         : undefined;
+
+  const unitTypeMap: { [key: string]: any } = {
+    studio: "STUDIO",
+    "1br": "ONE_BEDROOM",
+    "2br": "TWO_BEDROOM",
+    villa: "VILLA",
+  };
+  const unitTypeFilter = resolvedSearchParams.unitType
+    ? unitTypeMap[resolvedSearchParams.unitType]
+    : undefined;
 
   // Fetch properties dynamically based on filters
   const units = await prisma.unit.findMany({
     where: {
       isPublished: true,
-      ...(rentTypeFilter && { rentType: rentTypeFilter }),
-      // Add more filters here as needed (e.g. unitType)
+      ...(rentTypeFilter && {
+        OR: [{ rentType: rentTypeFilter }, { rentType: "BOTH" }],
+      }),
+      ...(unitTypeFilter && { unitType: unitTypeFilter }),
     },
     include: {
       images: { orderBy: { displayOrder: "asc" } },

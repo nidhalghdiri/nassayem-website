@@ -10,6 +10,7 @@ import KhareefBanner from "@/components/marketing/KhareefBanner";
 import BlogSection from "@/components/home/BlogSection";
 import TestimonialsSection from "@/components/home/TestimonialsSection";
 import VideoSection from "@/components/home/VideoSection";
+import BuildingCarousel from "@/components/home/BuildingCarousel";
 import WhatsAppButton from "@/components/home/WhatsAppButton";
 
 type PageProps = {
@@ -22,7 +23,6 @@ export default async function HomePage({ params }: PageProps) {
 
   // Fetch real data from database
   const buildings = await prisma.building.findMany({
-    take: 3,
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { units: true } } },
   });
@@ -116,8 +116,8 @@ export default async function HomePage({ params }: PageProps) {
               {[
                 {
                   icon: "M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5",
-                  titleEn: "24/7 Concierge",
-                  titleAr: "خدمة كونسيرج 24/7",
+                  titleEn: "24/7 Services",
+                  titleAr: "خدمة 24/7",
                   descEn:
                     "Round-the-clock support to ensure your stay is flawless.",
                   descAr: "دعم على مدار الساعة لضمان إقامة خالية من العيوب.",
@@ -198,35 +198,7 @@ export default async function HomePage({ params }: PageProps) {
               ? "Strategic locations with exclusive Nassayem amenities."
               : "مواقع استراتيجية مع مرافق نسائم الحصرية."}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {buildings.map((building) => (
-              <Link
-                href={`/${locale}/buildings/${building.id}`}
-                key={building.id}
-                className="group block relative h-80 rounded-2xl overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors z-10" />
-                <Image
-                  src={
-                    building.imageUrl ||
-                    "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?q=80&w=800&auto=format&fit=crop"
-                  }
-                  alt={isEn ? building.nameEn : building.nameAr}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute bottom-0 inset-x-0 p-6 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                  <h3 className="text-2xl font-bold text-white mb-1">
-                    {isEn ? building.nameEn : building.nameAr}
-                  </h3>
-                  <p className="text-white/90 font-medium">
-                    {building._count.units}{" "}
-                    {isEn ? "Furnished Units" : "وحدات مفروشة"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <BuildingCarousel buildings={buildings} locale={locale} />
         </AnimatedSection>
       </section>
 

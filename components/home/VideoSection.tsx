@@ -17,21 +17,21 @@ const VIDEOS: Video[] = [
     titleAr: "جولة في مبنى نسائم",
     descEn: "Explore our premium furnished apartments in Salalah.",
     descAr: "استكشف شققنا المفروشة الراقية في صلالة.",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your actual YouTube video ID
+    youtubeId: "jvBllAFmxUA", // Replace with your actual YouTube video ID
   },
   {
     titleEn: "Apartment Walkthrough",
     titleAr: "جولة داخل الشقة",
     descEn: "A detailed look at our fully furnished units.",
     descAr: "نظرة تفصيلية على وحداتنا المفروشة بالكامل.",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your actual YouTube video ID
+    youtubeId: "bOFGBiT3-gs", // Replace with your actual YouTube video ID
   },
   {
     titleEn: "Khareef Season Special",
     titleAr: "خاص بموسم الخريف",
     descEn: "Experience Salalah during the magical Khareef season.",
     descAr: "استمتع بصلالة في موسم الخريف الساحر.",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your actual YouTube video ID
+    youtubeId: "0f0hTfgiqOk", // Replace with your actual YouTube video ID
   },
 ];
 
@@ -126,13 +126,12 @@ export default function VideoSection({ locale }: Props) {
 
         {/* Videos grid */}
         <div
-          className={`grid gap-6 ${
-            VIDEOS.length === 1
+          className={`grid gap-6 ${VIDEOS.length === 1
               ? "max-w-2xl mx-auto"
               : VIDEOS.length === 2
                 ? "grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto"
                 : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          }`}
+            }`}
         >
           {VIDEOS.map((video, idx) => (
             <VideoCard key={idx} video={video} isEn={isEn} />
