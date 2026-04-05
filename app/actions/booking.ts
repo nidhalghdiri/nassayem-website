@@ -37,7 +37,7 @@ export async function checkUnitAvailability(
     where: {
       unitId: unitId,
       status: {
-        not: "CANCELLED", // We only care about PENDING, CONFIRMED, or COMPLETED
+        in: ["CONFIRMED", "COMPLETED"], // Only confirmed/completed block dates; pending does not
       },
       AND: [
         { checkIn: { lt: requestedEnd } },
@@ -138,52 +138,77 @@ export async function createBooking(
   const guestName = formData.get("guestName") as string;
   const guestEmail = formData.get("guestEmail") as string;
   const guestPhone = formData.get("guestPhone") as string;
+  const guestNationality = (formData.get("guestNationality") as string) || null;
+  const guestNotes = (formData.get("guestNotes") as string) || null;
+  const paymentMethod = (formData.get("paymentMethod") as string) || "CARD";
 
   if (!guestName || !guestEmail || !guestPhone) {
     throw new Error("Please fill in all contact details.");
   }
 
-  // 1. Re-verify availability (Server-side authority)
+  // 1. Re-verify availability (server-side authority)
   const availability = await checkUnitAvailability(unitId, checkIn, checkOut);
   if (!availability.available) {
     throw new Error("Sorry, these dates are no longer available.");
   }
 
-  // 2. Re-calculate price (Server-side authority)
+  // 2. Re-calculate price (server-side authority)
   const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
 
-  // 3. Create the Booking record in Prisma
+  // 3. For CASH: booking saved immediately as CONFIRMED — no payment gateway needed
+  if (paymentMethod === "CASH") {
+    const booking = await prisma.booking.create({
+      data: {
+        unitId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        guestNationality,
+        guestNotes,
+        paymentMethod: "CASH",
+        checkIn: startOfDay(parseISO(checkIn)),
+        checkOut: startOfDay(parseISO(checkOut)),
+        totalPrice: pricing.grandTotal,
+        status: "CONFIRMED",
+      },
+    });
+    return { success: true, isCash: true, bookingId: booking.id };
+  }
+
+  // 4. For CARD: save booking as PENDING, then route through SmartPay
+  //    Booking is only confirmed once the payment webhook succeeds.
   const booking = await prisma.booking.create({
     data: {
       unitId,
       guestName,
       guestEmail,
       guestPhone,
+      guestNationality,
+      guestNotes,
+      paymentMethod: "CARD",
       checkIn: startOfDay(parseISO(checkIn)),
       checkOut: startOfDay(parseISO(checkOut)),
       totalPrice: pricing.grandTotal,
-      status: "PENDING", // Defaults to PENDING until payment is confirmed in Stage 3.3
+      status: "PENDING",
     },
   });
-  // Done
 
-  // 4. Format Amount for OMR (Must be 3 decimal places, e.g., 120.000)
+  // Format Amount for OMR (must be 3 decimal places, e.g., 120.000)
   const formattedAmount = Number(pricing.grandTotal).toFixed(3);
-
   const shortOrderId = Date.now().toString();
 
-  // 4. Prepare URLs
   const merchantId = process.env.SMARTPAY_MERCHANT_ID;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const redirectUrl = `${baseUrl}/api/payment/smartpay`;
   const cancelUrl = `${baseUrl}/api/payment/smartpay`;
 
-  // 5. Form the exact request string mandated by Bank Muscat
   const requestString = `merchant_id=${merchantId}&order_id=${shortOrderId}&currency=OMR&amount=${formattedAmount}&redirect_url=${redirectUrl}&cancel_url=${cancelUrl}&merchant_param1=${booking.id}&merchant_param2=${locale}`;
   const encRequest = encryptSmartPayRequest(requestString);
 
   return {
     success: true,
+    isCash: false,
+    bookingId: booking.id,
     paymentUrl: process.env.SMARTPAY_TRANSACTION_URL,
     accessCode: process.env.SMARTPAY_ACCESS_CODE,
     encRequest: encRequest,

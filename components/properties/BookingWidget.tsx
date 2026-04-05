@@ -248,22 +248,6 @@ export default function BookingWidget({
                 {priceDetails.baseRent} {isEn ? "OMR" : "ر.ع"}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="underline">
-                {isEn ? "Cleaning fee" : "رسوم التنظيف"}
-              </span>
-              <span>
-                {priceDetails.cleaningFee} {isEn ? "OMR" : "ر.ع"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="underline">
-                {isEn ? "Taxes & Fees" : "الضرائب والرسوم"}
-              </span>
-              <span>
-                {priceDetails.taxes} {isEn ? "OMR" : "ر.ع"}
-              </span>
-            </div>
           </div>
 
           <div className="flex justify-between items-center pt-4 font-extrabold text-gray-900 text-lg">

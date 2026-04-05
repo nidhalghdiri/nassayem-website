@@ -167,22 +167,25 @@ model Amenity {
 }
 
 model Booking {
-  id           String        @id @default(uuid())
-  unitId       String
+  id                String        @id @default(uuid())
+  unitId            String
 
-  guestName    String
-  guestEmail   String
-  guestPhone   String
+  guestName         String
+  guestEmail        String
+  guestPhone        String
+  guestNationality  String?
+  guestNotes        String?
+  paymentMethod     String        @default("CARD") // CASH or CARD
 
-  checkIn      DateTime
-  checkOut     DateTime
-  totalPrice   Float
-  status       BookingStatus @default(PENDING)
+  checkIn           DateTime
+  checkOut          DateTime
+  totalPrice        Float
+  status            BookingStatus @default(PENDING)
 
-  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unit              Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
 // ------------------------------------------------------

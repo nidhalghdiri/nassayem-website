@@ -161,18 +161,6 @@ export default async function CheckoutPage({
                     {pricing.baseRent} {isEn ? "OMR" : "ر.ع"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>{isEn ? "Cleaning fee" : "رسوم التنظيف"}</span>
-                  <span>
-                    {pricing.cleaningFee} {isEn ? "OMR" : "ر.ع"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{isEn ? "Taxes & Fees" : "الضرائب والرسوم"}</span>
-                  <span>
-                    {pricing.taxes} {isEn ? "OMR" : "ر.ع"}
-                  </span>
-                </div>
               </div>
 
               <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-100 font-extrabold text-gray-900 text-xl">
