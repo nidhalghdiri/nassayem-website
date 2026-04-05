@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { headers } from "next/headers";
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 // Optimize fonts for both languages
 const inter = Inter({
@@ -24,6 +25,11 @@ export const metadata: Metadata = {
   title: {
     template: "%s | Nassayem Salalah", // Automatically appends your brand to page titles
     default: "Nassayem Salalah | Premium Property Rentals in Oman",
+  },
+  icons: {
+    icon: "/faviconV2.png",
+    shortcut: "/faviconV2.png",
+    apple: "/faviconV2.png",
   },
   description:
     "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today.",
@@ -95,6 +101,7 @@ export default async function RootLayout({
 
         {!isAdmin && <Footer locale={locale} />}
       </body>
+      <GoogleAnalytics gaId="G-JVX3CTNWVT" />
     </html>
   );
 }
