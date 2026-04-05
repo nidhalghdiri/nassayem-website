@@ -13,6 +13,7 @@
     "@heroicons/react": "^2.2.0",
     "@next/third-parties": "^16.1.6",
     "@prisma/client": "^6.3.0",
+    "@react-pdf/renderer": "^4.3.3",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.1",
     "browser-image-compression": "^2.0.2",
@@ -25,6 +26,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-leaflet": "^5.0.0",
+    "resend": "^6.10.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

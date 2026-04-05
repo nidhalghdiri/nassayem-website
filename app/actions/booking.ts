@@ -5,6 +5,7 @@ import { differenceInDays, parseISO, startOfDay } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { BookingStatus } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
+import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
@@ -155,7 +156,9 @@ export async function createBooking(
   });
 
   if (paymentMethod === "CASH") {
-    // No payment gateway — go straight to success page
+    // No payment gateway — send confirmation email immediately
+    // Fire-and-forget: don't await so it doesn't block the response
+    sendBookingConfirmation(booking.id, locale);
     return { success: true, isCash: true, bookingId: booking.id };
   }
 

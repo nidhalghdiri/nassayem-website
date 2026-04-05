@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decryptSmartPayResponse } from "@/lib/smartpay";
+import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 
 export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -79,12 +80,13 @@ export async function POST(req: NextRequest) {
       // [cite: 162]
       await prisma.booking.update({
         where: { id: realBookingId },
-        data: {
-          status: "CONFIRMED",
-          // You could also save the bankRefNo to a new field in your DB if you wish
-        },
+        data: { status: "CONFIRMED" },
       });
-      console.log("SUCCESS: Booking Confirmed & Securely Validated!"); // Redirect to the success page
+      console.log("SUCCESS: Booking Confirmed & Securely Validated!");
+
+      // Send booking confirmation email with PDF (fire-and-forget)
+      sendBookingConfirmation(realBookingId, locale);
+
       return NextResponse.redirect(
         `${baseUrl}/${locale}/checkout/success?bookingId=${realBookingId}`,
       );
