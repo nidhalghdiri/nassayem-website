@@ -127,10 +127,10 @@ export default function VideoSection({ locale }: Props) {
         {/* Videos grid */}
         <div
           className={`grid gap-6 ${VIDEOS.length === 1
-              ? "max-w-2xl mx-auto"
-              : VIDEOS.length === 2
-                ? "grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto"
-                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            ? "max-w-2xl mx-auto"
+            : VIDEOS.length === 2
+              ? "grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto"
+              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             }`}
         >
           {VIDEOS.map((video, idx) => (
