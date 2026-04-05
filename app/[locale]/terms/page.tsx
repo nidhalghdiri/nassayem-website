@@ -1,3 +1,20 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Terms & Conditions | Nassayem Salalah" : "الشروط والأحكام | نسائم صلالة",
+    description: isEn
+      ? "Review the terms and conditions for booking and staying at Nassayem Salalah furnished apartments."
+      : "اطلع على شروط وأحكام الحجز والإقامة في شقق نسائم صلالة المفروشة.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/terms`,
+      languages: { en: "https://www.nassayem.com/en/terms", ar: "https://www.nassayem.com/ar/terms" },
+    },
+  };
+}
+
 export default async function TermsPage({
   params,
 }: {

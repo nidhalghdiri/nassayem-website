@@ -3,6 +3,11 @@ import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { calculateBookingPrice } from "@/app/actions/booking";
 import CheckoutForm from "@/components/properties/CheckoutForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 import Link from "next/link";
 
 type PageProps = {

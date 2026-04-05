@@ -1,3 +1,21 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Privacy Policy | Nassayem Salalah" : "سياسة الخصوصية | نسائم صلالة",
+    description: isEn
+      ? "Read Nassayem Salalah's privacy policy — how we collect, use, and protect your personal data."
+      : "اقرأ سياسة خصوصية نسائم صلالة — كيف نجمع بياناتك الشخصية ونستخدمها ونحميها.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/privacy`,
+      languages: { en: "https://www.nassayem.com/en/privacy", ar: "https://www.nassayem.com/ar/privacy" },
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
 export default async function PrivacyPage({
   params,
 }: {

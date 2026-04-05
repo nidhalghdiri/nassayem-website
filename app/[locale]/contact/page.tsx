@@ -1,3 +1,20 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Contact Us | Nassayem Salalah" : "اتصل بنا | نسائم صلالة",
+    description: isEn
+      ? "Get in touch with Nassayem Salalah. Call or WhatsApp us at +968 99551237. Located in Al Luban Street, Salalah, Dhofar, Oman."
+      : "تواصل مع نسائم صلالة. اتصل بنا أو راسلنا عبر واتساب على +968 99551237. نقع في شارع اللبان، صلالة، ظفار، عُمان.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/contact`,
+      languages: { en: "https://www.nassayem.com/en/contact", ar: "https://www.nassayem.com/ar/contact" },
+    },
+  };
+}
+
 export default async function ContactPage({
   params,
 }: {

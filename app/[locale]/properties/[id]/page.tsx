@@ -38,10 +38,10 @@ export async function generateMetadata({
     title: unitTitle,
     description: unitDescription?.substring(0, 160), // SEO descriptions should be ~160 chars
     alternates: {
-      canonical: `https://www.nassayem.com/${locale}/units/${id}`,
+      canonical: `https://www.nassayem.com/${locale}/properties/${id}`,
       languages: {
-        en: `https://www.nassayem.com/en/units/${id}`,
-        ar: `https://www.nassayem.com/ar/units/${id}`,
+        en: `https://www.nassayem.com/en/properties/${id}`,
+        ar: `https://www.nassayem.com/ar/properties/${id}`,
       },
     },
     openGraph: {
@@ -86,6 +86,16 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
     unit.rentType === "MONTHLY" ? unit.monthlyPrice : unit.dailyPrice;
 
   // 1. Build the JSON-LD Schema Object
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: isEn ? "Home" : "الرئيسية", item: `https://www.nassayem.com/${locale}` },
+      { "@type": "ListItem", position: 2, name: isEn ? "Properties" : "العقارات", item: `https://www.nassayem.com/${locale}/properties` },
+      { "@type": "ListItem", position: 3, name: isEn ? unit.titleEn : unit.titleAr, item: `https://www.nassayem.com/${locale}/properties/${unit.id}` },
+    ],
+  };
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "VacationRental",
@@ -112,7 +122,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
       availability: true
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
-      url: `https://www.nassayem.com/${locale}/units/${unit.id}`,
+      url: `https://www.nassayem.com/${locale}/properties/${unit.id}`,
     },
     // Optional but highly recommended if you have a review system
     aggregateRating: {
@@ -125,11 +135,9 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-white pb-24">
       <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* 2. Inject the Schema into the DOM */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        {/* Structured data */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         {/* 1. Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -198,7 +206,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             <div className="hidden md:block relative h-full w-full cursor-pointer overflow-hidden">
               <Image
                 src={getImageUrl(1)}
-                alt="View 2"
+                alt={isEn ? `Bedroom in ${unit.titleEn} – Nassayem Salalah` : `غرفة نوم في ${unit.titleAr} – نسائم صلالة`}
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />
@@ -206,7 +214,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             <div className="hidden md:block relative h-full w-full cursor-pointer overflow-hidden">
               <Image
                 src={getImageUrl(2)}
-                alt="View 3"
+                alt={isEn ? `Kitchen and dining area in ${unit.titleEn}` : `المطبخ وغرفة الطعام في ${unit.titleAr}`}
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />
@@ -214,7 +222,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             <div className="hidden md:block relative h-full w-full cursor-pointer overflow-hidden">
               <Image
                 src={getImageUrl(3)}
-                alt="View 4"
+                alt={isEn ? `Bathroom in ${unit.titleEn} furnished apartment` : `الحمام في شقة ${unit.titleAr} المفروشة`}
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />
@@ -222,7 +230,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
             <div className="hidden md:block relative h-full w-full cursor-pointer overflow-hidden">
               <Image
                 src={getImageUrl(4)}
-                alt="View 5"
+                alt={isEn ? `Balcony view from ${unit.titleEn}, ${unit.building.nameEn}` : `إطلالة الشرفة من ${unit.titleAr}، ${unit.building.nameAr}`}
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />

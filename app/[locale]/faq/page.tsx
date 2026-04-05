@@ -1,3 +1,20 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Frequently Asked Questions | Nassayem Salalah" : "الأسئلة الشائعة | نسائم صلالة",
+    description: isEn
+      ? "Find answers to common questions about booking, check-in, payments, and our furnished apartments in Salalah, Oman."
+      : "اعثر على إجابات للأسئلة الشائعة حول الحجز وتسجيل الوصول والمدفوعات وشققنا المفروشة في صلالة، عُمان.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/faq`,
+      languages: { en: "https://www.nassayem.com/en/faq", ar: "https://www.nassayem.com/ar/faq" },
+    },
+  };
+}
+
 export default async function FAQPage({
   params,
 }: {

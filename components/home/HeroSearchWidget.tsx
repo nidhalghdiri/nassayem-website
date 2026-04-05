@@ -25,14 +25,14 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
-      {/* Rent Type Toggle - Clean pill design */}
-      <div className="bg-white/20 backdrop-blur-md p-1 rounded-full mb-6 flex gap-1">
+      {/* Rent Type Toggle */}
+      <div className="bg-[#deeff8]/60 backdrop-blur-md border border-[#2a7475]/20 p-1 rounded-full mb-6 flex gap-1 shadow-sm">
         <button
           onClick={() => setRentType("daily")}
           className={`px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
             rentType === "daily"
-              ? "bg-white text-nassayem shadow-md"
-              : "text-white hover:bg-white/10"
+              ? "bg-[#2a7475] text-white shadow-md"
+              : "text-[#1d5455] hover:bg-[#deeff8]"
           }`}
         >
           {isEn ? "Daily Rent" : "إيجار يومي"}
@@ -41,26 +41,26 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
           onClick={() => setRentType("monthly")}
           className={`px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
             rentType === "monthly"
-              ? "bg-white text-nassayem shadow-md"
-              : "text-white hover:bg-white/10"
+              ? "bg-[#2a7475] text-white shadow-md"
+              : "text-[#1d5455] hover:bg-[#deeff8]"
           }`}
         >
           {isEn ? "Monthly Rent" : "إيجار شهري"}
         </button>
       </div>
 
-      {/* Main Search Bar - Airbnb Style */}
+      {/* Main Search Bar */}
       <form
         onSubmit={handleSearch}
-        className="w-full bg-white rounded-full shadow-2xl flex flex-col md:flex-row items-center divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-gray-200 p-2"
+        className="w-full bg-[#deeff8]/80 backdrop-blur-md border border-[#2a7475]/20 rounded-full shadow-xl flex flex-col md:flex-row items-center divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-[#2a7475]/15 p-2"
       >
         {/* Unit Type */}
-        <div className="flex-1 w-full px-6 py-2 cursor-pointer hover:bg-gray-50 rounded-full transition-colors">
-          <label className="block text-xs font-bold text-gray-800 tracking-wide uppercase mb-1">
+        <div className="flex-1 w-full px-6 py-2 cursor-pointer hover:bg-[#deeff8] rounded-full transition-colors">
+          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
             {isEn ? "Unit Type" : "نوع الوحدة"}
           </label>
           <select
-            className="w-full bg-transparent text-gray-600 focus:outline-none appearance-none cursor-pointer"
+            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none appearance-none cursor-pointer"
             value={unitType}
             onChange={(e) => setUnitType(e.target.value)}
           >
@@ -73,26 +73,26 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
         </div>
 
         {/* Check In */}
-        <div className="flex-1 w-full px-6 py-2 hover:bg-gray-50 rounded-full transition-colors">
-          <label className="block text-xs font-bold text-gray-800 tracking-wide uppercase mb-1">
+        <div className="flex-1 w-full px-6 py-2 hover:bg-[#deeff8] rounded-full transition-colors">
+          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
             {isEn ? "Check In" : "تسجيل الدخول"}
           </label>
           <input
             type="date"
-            className="w-full bg-transparent text-gray-600 focus:outline-none"
+            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none"
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
           />
         </div>
 
         {/* Check Out */}
-        <div className="flex-1 w-full px-6 py-2 hover:bg-gray-50 rounded-full transition-colors">
-          <label className="block text-xs font-bold text-gray-800 tracking-wide uppercase mb-1">
+        <div className="flex-1 w-full px-6 py-2 hover:bg-[#deeff8] rounded-full transition-colors">
+          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
             {isEn ? "Check Out" : "تسجيل الخروج"}
           </label>
           <input
             type="date"
-            className="w-full bg-transparent text-gray-600 focus:outline-none"
+            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none"
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
           />
@@ -102,7 +102,7 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
         <div className="px-2 w-full md:w-auto mt-2 md:mt-0">
           <button
             type="submit"
-            className="w-full md:w-auto bg-nassayem hover:bg-nassayem-dark text-white p-4 rounded-full transition-colors flex justify-center items-center"
+            className="w-full md:w-auto bg-[#2a7475] hover:bg-[#1d5455] text-white p-4 rounded-full transition-colors flex justify-center items-center shadow-md"
           >
             <svg
               className="w-5 h-5 md:me-2"

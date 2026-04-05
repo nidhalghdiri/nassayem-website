@@ -15,13 +15,26 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
   if (!post) return {};
 
+  const title = isEn ? post.titleEn : post.titleAr;
+  const description = isEn
+    ? post.excerptEn || post.contentEn.substring(0, 160)
+    : post.excerptAr || post.contentAr.substring(0, 160);
+
   return {
-    title: `${isEn ? post.titleEn : post.titleAr} | Nassayem Blog`,
-    description: isEn 
-      ? post.excerptEn || post.contentEn.substring(0, 160)
-      : post.excerptAr || post.contentAr.substring(0, 160),
+    title: `${title} | Nassayem Blog`,
+    description,
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/blog/${slug}`,
+      languages: {
+        en: `https://www.nassayem.com/en/blog/${slug}`,
+        ar: `https://www.nassayem.com/ar/blog/${slug}`,
+      },
+    },
     openGraph: {
-      images: post.coverImage ? [post.coverImage] : [],
+      title,
+      description,
+      type: "article",
+      images: post.coverImage ? [{ url: post.coverImage, width: 1200, height: 630 }] : [],
     },
   };
 }

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import PropertyCard from "@/components/properties/PropertyCard";
@@ -7,6 +8,39 @@ import Link from "next/link";
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, id } = await params;
+  const isEn = locale === "en";
+
+  const building = await prisma.building.findUnique({
+    where: { id },
+    select: { nameEn: true, nameAr: true, descriptionEn: true, descriptionAr: true, locationEn: true },
+  });
+
+  if (!building) return { title: "Building Not Found" };
+
+  const name = isEn ? building.nameEn : building.nameAr;
+  const desc = isEn
+    ? building.descriptionEn?.substring(0, 160) || `Premium furnished apartments at ${building.nameEn}, Salalah`
+    : building.descriptionAr?.substring(0, 160) || `شقق مفروشة فاخرة في ${building.nameAr}، صلالة`;
+
+  return {
+    title: isEn ? `${name} – Furnished Apartments in Salalah | Nassayem` : `${name} – شقق مفروشة في صلالة | نسائم`,
+    description: desc,
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/buildings/${id}`,
+      languages: {
+        en: `https://www.nassayem.com/en/buildings/${id}`,
+        ar: `https://www.nassayem.com/ar/buildings/${id}`,
+      },
+    },
+    openGraph: {
+      title: isEn ? `${name} | Nassayem Salalah` : `${name} | نسائم صلالة`,
+      description: desc,
+    },
+  };
+}
 
 export default async function BuildingDetailsPage({ params }: PageProps) {
   const { locale, id } = await params;
@@ -30,8 +64,42 @@ export default async function BuildingDetailsPage({ params }: PageProps) {
     return notFound();
   }
 
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: isEn ? "Home" : "الرئيسية", item: `https://www.nassayem.com/${locale}` },
+      { "@type": "ListItem", position: 2, name: isEn ? "Our Branches" : "فروعنا", item: `https://www.nassayem.com/${locale}` },
+      { "@type": "ListItem", position: 3, name: isEn ? building.nameEn : building.nameAr, item: `https://www.nassayem.com/${locale}/buildings/${id}` },
+    ],
+  };
+
+  const localBusinessLd = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: `Nassayem Salalah – ${isEn ? building.nameEn : building.nameAr}`,
+    description: isEn ? building.descriptionEn : building.descriptionAr,
+    url: `https://www.nassayem.com/${locale}/buildings/${id}`,
+    telephone: "+96899551237",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: isEn ? building.locationEn : building.locationAr,
+      addressLocality: "Salalah",
+      addressRegion: "Dhofar",
+      addressCountry: "OM",
+    },
+    ...(building.latitude && building.longitude && {
+      geo: { "@type": "GeoCoordinates", latitude: building.latitude, longitude: building.longitude },
+    }),
+    image: building.imageUrl || "https://www.nassayem.com/og-image.jpg",
+    priceRange: "$$",
+    numberOfRooms: building.units?.length,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessLd) }} />
       {/* 1. Building Hero Section */}
       <div className="relative h-[50vh] min-h-[400px] w-full">
         <Image

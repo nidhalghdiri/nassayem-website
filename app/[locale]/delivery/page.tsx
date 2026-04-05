@@ -1,3 +1,20 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Check-in & Delivery Policy | Nassayem Salalah" : "سياسة تسجيل الوصول | نسائم صلالة",
+    description: isEn
+      ? "Learn about our check-in process, key delivery, and apartment handover policy at Nassayem Salalah."
+      : "تعرف على إجراءات تسجيل الوصول وتسليم المفاتيح وسياسة تسليم الشقة في نسائم صلالة.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/delivery`,
+      languages: { en: "https://www.nassayem.com/en/delivery", ar: "https://www.nassayem.com/ar/delivery" },
+    },
+  };
+}
+
 export default async function DeliveryPage({
   params,
 }: {

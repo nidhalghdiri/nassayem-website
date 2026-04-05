@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Metadata } from "next";
 import FilterSidebar from "@/components/properties/FilterSidebar";
 import PropertyCard from "@/components/properties/PropertyCard";
 import prisma from "@/lib/prisma";
@@ -7,6 +8,33 @@ type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ [key: string]: string | undefined }>;
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn
+      ? "Furnished Apartments & Vacation Rentals in Salalah | Nassayem"
+      : "شقق مفروشة وإيجار قصير في صلالة | نسائم صلالة",
+    description: isEn
+      ? "Browse premium furnished apartments, studios, and villas in Salalah, Dhofar. Daily and monthly rates. Book your stay with Nassayem Salalah."
+      : "تصفح شققنا المفروشة الفاخرة والاستوديوهات والفلل في صلالة، ظفار. أسعار يومية وشهرية. احجز إقامتك مع نسائم صلالة.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/properties`,
+      languages: {
+        en: "https://www.nassayem.com/en/properties",
+        ar: "https://www.nassayem.com/ar/properties",
+      },
+    },
+    openGraph: {
+      title: isEn ? "Furnished Apartments in Salalah | Nassayem" : "شقق مفروشة في صلالة | نسائم",
+      description: isEn
+        ? "Premium furnished apartments and vacation rentals in Salalah, Oman."
+        : "شقق مفروشة فاخرة وإيجارات قصيرة في صلالة، عُمان.",
+      images: [{ url: "https://www.nassayem.com/og-properties.jpg", width: 1200, height: 630 }],
+    },
+  };
+}
 
 export default async function PropertiesPage({
   params,

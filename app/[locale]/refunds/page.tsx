@@ -1,3 +1,20 @@
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    title: isEn ? "Cancellation & Refund Policy | Nassayem Salalah" : "سياسة الإلغاء والاسترداد | نسائم صلالة",
+    description: isEn
+      ? "Understand our cancellation and refund policy for bookings at Nassayem Salalah furnished apartments."
+      : "تعرف على سياسة الإلغاء واسترداد الأموال للحجوزات في شقق نسائم صلالة المفروشة.",
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}/refunds`,
+      languages: { en: "https://www.nassayem.com/en/refunds", ar: "https://www.nassayem.com/ar/refunds" },
+    },
+  };
+}
+
 export default async function RefundsPage({
   params,
 }: {

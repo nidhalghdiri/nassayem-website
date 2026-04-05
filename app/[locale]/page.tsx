@@ -65,21 +65,19 @@ export default async function HomePage({ params }: PageProps) {
 
       {/* 1. HERO SECTION */}
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center">
-        <div className="absolute inset-0 bg-gray-900/40 z-10" />
+        {/* Subtle bottom gradient so the page transition is smooth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 z-10 pointer-events-none" />
         <div
           className="absolute inset-0 bg-cover bg-center z-0"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop')",
-          }}
+          style={{ backgroundImage: "url('/images/hero.jpeg')" }}
         />
 
         <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 mt-16">
           <AnimatedSection className="text-center mb-12">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 drop-shadow-lg tracking-tight">
+            <h1 className="text-5xl md:text-7xl font-bold text-[#1d5455] mb-6 tracking-tight drop-shadow-sm">
               {isEn ? "Nassayem Salalah" : "نسائم صلالة"}
             </h1>
-            <p className="text-xl md:text-2xl text-white/90 font-light drop-shadow-md max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-[#1d5455]/80 font-light max-w-2xl mx-auto">
               {isEn
                 ? "Elevated living. Exceptional stays. Experience the comfort of home with the luxury of a hotel."
                 : "حياة راقية. إقامات استثنائية. استمتع براحة المنزل مع فخامة الفنادق."}
