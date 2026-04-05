@@ -36,15 +36,15 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
 
         <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
           {isCash
-            ? isEn ? "Booking Confirmed!" : "تم تأكيد الحجز!"
+            ? isEn ? "Booking Received!" : "تم استلام الحجز!"
             : isEn ? "Payment Successful!" : "تمت عملية الدفع!"}
         </h1>
 
         <p className="text-gray-500 mb-8 leading-relaxed">
           {isCash
             ? isEn
-              ? `Thank you, ${booking.guestName}! Your booking for ${booking.unit.titleEn} is confirmed. Please pay at the reception upon arrival.`
-              : `شكراً لك، ${booking.guestName}! تم تأكيد حجزك في ${booking.unit.titleAr}. يرجى الدفع عند الاستقبال لدى وصولك.`
+              ? `Thank you, ${booking.guestName}! Your booking request for ${booking.unit.titleEn} has been received. Our team will confirm it shortly. Please pay at the reception upon arrival.`
+              : `شكراً لك، ${booking.guestName}! تم استلام طلب حجزك في ${booking.unit.titleAr}. سيقوم فريقنا بتأكيده قريباً. يرجى الدفع عند الاستقبال لدى وصولك.`
             : isEn
               ? `Thank you, ${booking.guestName}! Your payment was successful and your booking for ${booking.unit.titleEn} is now confirmed.`
               : `شكراً لك، ${booking.guestName}! تمت عملية الدفع بنجاح وتم تأكيد حجزك في ${booking.unit.titleAr}.`}
@@ -53,8 +53,13 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
         {/* Booking summary */}
         <div className="bg-gray-50 rounded-xl p-4 text-start mb-6 text-sm border border-gray-100 space-y-3">
           <div>
-            <p className="text-gray-400 text-xs mb-0.5">{isEn ? "Booking ID" : "رقم الحجز"}</p>
-            <p className="font-mono font-bold text-gray-900 text-xs">{booking.id}</p>
+            <p className="text-gray-400 text-xs mb-0.5">{isEn ? "Booking #" : "رقم الحجز"}</p>
+            <p className="font-mono font-bold text-nassayem text-lg tracking-wider">
+              {booking.bookingCode ?? booking.id.slice(0, 10).toUpperCase()}
+            </p>
+            <p className="text-gray-400 text-xs mt-0.5">
+              {isEn ? "Keep this number for your records" : "احتفظ بهذا الرقم لسجلاتك"}
+            </p>
           </div>
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
             <p className="text-gray-500">{isEn ? "Total Amount" : "المبلغ الإجمالي"}</p>
@@ -66,7 +71,7 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
               isCash ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
             }`}>
               {isCash
-                ? isEn ? "Cash at Reception" : "نقداً عند الاستقبال"
+                ? isEn ? "Cash — Pending Confirmation" : "نقدي — بانتظار التأكيد"
                 : isEn ? "Online — Paid" : "إلكتروني — مدفوع"}
             </span>
           </div>

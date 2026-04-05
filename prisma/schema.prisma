@@ -168,6 +168,7 @@ model Amenity {
 
 model Booking {
   id                String        @id @default(uuid())
+  bookingCode       String?       @unique // Short human-readable ID, e.g. NSM-K4X7Q2
   unitId            String
 
   guestName         String
