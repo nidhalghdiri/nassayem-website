@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import BookingWidget from "@/components/properties/BookingWidget";
+import GaViewItem from "@/components/analytics/GaViewItem";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -130,6 +131,12 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white pb-24">
+      <GaViewItem
+        itemId={unit.id}
+        itemName={unit.titleEn}
+        itemCategory={unit.rentType}
+        price={unit.rentType === "MONTHLY" ? unit.monthlyPrice : unit.dailyPrice}
+      />
       <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Structured data */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
@@ -339,6 +346,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
           <div className="relative lg:col-span-1">
             <BookingWidget
               unitId={unit.id}
+              unitName={unit.titleEn}
               priceDaily={unit.dailyPrice}
               priceMonthly={unit.monthlyPrice}
               rentType={unit.rentType}

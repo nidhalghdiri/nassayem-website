@@ -6,9 +6,11 @@ import {
   calculateBookingPrice,
   checkUnitAvailability,
 } from "@/app/actions/booking";
+import { gtagEvent } from "@/lib/gtag";
 
 type BookingWidgetProps = {
   unitId: string;
+  unitName: string;
   priceDaily: number | null;
   priceMonthly: number | null;
   rentType: string;
@@ -17,6 +19,7 @@ type BookingWidgetProps = {
 
 export default function BookingWidget({
   unitId,
+  unitName,
   priceDaily,
   priceMonthly,
   rentType,
@@ -130,6 +133,21 @@ export default function BookingWidget({
       return;
     }
     if (error) return;
+
+    // Fire GA4 begin_checkout before navigating
+    gtagEvent("begin_checkout", {
+      currency: "OMR",
+      value: priceDetails?.grandTotal ?? undefined,
+      items: [
+        {
+          item_id: unitId,
+          item_name: unitName,
+          item_category: rentType,
+          price: priceDetails?.grandTotal ?? undefined,
+          quantity: 1,
+        },
+      ],
+    });
 
     // Push to the checkout page with the query params
     const params = new URLSearchParams({ checkIn, checkOut, guests });
