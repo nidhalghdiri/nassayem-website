@@ -3,7 +3,6 @@ import { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import BookingWidget from "@/components/properties/BookingWidget";
-import Link from "next/link";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -81,9 +80,6 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
     if (unit.images[index]) return unit.images[index].url;
     return "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?q=80&w=1200&auto=format&fit=crop";
   };
-
-  const currentPrice =
-    unit.rentType === "MONTHLY" ? unit.monthlyPrice : unit.dailyPrice;
 
   // 1. Build the JSON-LD Schema Object
   const breadcrumbLd = {
@@ -349,32 +345,6 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
               locale={locale}
             />
           </div>
-        </div>
-        {/* Mobile Fixed Bottom Booking Bar (You can also convert this to use the widget logic later) */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex justify-between items-center z-50">
-          <div>
-            <div className="flex items-end gap-1">
-              <span className="text-xl font-extrabold text-gray-900">
-                {currentPrice}
-              </span>
-              <span className="text-gray-500 font-medium text-sm pb-0.5">
-                {isEn
-                  ? unit.rentType === "MONTHLY"
-                    ? "OMR / month"
-                    : "OMR / night"
-                  : unit.rentType === "MONTHLY"
-                    ? "ر.ع / شهر"
-                    : "ر.ع / ليلة"}
-              </span>
-            </div>
-          </div>
-          {/* Navigates directly to checkout for mobile users. We'll refine mobile date picking later */}
-          <Link
-            href={`/${locale}/properties/${unit.id}/checkout`}
-            className="bg-nassayem text-white px-8 py-3 rounded-xl font-bold hover:bg-nassayem-dark transition-colors"
-          >
-            {isEn ? "Reserve" : "احجز"}
-          </Link>
         </div>
       </article>
     </div>

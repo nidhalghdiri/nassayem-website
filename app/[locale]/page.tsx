@@ -66,11 +66,15 @@ export default async function HomePage({ params }: PageProps) {
       <section className="relative h-[85vh] min-h-[600px] flex items-center">
         {/* Bottom gradient for smooth page transition */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 z-10 pointer-events-none" />
-        {/* Left overlay to ensure text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/20 to-transparent z-10 pointer-events-none" />
+        {/* Side overlay — direction-aware for text readability */}
+        <div className={`absolute inset-0 ${isEn ? "bg-gradient-to-r" : "bg-gradient-to-l"} from-white/60 via-white/20 to-transparent z-10 pointer-events-none`} />
+        {/* Background image — mirrored in Arabic so blank space aligns with the content side */}
         <div
           className="absolute inset-0 bg-cover bg-center z-0"
-          style={{ backgroundImage: "url('/images/hero.jpeg')" }}
+          style={{
+            backgroundImage: "url('/images/hero.png')",
+            transform: isEn ? undefined : "scaleX(-1)",
+          }}
         />
 
         <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">

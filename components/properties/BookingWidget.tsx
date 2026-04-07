@@ -139,7 +139,7 @@ export default function BookingWidget({
   };
 
   return (
-    <div className="sticky top-28 bg-white border border-gray-200 rounded-2xl p-6 shadow-xl hidden lg:block">
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xl lg:sticky lg:top-28 mb-8 lg:mb-0">
       <div className="flex items-end gap-1 mb-6">
         <span className="text-3xl font-extrabold text-gray-900">
           {displayPrice}
