@@ -1,6 +1,5 @@
 import HeroSearchWidget from "@/components/home/HeroSearchWidget";
 import Link from "next/link";
-import Image from "next/image";
 import AnimatedSection from "@/components/ui/AnimatedSection";
 import ContactSection from "@/components/home/ContactSection";
 import PropertyCard from "@/components/properties/PropertyCard";
@@ -64,28 +63,36 @@ export default async function HomePage({ params }: PageProps) {
       />
 
       {/* 1. HERO SECTION */}
-      <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center">
-        {/* Subtle bottom gradient so the page transition is smooth */}
+      <section className="relative h-[85vh] min-h-[600px] flex items-center">
+        {/* Bottom gradient for smooth page transition */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 z-10 pointer-events-none" />
+        {/* Left overlay to ensure text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/20 to-transparent z-10 pointer-events-none" />
         <div
           className="absolute inset-0 bg-cover bg-center z-0"
           style={{ backgroundImage: "url('/images/hero.jpeg')" }}
         />
 
-        <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 mt-16">
-          <AnimatedSection className="text-center mb-12">
-            <h1 className="text-5xl md:text-7xl font-bold text-[#1d5455] mb-6 tracking-tight drop-shadow-sm">
-              {isEn ? "Nassayem Salalah" : "نسائم صلالة"}
-            </h1>
-            <p className="text-xl md:text-2xl text-[#1d5455]/80 font-light max-w-2xl mx-auto">
-              {isEn
-                ? "Elevated living. Exceptional stays. Experience the comfort of home with the luxury of a hotel."
-                : "حياة راقية. إقامات استثنائية. استمتع براحة المنزل مع فخامة الفنادق."}
-            </p>
-          </AnimatedSection>
-          <AnimatedSection delay={0.2}>
-            <HeroSearchWidget locale={locale} />
-          </AnimatedSection>
+        <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+          <div className="w-full lg:w-1/2">
+            <AnimatedSection className="mb-10">
+              <p className="text-xs font-bold text-[#2a7475] tracking-widest uppercase mb-4 flex items-center gap-2">
+                <span className="inline-block w-8 h-px bg-[#2a7475]" />
+                {isEn ? "Salalah, Oman" : "صلالة، عُمان"}
+              </p>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-[#1d5455] mb-5 tracking-tight leading-tight">
+                {isEn ? "Nassayem\nSalalah" : "نسائم\nصلالة"}
+              </h1>
+              <p className="text-lg md:text-xl text-[#1d5455]/75 font-light max-w-md leading-relaxed">
+                {isEn
+                  ? "Elevated living. Exceptional stays. Experience the comfort of home with the luxury of a hotel."
+                  : "حياة راقية. إقامات استثنائية. استمتع براحة المنزل مع فخامة الفنادق."}
+              </p>
+            </AnimatedSection>
+            <AnimatedSection delay={0.2}>
+              <HeroSearchWidget locale={locale} />
+            </AnimatedSection>
+          </div>
         </div>
       </section>
 

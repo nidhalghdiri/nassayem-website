@@ -24,12 +24,12 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
+    <div className="w-full max-w-xl flex flex-col">
       {/* Rent Type Toggle */}
-      <div className="bg-[#deeff8]/60 backdrop-blur-md border border-[#2a7475]/20 p-1 rounded-full mb-6 flex gap-1 shadow-sm">
+      <div className="bg-[#deeff8]/70 backdrop-blur-md border border-[#2a7475]/20 p-1 rounded-full mb-4 flex gap-1 shadow-sm self-start">
         <button
           onClick={() => setRentType("daily")}
-          className={`px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
+          className={`px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
             rentType === "daily"
               ? "bg-[#2a7475] text-white shadow-md"
               : "text-[#1d5455] hover:bg-[#deeff8]"
@@ -39,7 +39,7 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
         </button>
         <button
           onClick={() => setRentType("monthly")}
-          className={`px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
+          className={`px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
             rentType === "monthly"
               ? "bg-[#2a7475] text-white shadow-md"
               : "text-[#1d5455] hover:bg-[#deeff8]"
@@ -49,18 +49,18 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
         </button>
       </div>
 
-      {/* Main Search Bar */}
+      {/* Search Card */}
       <form
         onSubmit={handleSearch}
-        className="w-full bg-[#deeff8]/80 backdrop-blur-md border border-[#2a7475]/20 rounded-full shadow-xl flex flex-col md:flex-row items-center divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-[#2a7475]/15 p-2"
+        className="w-full bg-[#deeff8]/85 backdrop-blur-md border border-[#2a7475]/20 rounded-2xl shadow-xl p-4 flex flex-col gap-3"
       >
         {/* Unit Type */}
-        <div className="flex-1 w-full px-6 py-2 cursor-pointer hover:bg-[#deeff8] rounded-full transition-colors">
-          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-[#1d5455] tracking-wide uppercase">
             {isEn ? "Unit Type" : "نوع الوحدة"}
           </label>
           <select
-            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none appearance-none cursor-pointer"
+            className="w-full bg-white/70 text-[#1d5455] font-medium focus:outline-none border border-[#2a7475]/20 rounded-xl px-4 py-3 appearance-none cursor-pointer"
             value={unitType}
             onChange={(e) => setUnitType(e.target.value)}
           >
@@ -72,56 +72,55 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
           </select>
         </div>
 
-        {/* Check In */}
-        <div className="flex-1 w-full px-6 py-2 hover:bg-[#deeff8] rounded-full transition-colors">
-          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
-            {isEn ? "Check In" : "تسجيل الدخول"}
-          </label>
-          <input
-            type="date"
-            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-          />
-        </div>
+        {/* Dates Row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Check In */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-[#1d5455] tracking-wide uppercase">
+              {isEn ? "Check In" : "الدخول"}
+            </label>
+            <input
+              type="date"
+              className="w-full bg-white/70 text-[#1d5455] font-medium focus:outline-none border border-[#2a7475]/20 rounded-xl px-4 py-3 min-h-[48px]"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+            />
+          </div>
 
-        {/* Check Out */}
-        <div className="flex-1 w-full px-6 py-2 hover:bg-[#deeff8] rounded-full transition-colors">
-          <label className="block text-xs font-bold text-[#1d5455] tracking-wide uppercase mb-1">
-            {isEn ? "Check Out" : "تسجيل الخروج"}
-          </label>
-          <input
-            type="date"
-            className="w-full bg-transparent text-[#2a7475] font-medium focus:outline-none"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-          />
+          {/* Check Out */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-[#1d5455] tracking-wide uppercase">
+              {isEn ? "Check Out" : "الخروج"}
+            </label>
+            <input
+              type="date"
+              className="w-full bg-white/70 text-[#1d5455] font-medium focus:outline-none border border-[#2a7475]/20 rounded-xl px-4 py-3 min-h-[48px]"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Search Button */}
-        <div className="px-2 w-full md:w-auto mt-2 md:mt-0">
-          <button
-            type="submit"
-            className="w-full md:w-auto bg-[#2a7475] hover:bg-[#1d5455] text-white p-4 rounded-full transition-colors flex justify-center items-center shadow-md"
+        <button
+          type="submit"
+          className="w-full bg-[#2a7475] hover:bg-[#1d5455] text-white py-3.5 rounded-xl transition-colors flex justify-center items-center gap-2 shadow-md font-bold text-sm"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className="w-5 h-5 md:me-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <span className="md:hidden font-bold">
-              {isEn ? "Search" : "ابحث"}
-            </span>
-          </button>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {isEn ? "Search Properties" : "ابحث عن وحدات"}
+        </button>
       </form>
     </div>
   );

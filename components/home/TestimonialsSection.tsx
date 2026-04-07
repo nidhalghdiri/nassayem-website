@@ -37,8 +37,8 @@ const TESTIMONIALS: Testimonial[] = [
   // Google
   {
     source: "google",
-    nameEn: "Khalid Al-Harthi",
-    nameAr: "خالد الحارثي",
+    nameEn: "Saleh Rakan",
+    nameAr: "صالح راكان",
     dateEn: "October 2024",
     dateAr: "أكتوبر 2024",
     rating: 5,
