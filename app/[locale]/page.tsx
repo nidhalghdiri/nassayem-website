@@ -1,4 +1,5 @@
 import HeroSearchWidget from "@/components/home/HeroSearchWidget";
+import Image from "next/image";
 import Link from "next/link";
 import AnimatedSection from "@/components/ui/AnimatedSection";
 import ContactSection from "@/components/home/ContactSection";
@@ -11,10 +12,35 @@ import TestimonialsSection from "@/components/home/TestimonialsSection";
 import VideoSection from "@/components/home/VideoSection";
 import BuildingCarousel from "@/components/home/BuildingCarousel";
 import WhatsAppButton from "@/components/home/WhatsAppButton";
+import type { Metadata } from "next";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const isEn = locale === "en";
+  return {
+    alternates: {
+      canonical: `https://www.nassayem.com/${locale}`,
+      languages: {
+        en: "https://www.nassayem.com/en",
+        ar: "https://www.nassayem.com/ar",
+        "x-default": "https://www.nassayem.com/en",
+      },
+    },
+    openGraph: {
+      locale: isEn ? "en_US" : "ar_OM",
+      title: isEn
+        ? "Nassayem Salalah | Premium Property Rentals in Oman"
+        : "نسائم صلالة | تأجير عقارات فاخرة في عُمان",
+      description: isEn
+        ? "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today."
+        : "احجز شققاً فاخرة وأجنحة عائلية وعقارات متميزة في صلالة، ظفار. احجز إقامتك في الخريف اليوم.",
+    },
+  };
+}
 
 export default async function HomePage({ params }: PageProps) {
   const { locale } = await params;
@@ -68,13 +94,15 @@ export default async function HomePage({ params }: PageProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 z-10 pointer-events-none" />
         {/* Side overlay — direction-aware for text readability */}
         <div className={`absolute inset-0 ${isEn ? "bg-gradient-to-r" : "bg-gradient-to-l"} from-white/60 via-white/20 to-transparent z-10 pointer-events-none`} />
-        {/* Background image — mirrored in Arabic so blank space aligns with the content side */}
-        <div
-          className="absolute inset-0 bg-cover bg-center z-0"
-          style={{
-            backgroundImage: "url('/images/hero.png')",
-            transform: isEn ? undefined : "scaleX(-1)",
-          }}
+        {/* LCP hero image — using next/image with priority for fast paint */}
+        <Image
+          src="/images/hero.png"
+          alt="Nassayem Salalah furnished apartments – premium vacation rentals in Dhofar, Oman"
+          fill
+          priority
+          quality={85}
+          className="object-cover object-center z-0"
+          style={{ transform: isEn ? undefined : "scaleX(-1)" }}
         />
 
         <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
@@ -104,14 +132,14 @@ export default async function HomePage({ params }: PageProps) {
       <section className="py-20 bg-white">
         <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-sm font-bold text-nassayem tracking-widest uppercase mb-3">
+            <p className="text-sm font-bold text-nassayem tracking-widest uppercase mb-3">
               {isEn ? "Nassayem Salalah Vision" : "رؤية نسائم صلالة"}
-            </h2>
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900">
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
               {isEn
                 ? "Redefining Furnished Apartments"
                 : "إعادة تعريف الشقق المفروشة"}
-            </h3>
+            </h2>
             <p className="text-gray-500 mt-4 text-lg leading-relaxed">
               {isEn
                 ? "At Nassayem, we blend the comfort of home with the quality of a five-star hotel — giving every guest an experience that goes beyond just accommodation."

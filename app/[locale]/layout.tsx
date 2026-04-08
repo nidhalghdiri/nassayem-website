@@ -22,23 +22,31 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
+  // metadataBase is required so Next.js can resolve relative OG/Twitter image paths.
+  // Without it, OG images on property pages may render as broken relative URLs.
+  metadataBase: new URL("https://www.nassayem.com"),
   title: {
-    template: "%s | Nassayem Salalah", // Automatically appends your brand to page titles
+    template: "%s | Nassayem Salalah",
     default: "Nassayem Salalah | Premium Property Rentals in Oman",
+  },
+  description:
+    "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today.",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
   icons: {
     icon: "/faviconV2.png",
     shortcut: "/faviconV2.png",
     apple: "/faviconV2.png",
   },
-  description:
-    "Book luxury apartments, family suites, and premium properties in Salalah, Dhofar. Secure your Khareef vacation rental today.",
   alternates: {
     canonical: "https://www.nassayem.com",
     languages: {
       en: "https://www.nassayem.com/en",
       ar: "https://www.nassayem.com/ar",
-      "x-default": "https://www.nassayem.com/en", // Fallback for other languages
+      "x-default": "https://www.nassayem.com/en",
     },
   },
   openGraph: {
@@ -48,12 +56,21 @@ export const metadata: Metadata = {
     siteName: "Nassayem Salalah",
     images: [
       {
-        url: "https://www.nassayem.com/_next/image?url=%2Fimages%2Fns-logo.jpeg&w=128&q=75",
+        // Must be a direct static file URL — crawlers (WhatsApp, Google) cannot
+        // follow Next.js image-optimization URLs (_next/image).
+        url: "https://www.nassayem.com/images/hero.png",
         width: 1200,
         height: 630,
-        alt: "Nassayem Salalah Premium Properties",
+        alt: "Nassayem Salalah – Premium vacation rentals in Salalah, Oman",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nassayem Salalah | Premium Property Rentals in Oman",
+    description:
+      "Book luxury apartments and premium properties in Salalah, Dhofar.",
+    images: ["https://www.nassayem.com/images/hero.png"],
   },
 };
 
@@ -100,8 +117,8 @@ export default async function RootLayout({
         )}
 
         {!isAdmin && <Footer locale={locale} />}
+        <GoogleAnalytics gaId="G-JVX3CTNWVT" />
       </body>
-      <GoogleAnalytics gaId="G-JVX3CTNWVT" />
     </html>
   );
 }

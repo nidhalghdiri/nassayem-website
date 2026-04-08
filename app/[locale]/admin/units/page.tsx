@@ -10,6 +10,7 @@ const unitTypeLabel = (type: string, isEn: boolean) => {
     STUDIO: { en: "Studio", ar: "استوديو" },
     ONE_BEDROOM: { en: "1 Bedroom", ar: "غرفة وصالة" },
     TWO_BEDROOM: { en: "2 Bedrooms", ar: "غرفتين وصالة" },
+    THREE_BEDROOM: { en: "3 Bedrooms", ar: "ثلاث غرف وصالة" },
     VILLA: { en: "Villa", ar: "فيلا" },
   };
   return isEn ? map[type]?.en : map[type]?.ar;

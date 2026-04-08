@@ -2,7 +2,12 @@ import { MetadataRoute } from "next";
 import prisma from "@/lib/prisma";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.nassayem.com";
+  // Always use the production domain. Never use a localhost value in the sitemap.
+  const rawBase = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+  const baseUrl =
+    rawBase.startsWith("http://localhost") || rawBase === ""
+      ? "https://www.nassayem.com"
+      : rawBase;
   const locales = ["en", "ar"];
 
   // 1. Static routes
@@ -56,11 +61,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  // 4. Blog posts
-  const posts = await prisma.post.findMany({
-    where: { isPublished: true },
-    select: { slug: true, updatedAt: true },
-  });
+  // 4. Blog posts (wrapped in try/catch so a schema gap never kills the sitemap)
+  let posts: { slug: string; updatedAt: Date }[] = [];
+  try {
+    posts = await prisma.post.findMany({
+      where: { isPublished: true },
+      select: { slug: true, updatedAt: true },
+    });
+  } catch {
+    // silently skip if Post model is unavailable
+  }
 
   const blogRoutes: MetadataRoute.Sitemap = locales.flatMap((locale) =>
     posts.map((post) => ({

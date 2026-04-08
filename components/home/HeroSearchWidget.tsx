@@ -68,6 +68,7 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
             <option value="studio">{isEn ? "Studio" : "استوديو"}</option>
             <option value="1br">{isEn ? "1 Bedroom" : "غرفة وصالة"}</option>
             <option value="2br">{isEn ? "2 Bedrooms" : "غرفتين وصالة"}</option>
+            <option value="3br">{isEn ? "3 Bedrooms" : "ثلاث غرف وصالة"}</option>
             <option value="villa">{isEn ? "Villa" : "فيلا"}</option>
           </select>
         </div>

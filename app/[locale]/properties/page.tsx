@@ -55,6 +55,7 @@ export default async function PropertiesPage({
     studio: "STUDIO",
     "1br": "ONE_BEDROOM",
     "2br": "TWO_BEDROOM",
+    "3br": "THREE_BEDROOM",
     villa: "VILLA",
   };
   const unitTypeFilter = resolvedSearchParams.unitType

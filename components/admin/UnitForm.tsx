@@ -188,6 +188,9 @@ export default function UnitForm({
               <option value="TWO_BEDROOM">
                 {isEn ? "2 Bedrooms" : "غرفتين وصالة"}
               </option>
+              <option value="THREE_BEDROOM">
+                {isEn ? "3 Bedrooms" : "ثلاث غرف وصالة"}
+              </option>
               <option value="VILLA">{isEn ? "Villa" : "فيلا"}</option>
             </select>
           </div>

@@ -121,12 +121,6 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
         : "https://schema.org/OutOfStock",
       url: `https://www.nassayem.com/${locale}/properties/${unit.id}`,
     },
-    // Optional but highly recommended if you have a review system
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8", // Replace with dynamic data when you have reviews
-      reviewCount: "24",
-    },
   };
 
   return (
@@ -203,6 +197,7 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
                     : `غرفة معيشة واسعة في ${unit.titleAr}، شقة مفروشة في صلالة`
                 }
                 fill
+                priority
                 className="object-cover hover:scale-105 transition-transform duration-500"
               />
             </div>
