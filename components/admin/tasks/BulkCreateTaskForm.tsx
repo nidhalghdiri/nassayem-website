@@ -24,8 +24,10 @@ type Props = {
 
 type TaskRow = {
   _key: string;
+  type: string;
   title: string;
   description: string;
+  unitId: string;
   assignedToId: string;
   overridePriority: boolean;
   priority: string;
@@ -34,11 +36,9 @@ type TaskRow = {
   requiresApproval: boolean;
 };
 
-// Shared defaults applied to all rows
+// Shared defaults — building, priority, due date only
 type SharedDefaults = {
-  type: string;
   buildingId: string;
-  unitId: string;
   priority: string;
   dueDate: string;
 };
@@ -51,8 +51,10 @@ function makeKey() {
 function emptyRow(): TaskRow {
   return {
     _key: makeKey(),
+    type: "",
     title: "",
     description: "",
+    unitId: "",
     assignedToId: "",
     overridePriority: false,
     priority: "MEDIUM",
@@ -71,9 +73,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
   const today = new Date().toISOString().split("T")[0];
 
   const [shared, setShared] = useState<SharedDefaults>({
-    type: "",
     buildingId: "",
-    unitId: "",
     priority: "MEDIUM",
     dueDate: "",
   });
@@ -83,7 +83,6 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const units = buildings.find((b) => b.id === shared.buildingId)?.units ?? [];
-  const showApprovalToggle = shared.type === "MAINTENANCE";
 
   // ── Row helpers ──────────────────────────────────────────────────────────────
   function addRow() {
@@ -115,10 +114,6 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
     setResult(null);
     setGlobalError(null);
 
-    if (!shared.type) {
-      setGlobalError(isEn ? "Please select a task type." : "يرجى اختيار نوع المهمة.");
-      return;
-    }
     if (!shared.buildingId) {
       setGlobalError(isEn ? "Please select a building." : "يرجى اختيار المبنى.");
       return;
@@ -128,22 +123,22 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
       return;
     }
 
-    const filledRows = rows.filter((r) => r.title.trim() || r.assignedToId);
+    const filledRows = rows.filter((r) => r.type && r.title.trim() && r.assignedToId);
     if (filledRows.length === 0) {
-      setGlobalError(isEn ? "Add at least one task." : "أضف مهمة واحدة على الأقل.");
+      setGlobalError(isEn ? "Add at least one complete task row." : "أضف صفاً مكتملاً على الأقل.");
       return;
     }
 
     const tasks: BulkTaskInput[] = filledRows.map((r) => ({
-      type: shared.type as BulkTaskInput["type"],
+      type: r.type as BulkTaskInput["type"],
       title: r.title.trim(),
       description: r.description.trim() || undefined,
       buildingId: shared.buildingId,
-      unitId: shared.unitId || undefined,
+      unitId: r.unitId || undefined,
       priority: (r.overridePriority ? r.priority : shared.priority) as BulkTaskInput["priority"],
       assignedToId: r.assignedToId,
       dueDate: r.overrideDueDate ? r.dueDate : shared.dueDate,
-      requiresApproval: showApprovalToggle ? r.requiresApproval : false,
+      requiresApproval: r.type === "MAINTENANCE" ? r.requiresApproval : false,
     }));
 
     startTransition(async () => {
@@ -155,7 +150,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
     });
   }
 
-  const filledCount = rows.filter((r) => r.title.trim() && r.assignedToId).length;
+  const filledCount = rows.filter((r) => r.type && r.title.trim() && r.assignedToId).length;
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-6">
@@ -207,86 +202,30 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
             {isEn
-              ? "These apply to all tasks unless overridden per row."
-              : "تنطبق هذه الإعدادات على جميع المهام ما لم يتم تجاوزها في كل صف."}
+              ? "Building, priority and due date apply to all tasks unless overridden per row."
+              : "المبنى والأولوية وتاريخ الاستحقاق تنطبق على جميع المهام ما لم يتم تجاوزها في كل صف."}
           </p>
         </div>
 
-        {/* Task Type */}
+        {/* Building */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {isEn ? "Task Type" : "نوع المهمة"} <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            {isEn ? "Building" : "المبنى"} <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(Object.entries(TASK_TYPE_CONFIG) as [string, typeof TASK_TYPE_CONFIG[keyof typeof TASK_TYPE_CONFIG]][]).map(
-              ([key, conf]) => (
-                <label
-                  key={key}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all text-center text-xs font-medium select-none
-                    ${shared.type === key
-                      ? `${conf.bg} ${conf.text} border-current shadow-sm`
-                      : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="sharedType"
-                    value={key}
-                    checked={shared.type === key}
-                    onChange={() => setShared((s) => ({ ...s, type: key }))}
-                    className="sr-only"
-                  />
-                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={conf.iconPath} />
-                  </svg>
-                  {isEn ? conf.labelEn : conf.labelAr}
-                </label>
-              ),
-            )}
-          </div>
-        </div>
-
-        {/* Building + Unit */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {isEn ? "Building" : "المبنى"} <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={shared.buildingId}
-              onChange={(e) => setShared((s) => ({ ...s, buildingId: e.target.value, unitId: "" }))}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
-            >
-              <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
-              {buildings.map((b) => (
-                <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {isEn ? "Unit" : "الوحدة"}
-              <span className="text-gray-400 font-normal ms-1.5 text-xs">({isEn ? "optional" : "اختياري"})</span>
-            </label>
-            <select
-              value={shared.unitId}
-              onChange={(e) => setShared((s) => ({ ...s, unitId: e.target.value }))}
-              disabled={!shared.buildingId}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">
-                {!shared.buildingId
-                  ? (isEn ? "Select a building first" : "اختر مبنى أولاً")
-                  : (isEn ? "No specific unit" : "لا وحدة محددة")}
-              </option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.unitCode ? `${u.unitCode} - ` : ""}{isEn ? u.titleEn : u.titleAr}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={shared.buildingId}
+            onChange={(e) => {
+              setShared((s) => ({ ...s, buildingId: e.target.value }));
+              // Clear per-row unitIds when building changes
+              setRows((prev) => prev.map((r) => ({ ...r, unitId: "" })));
+            }}
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          >
+            <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
+            ))}
+          </select>
         </div>
 
         {/* Priority + Due Date */}
@@ -349,14 +288,15 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
         </div>
 
         {rows.map((row, idx) => (
-          <TaskRow
+          <TaskRowCard
             key={row._key}
             row={row}
             idx={idx}
             isEn={isEn}
             today={today}
+            units={units}
+            buildingSelected={!!shared.buildingId}
             assignableStaff={assignableStaff}
-            showApprovalToggle={showApprovalToggle}
             onUpdate={(patch) => updateRow(row._key, patch)}
             onRemove={() => removeRow(row._key)}
             onDuplicate={() => duplicateRow(row._key)}
@@ -413,14 +353,17 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
   );
 }
 
-// ── Individual task row ────────────────────────────────────────────────────────
-function TaskRow({
+// ── Individual task row card ───────────────────────────────────────────────────
+type UnitOption = { id: string; unitCode: string | null; titleEn: string; titleAr: string };
+
+function TaskRowCard({
   row,
   idx,
   isEn,
   today,
+  units,
+  buildingSelected,
   assignableStaff,
-  showApprovalToggle,
   onUpdate,
   onRemove,
   onDuplicate,
@@ -430,14 +373,16 @@ function TaskRow({
   idx: number;
   isEn: boolean;
   today: string;
+  units: UnitOption[];
+  buildingSelected: boolean;
   assignableStaff: StaffUser[];
-  showApprovalToggle: boolean;
   onUpdate: (patch: Partial<TaskRow>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
   canRemove: boolean;
 }) {
-  const isReady = row.title.trim() && row.assignedToId;
+  const isReady = !!(row.type && row.title.trim() && row.assignedToId);
+  const showApprovalToggle = row.type === "MAINTENANCE";
 
   return (
     <div className={`bg-white rounded-xl border shadow-sm transition-all ${
@@ -454,7 +399,7 @@ function TaskRow({
           {row.title.trim() || (isEn ? "Untitled task" : "مهمة بدون عنوان")}
         </span>
         {isReady && (
-          <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+          <span className="text-xs text-green-600 font-medium flex items-center gap-1 shrink-0">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
             </svg>
@@ -487,6 +432,35 @@ function TaskRow({
 
       {/* Row body */}
       <div className="p-4 space-y-3">
+
+        {/* Task Type — compact segmented buttons */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1.5">
+            {isEn ? "Task Type" : "نوع المهمة"} <span className="text-red-500">*</span>
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {(Object.entries(TASK_TYPE_CONFIG) as [string, typeof TASK_TYPE_CONFIG[keyof typeof TASK_TYPE_CONFIG]][]).map(
+              ([key, conf]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onUpdate({ type: key, requiresApproval: false })}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all select-none
+                    ${row.type === key
+                      ? `${conf.bg} ${conf.text} border-current shadow-sm`
+                      : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={conf.iconPath} />
+                  </svg>
+                  {isEn ? conf.labelEn : conf.labelAr}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+
         {/* Title + Assign To */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -532,6 +506,31 @@ function TaskRow({
           </div>
         </div>
 
+        {/* Unit */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            {isEn ? "Unit" : "الوحدة"}
+            <span className="text-gray-400 font-normal ms-1 text-xs">({isEn ? "optional" : "اختياري"})</span>
+          </label>
+          <select
+            value={row.unitId}
+            onChange={(e) => onUpdate({ unitId: e.target.value })}
+            disabled={!buildingSelected}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="">
+              {!buildingSelected
+                ? (isEn ? "Select a building first" : "اختر مبنى أولاً")
+                : (isEn ? "No specific unit" : "لا وحدة محددة")}
+            </option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.unitCode ? `${u.unitCode} - ` : ""}{isEn ? u.titleEn : u.titleAr}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Description */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -549,7 +548,6 @@ function TaskRow({
 
         {/* Override toggles */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/* Priority override */}
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -560,7 +558,6 @@ function TaskRow({
             <span className="text-xs text-gray-500">{isEn ? "Custom priority" : "أولوية مخصصة"}</span>
           </label>
 
-          {/* Due date override */}
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -610,7 +607,7 @@ function TaskRow({
           </div>
         )}
 
-        {/* Requires approval (MAINTENANCE only) */}
+        {/* Requires approval — shown only when this row's type is MAINTENANCE */}
         {showApprovalToggle && (
           <label className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg cursor-pointer hover:bg-yellow-100/60 transition-colors">
             <input
