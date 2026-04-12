@@ -115,6 +115,132 @@ export async function createTask(
   redirect(`/${locale}/admin/tasks`);
 }
 
+// ── Bulk create multiple tasks ────────────────────────────────────────────────
+export type BulkTaskInput = {
+  type: TaskType;
+  title: string;
+  description?: string;
+  buildingId: string;
+  unitId?: string;
+  priority: TaskPriority;
+  assignedToId: string;
+  dueDate: string;
+  requiresApproval?: boolean;
+};
+
+export async function createTasksBulk(
+  tasks: BulkTaskInput[],
+  locale: string,
+): Promise<{ success: boolean; created: number; errors: string[] }> {
+  const adminUser = await getCurrentAdminUser();
+  if (!adminUser) return { success: false, created: 0, errors: ["Unauthorized."] };
+  if (!canCreateTasks(adminUser.role as TStaffRole)) {
+    return { success: false, created: 0, errors: ["You do not have permission to create tasks."] };
+  }
+
+  if (!tasks || tasks.length === 0) {
+    return { success: false, created: 0, errors: ["No tasks provided."] };
+  }
+
+  const allowedRoles = ASSIGNABLE_ROLES[adminUser.role as TStaffRole] as StaffRole[];
+  const errors: string[] = [];
+  let created = 0;
+
+  for (let i = 0; i < tasks.length; i++) {
+    const t = tasks[i];
+    const rowLabel = `Row ${i + 1}`;
+
+    if (!t.type || !t.title?.trim() || !t.buildingId || !t.assignedToId || !t.dueDate) {
+      errors.push(`${rowLabel}: Missing required fields.`);
+      continue;
+    }
+
+    const assignee = await prisma.adminUser.findUnique({ where: { id: t.assignedToId } });
+    if (!assignee) {
+      errors.push(`${rowLabel}: Assignee not found.`);
+      continue;
+    }
+    if (!allowedRoles.includes(assignee.role)) {
+      errors.push(`${rowLabel}: Your role cannot assign tasks to ${assignee.role}.`);
+      continue;
+    }
+
+    const requiresApproval = t.requiresApproval ?? false;
+    const initialStatus = getInitialStatus(t.type, requiresApproval);
+
+    try {
+      const task = await prisma.task.create({
+        data: {
+          type: t.type,
+          title: t.title.trim(),
+          description: t.description?.trim() || null,
+          buildingId: t.buildingId,
+          unitId: t.unitId || null,
+          priority: t.priority,
+          status: initialStatus,
+          createdById: adminUser.id,
+          assignedToId: t.assignedToId,
+          dueDate: new Date(t.dueDate),
+          requiresApproval,
+          approvalStatus: requiresApproval ? "PENDING" : null,
+        },
+      });
+
+      await prisma.taskActivity.create({
+        data: {
+          taskId: task.id,
+          userId: adminUser.id,
+          action: "task_created",
+          details: requiresApproval
+            ? "Task submitted for approval (bulk create)."
+            : `Task created and assigned to ${assignee.name ?? assignee.email} (bulk create).`,
+        },
+      });
+
+      if (t.type === "INSPECTION") {
+        const checklist = await prisma.inspectionChecklist.create({
+          data: { taskId: task.id },
+        });
+
+        const customCategories = await prisma.inspectionCategory.findMany({
+          include: { items: { orderBy: { displayOrder: "asc" } } },
+          orderBy: { displayOrder: "asc" },
+        });
+
+        if (customCategories.length > 0) {
+          const itemsToCreate = customCategories.flatMap((cat) =>
+            cat.items.map((item, idx) => ({
+              checklistId: checklist.id,
+              category: locale === "ar" ? cat.nameAr : cat.nameEn,
+              label: locale === "ar" ? item.labelAr : item.labelEn,
+              displayOrder: idx,
+              status: "pending",
+            })),
+          );
+          await prisma.inspectionChecklistItem.createMany({ data: itemsToCreate });
+        } else {
+          await prisma.inspectionChecklistItem.createMany({
+            data: DEFAULT_CHECKLIST_ITEMS.map((item, idx) => ({
+              checklistId: checklist.id,
+              category: item.category,
+              label: locale === "ar" ? item.labelAr : item.labelEn,
+              displayOrder: idx,
+              status: "pending",
+            })),
+          });
+        }
+      }
+
+      created++;
+    } catch {
+      errors.push(`${rowLabel}: Failed to create task.`);
+    }
+  }
+
+  revalidatePath(`/${locale}/admin/tasks`);
+  return { success: errors.length === 0, created, errors };
+}
+
 // ── Submit a maintenance request (HOUSEKEEPING only) ─────────────────────────
 // Creates a MAINTENANCE task with requiresApproval=true, assigned to self.
 // Bypasses ASSIGNABLE_ROLES — HOUSEKEEPING can't normally assign tasks.
