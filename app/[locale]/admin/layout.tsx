@@ -1,6 +1,7 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { createClient } from "@/utils/supabase/server";
 import { logoutAdmin } from "@/app/actions/auth";
+import { getCurrentAdminUser } from "@/lib/adminAuth";
 
 type AdminLayoutProps = {
   children: React.ReactNode;
@@ -25,13 +26,17 @@ export default async function AdminLayout({
     return <>{children}</>;
   }
 
+  // Fetch the AdminUser record to get the role for sidebar filtering
+  const adminUser = await getCurrentAdminUser();
+  const userRole = adminUser?.role ?? "MANAGER";
+
   // The first character of the email as the avatar letter
   const avatarLetter = user.email?.charAt(0).toUpperCase() ?? "A";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 font-english">
       {/* Sidebar */}
-      <AdminSidebar locale={locale} userEmail={user.email ?? undefined} />
+      <AdminSidebar locale={locale} userEmail={user.email ?? undefined} userRole={userRole} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
