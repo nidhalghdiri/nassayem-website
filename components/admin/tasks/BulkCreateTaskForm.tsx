@@ -137,7 +137,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
       unitId: r.unitId || undefined,
       priority: (r.overridePriority ? r.priority : shared.priority) as BulkTaskInput["priority"],
       assignedToId: r.assignedToId,
-      dueDate: r.overrideDueDate ? r.dueDate : shared.dueDate,
+      dueDate: (r.overrideDueDate && r.dueDate) ? r.dueDate : shared.dueDate,
       requiresApproval: r.type === "MAINTENANCE" ? r.requiresApproval : false,
     }));
 

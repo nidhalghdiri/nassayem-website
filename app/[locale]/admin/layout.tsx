@@ -1,4 +1,5 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminLocaleSwitcher from "@/components/admin/AdminLocaleSwitcher";
 import { createClient } from "@/utils/supabase/server";
 import { logoutAdmin } from "@/app/actions/auth";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
@@ -41,7 +42,13 @@ export default async function AdminLayout({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top header bar */}
-        <header className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center justify-end px-8 shadow-sm gap-4">
+        <header className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center justify-end px-8 shadow-sm gap-3">
+          {/* Language switcher */}
+          <AdminLocaleSwitcher locale={locale} />
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-gray-200" />
+
           {/* User email */}
           <span className="text-sm font-medium text-gray-600">
             {user.email}
