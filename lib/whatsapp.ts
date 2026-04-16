@@ -112,9 +112,9 @@ export async function notifyTaskAssigned({
   });
 
   const priorityLabels: Record<string, { en: string; ar: string }> = {
-    LOW:    { en: "Low",    ar: "منخفضة" },
+    LOW: { en: "Low", ar: "منخفضة" },
     MEDIUM: { en: "Medium", ar: "متوسطة" },
-    HIGH:   { en: "High",   ar: "عالية" },
+    HIGH: { en: "High", ar: "عالية" },
     URGENT: { en: "Urgent", ar: "عاجلة" },
   };
   const priorityLabel = isAr
@@ -124,6 +124,9 @@ export async function notifyTaskAssigned({
   const unitDisplay = unitName || (isAr ? "منطقة مشتركة" : "Common Area");
 
   // Fire-and-forget — don't block the task creation
+  const tempName = isAr
+    ? "nassayem_task_assigned"
+    : "nassayem_task_assigned_ar";
   sendTemplate(assignee.whatsappNumber, "nassayem_task_assigned", langCode, [
     name,
     taskTitle,
