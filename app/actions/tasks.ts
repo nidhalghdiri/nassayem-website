@@ -114,10 +114,11 @@ export async function createTask(
 
   // Send WhatsApp notification to the assigned user (non-blocking, only if not pending approval)
   if (!requiresApproval) {
-    const building = await prisma.building.findUnique({
-      where: { id: buildingId },
-      select: { nameEn: true },
-    });
+    const [building, unit] = await Promise.all([
+      prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } }),
+      unitId ? prisma.unit.findUnique({ where: { id: unitId }, select: { unitCode: true, titleEn: true } }) : null,
+    ]);
+    const unitName = unit ? (unit.unitCode ? `${unit.unitCode} - ${unit.titleEn}` : unit.titleEn) : "";
     notifyTaskAssigned({
       assignee: {
         name: assignee.name,
@@ -126,6 +127,7 @@ export async function createTask(
       },
       taskTitle: title,
       buildingName: building?.nameEn ?? "",
+      unitName,
       dueDate: new Date(dueDate),
       priority,
     }).catch(console.error);
@@ -253,10 +255,11 @@ export async function createTasksBulk(
 
       // Send WhatsApp notification (non-blocking)
       if (!requiresApproval && assignee.whatsappNumber) {
-        const building = await prisma.building.findUnique({
-          where: { id: t.buildingId },
-          select: { nameEn: true },
-        });
+        const [building, unit] = await Promise.all([
+          prisma.building.findUnique({ where: { id: t.buildingId }, select: { nameEn: true } }),
+          t.unitId ? prisma.unit.findUnique({ where: { id: t.unitId }, select: { unitCode: true, titleEn: true } }) : null,
+        ]);
+        const unitName = unit ? (unit.unitCode ? `${unit.unitCode} - ${unit.titleEn}` : unit.titleEn) : "";
         notifyTaskAssigned({
           assignee: {
             name: assignee.name,
@@ -265,6 +268,7 @@ export async function createTasksBulk(
           },
           taskTitle: t.title.trim(),
           buildingName: building?.nameEn ?? "",
+          unitName,
           dueDate: new Date(t.dueDate),
           priority: t.priority,
         }).catch(console.error);

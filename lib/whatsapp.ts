@@ -84,18 +84,20 @@ type NotifyUser = {
 /**
  * Notify the assigned user when a new task is created for them.
  * Template: nassayem_task_assigned
- * Params: [1] name, [2] title, [3] building, [4] dueDate, [5] priority
+ * Params: [1] name, [2] title, [3] building, [4] unit, [5] dueDate, [6] priority
  */
 export async function notifyTaskAssigned({
   assignee,
   taskTitle,
   buildingName,
+  unitName,
   dueDate,
   priority,
 }: {
   assignee: AssignedUser;
   taskTitle: string;
   buildingName: string;
+  unitName: string;   // pass "" or "Common Area" when there is no unit
   dueDate: Date;
   priority: string;
 }): Promise<void> {
@@ -119,11 +121,14 @@ export async function notifyTaskAssigned({
     ? (priorityLabels[priority]?.ar ?? priority)
     : (priorityLabels[priority]?.en ?? priority);
 
+  const unitDisplay = unitName || (isAr ? "منطقة مشتركة" : "Common Area");
+
   // Fire-and-forget — don't block the task creation
   sendTemplate(assignee.whatsappNumber, "nassayem_task_assigned", langCode, [
     name,
     taskTitle,
     buildingName,
+    unitDisplay,
     dueDateStr,
     priorityLabel,
   ]).catch(console.error);
