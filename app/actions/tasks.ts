@@ -7,6 +7,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canCreateTasks, canCreateMaintenanceRequest, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
+import { notifyTaskAssigned } from "@/lib/whatsapp";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
 
@@ -109,6 +110,25 @@ export async function createTask(
         })),
       });
     }
+  }
+
+  // Send WhatsApp notification to the assigned user (non-blocking, only if not pending approval)
+  if (!requiresApproval) {
+    const building = await prisma.building.findUnique({
+      where: { id: buildingId },
+      select: { nameEn: true },
+    });
+    notifyTaskAssigned({
+      assignee: {
+        name: assignee.name,
+        whatsappNumber: assignee.whatsappNumber ?? null,
+        preferredLanguage: assignee.preferredLanguage,
+      },
+      taskTitle: title,
+      buildingName: building?.nameEn ?? "",
+      dueDate: new Date(dueDate),
+      priority,
+    }).catch(console.error);
   }
 
   revalidatePath(`/${locale}/admin/tasks`);
@@ -229,6 +249,25 @@ export async function createTasksBulk(
             })),
           });
         }
+      }
+
+      // Send WhatsApp notification (non-blocking)
+      if (!requiresApproval && assignee.whatsappNumber) {
+        const building = await prisma.building.findUnique({
+          where: { id: t.buildingId },
+          select: { nameEn: true },
+        });
+        notifyTaskAssigned({
+          assignee: {
+            name: assignee.name,
+            whatsappNumber: assignee.whatsappNumber,
+            preferredLanguage: assignee.preferredLanguage,
+          },
+          taskTitle: t.title.trim(),
+          buildingName: building?.nameEn ?? "",
+          dueDate: new Date(t.dueDate),
+          priority: t.priority,
+        }).catch(console.error);
       }
 
       created++;

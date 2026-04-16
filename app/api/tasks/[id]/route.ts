@@ -3,7 +3,16 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canUpdateTaskStatus } from "@/lib/tasks/permissions";
 import { STATUS_TRANSITIONS, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
+import { notifyTaskCompleted } from "@/lib/whatsapp";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
+
+// Statuses that mean "task is done"
+const COMPLETED_STATUSES: TaskStatus[] = [
+  "CLEANING_COMPLETED",
+  "NO_ISSUES",
+  "WORK_COMPLETED",
+  "COMPLETED",
+];
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -120,7 +129,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  const updated = await prisma.task.update({ where: { id }, data: updates });
+  const updated = await prisma.task.update({
+    where: { id },
+    data: updates,
+    include: {
+      building:   { select: { nameEn: true } },
+      assignedTo: { select: { name: true } },
+    },
+  });
 
   // Write activity entries
   if (activities.length > 0) {
@@ -132,6 +148,32 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         details: a.details,
       })),
     });
+  }
+
+  // Send WhatsApp notification to supervisors/managers when task is completed
+  if (updates.status && COMPLETED_STATUSES.includes(updates.status as TaskStatus)) {
+    const notifyUsers = await prisma.adminUser.findMany({
+      where: {
+        role: { in: ["SUPERVISOR", "MANAGER"] },
+        whatsappNumber: { not: null },
+      },
+      select: { name: true, whatsappNumber: true, preferredLanguage: true },
+    });
+
+    if (notifyUsers.length > 0) {
+      const completedByName = adminUser.name ?? adminUser.email.split("@")[0];
+      notifyTaskCompleted({
+        notifyUsers: notifyUsers.map((u) => ({
+          name: u.name,
+          whatsappNumber: u.whatsappNumber,
+          preferredLanguage: u.preferredLanguage,
+        })),
+        taskTitle: task.title,
+        completedByName,
+        buildingName: updated.building?.nameEn ?? "",
+        completedAt: new Date(),
+      }).catch(console.error);
+    }
   }
 
   return NextResponse.json(updated);

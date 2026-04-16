@@ -195,11 +195,13 @@ model Booking {
 // ------------------------------------------------------
 
 model AdminUser {
-  id         String    @id @default(uuid())
-  supabaseId String    @unique
-  email      String    @unique
-  name       String?
-  role       StaffRole @default(MANAGER)
+  id                String    @id @default(uuid())
+  supabaseId        String    @unique
+  email             String    @unique
+  name              String?
+  role              StaffRole @default(MANAGER)
+  whatsappNumber    String?            // e.g. "96898590405" — no + or spaces
+  preferredLanguage String    @default("en") // "en" or "ar"
 
   // Task relations
   createdTasks    Task[]         @relation("TaskCreatedBy")

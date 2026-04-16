@@ -13,6 +13,8 @@ type AdminUser = {
   email: string;
   name: string | null;
   role: string;
+  whatsappNumber: string | null;
+  preferredLanguage: string;
   createdAt: Date;
 };
 
@@ -206,6 +208,22 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
               </select>
             </Field>
 
+            <Field label={isEn ? "WhatsApp Number" : "رقم واتساب"} optional isEn={isEn}>
+              <input name="whatsappNumber" type="tel" maxLength={15}
+                placeholder="96898590405"
+                className={inputCls} />
+              <p className="mt-1 text-xs text-gray-400">
+                {isEn ? "Omani format: 968XXXXXXXX (no + or spaces)" : "صيغة عمانية: 968XXXXXXXX (بدون + أو مسافات)"}
+              </p>
+            </Field>
+
+            <Field label={isEn ? "Notification Language" : "لغة الإشعارات"} isEn={isEn}>
+              <select name="preferredLanguage" defaultValue="en" className={inputCls}>
+                <option value="en">{isEn ? "English" : "الإنجليزية"}</option>
+                <option value="ar">{isEn ? "Arabic" : "العربية"}</option>
+              </select>
+            </Field>
+
             <ModalActions
               isEn={isEn}
               onCancel={() => setShowCreate(false)}
@@ -236,6 +254,23 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
                     {isEn ? STAFF_ROLE_CONFIG[r].labelEn : STAFF_ROLE_CONFIG[r].labelAr}
                   </option>
                 ))}
+              </select>
+            </Field>
+
+            <Field label={isEn ? "WhatsApp Number" : "رقم واتساب"} optional isEn={isEn}>
+              <input name="whatsappNumber" type="tel" maxLength={15}
+                defaultValue={editUser.whatsappNumber ?? ""}
+                placeholder="96898590405"
+                className={inputCls} />
+              <p className="mt-1 text-xs text-gray-400">
+                {isEn ? "Omani format: 968XXXXXXXX (no + or spaces)" : "صيغة عمانية: 968XXXXXXXX (بدون + أو مسافات)"}
+              </p>
+            </Field>
+
+            <Field label={isEn ? "Notification Language" : "لغة الإشعارات"} isEn={isEn}>
+              <select name="preferredLanguage" defaultValue={editUser.preferredLanguage ?? "en"} className={inputCls}>
+                <option value="en">{isEn ? "English" : "الإنجليزية"}</option>
+                <option value="ar">{isEn ? "Arabic" : "العربية"}</option>
               </select>
             </Field>
 

@@ -26,6 +26,8 @@ export async function createAdminUser(
   const password = (formData.get("password") as string)?.trim();
   const name = (formData.get("name") as string)?.trim() || null;
   const role = (formData.get("role") as StaffRole) || "MANAGER";
+  const whatsappNumber = (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") || null;
+  const preferredLanguage = (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
 
   if (!email || !password) {
     return { error: "Email and password are required.", success: false };
@@ -49,7 +51,7 @@ export async function createAdminUser(
   if (error) return { error: error.message, success: false };
 
   await prisma.adminUser.create({
-    data: { supabaseId: data.user.id, email, name, role },
+    data: { supabaseId: data.user.id, email, name, role, whatsappNumber, preferredLanguage },
   });
 
   revalidateUsers();
@@ -71,6 +73,8 @@ export async function updateAdminUser(
   const name = (formData.get("name") as string)?.trim() || null;
   const role = formData.get("role") as StaffRole;
   const newPassword = (formData.get("password") as string)?.trim();
+  const whatsappNumber = (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") || null;
+  const preferredLanguage = (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
 
   // Prevent manager from changing their own role
   if (adminUserId === currentUser.id && role !== "MANAGER") {
@@ -83,7 +87,7 @@ export async function updateAdminUser(
 
   await prisma.adminUser.update({
     where: { id: adminUserId },
-    data: { name, role },
+    data: { name, role, whatsappNumber, preferredLanguage },
   });
 
   if (newPassword) {
