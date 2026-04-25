@@ -246,7 +246,7 @@ export default function TaskBoard({
                 <span className="hidden sm:inline">{isEn ? "Approvals" : "الموافقات"}</span>
               </button>
             )}
-            {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && (
+            {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST") && (
               <>
                 <button onClick={() => router.push(`${pathname}/bulk`)} className="flex items-center gap-1.5 px-3 py-2 border border-nassayem/40 text-nassayem rounded-lg text-sm font-medium hover:bg-nassayem/5 transition-colors">
                   <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
