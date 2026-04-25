@@ -138,7 +138,6 @@ model Unit {
   images        UnitImage[]
   amenities     Amenity[]
   bookings      Booking[]
-  tasks         Task[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -224,7 +223,7 @@ model Task {
 
   // Location
   buildingId  String
-  unitId      String?      // null = common area
+  unitNumber  String?      // free-text unit name/code, null = common area
 
   // Priority & status
   priority    TaskPriority @default(MEDIUM)
@@ -246,7 +245,7 @@ model Task {
 
   // Relations
   building     Building       @relation(fields: [buildingId], references: [id])
-  unit         Unit?          @relation(fields: [unitId], references: [id])
+  // (no Unit relation — unitNumber is free text)
   createdBy    AdminUser      @relation("TaskCreatedBy",  fields: [createdById],  references: [id])
   assignedTo   AdminUser      @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
   approvedBy   AdminUser?     @relation("TaskApprovedBy", fields: [approvedById], references: [id])

@@ -31,8 +31,8 @@ type Checklist = {
 type Task = {
   id: string;
   title: string;
+  unitNumber: string | null;
   building: { nameEn: string; nameAr: string } | null;
-  unit: { titleEn: string; titleAr: string } | null;
 };
 
 type Props = {

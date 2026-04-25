@@ -7,17 +7,16 @@ import type { BulkTaskInput } from "@/app/actions/tasks";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
-type BuildingWithUnits = {
+type BuildingOption = {
   id: string;
   nameEn: string;
   nameAr: string;
-  units: { id: string; unitCode: string | null; titleEn: string; titleAr: string }[];
 };
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
 
 type Props = {
-  buildings: BuildingWithUnits[];
+  buildings: BuildingOption[];
   assignableStaff: StaffUser[];
   locale: string;
 };
@@ -27,7 +26,7 @@ type TaskRow = {
   type: string;
   title: string;
   description: string;
-  unitId: string;
+  unitNumber: string;
   assignedToId: string;
   overridePriority: boolean;
   priority: string;
@@ -54,7 +53,7 @@ function emptyRow(): TaskRow {
     type: "",
     title: "",
     description: "",
-    unitId: "",
+    unitNumber: "",
     assignedToId: "",
     overridePriority: false,
     priority: "MEDIUM",
@@ -81,8 +80,6 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
   const [rows, setRows] = useState<TaskRow[]>([emptyRow(), emptyRow(), emptyRow()]);
   const [result, setResult] = useState<{ success: boolean; created: number; errors: string[] } | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
-
-  const units = buildings.find((b) => b.id === shared.buildingId)?.units ?? [];
 
   // ── Row helpers ──────────────────────────────────────────────────────────────
   function addRow() {
@@ -134,7 +131,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
       title: r.title.trim(),
       description: r.description.trim() || undefined,
       buildingId: shared.buildingId,
-      unitId: r.unitId || undefined,
+      unitNumber: r.unitNumber.trim() || undefined,
       priority: (r.overridePriority ? r.priority : shared.priority) as BulkTaskInput["priority"],
       assignedToId: r.assignedToId,
       dueDate: (r.overrideDueDate && r.dueDate) ? r.dueDate : shared.dueDate,
@@ -214,11 +211,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
           </label>
           <select
             value={shared.buildingId}
-            onChange={(e) => {
-              setShared((s) => ({ ...s, buildingId: e.target.value }));
-              // Clear per-row unitIds when building changes
-              setRows((prev) => prev.map((r) => ({ ...r, unitId: "" })));
-            }}
+            onChange={(e) => setShared((s) => ({ ...s, buildingId: e.target.value }))}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
@@ -294,8 +287,6 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
             idx={idx}
             isEn={isEn}
             today={today}
-            units={units}
-            buildingSelected={!!shared.buildingId}
             assignableStaff={assignableStaff}
             onUpdate={(patch) => updateRow(row._key, patch)}
             onRemove={() => removeRow(row._key)}
@@ -354,15 +345,11 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
 }
 
 // ── Individual task row card ───────────────────────────────────────────────────
-type UnitOption = { id: string; unitCode: string | null; titleEn: string; titleAr: string };
-
 function TaskRowCard({
   row,
   idx,
   isEn,
   today,
-  units,
-  buildingSelected,
   assignableStaff,
   onUpdate,
   onRemove,
@@ -373,8 +360,6 @@ function TaskRowCard({
   idx: number;
   isEn: boolean;
   today: string;
-  units: UnitOption[];
-  buildingSelected: boolean;
   assignableStaff: StaffUser[];
   onUpdate: (patch: Partial<TaskRow>) => void;
   onRemove: () => void;
@@ -512,23 +497,14 @@ function TaskRowCard({
             {isEn ? "Unit" : "الوحدة"}
             <span className="text-gray-400 font-normal ms-1 text-xs">({isEn ? "optional" : "اختياري"})</span>
           </label>
-          <select
-            value={row.unitId}
-            onChange={(e) => onUpdate({ unitId: e.target.value })}
-            disabled={!buildingSelected}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="">
-              {!buildingSelected
-                ? (isEn ? "Select a building first" : "اختر مبنى أولاً")
-                : (isEn ? "No specific unit" : "لا وحدة محددة")}
-            </option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.unitCode ? `${u.unitCode} - ` : ""}{isEn ? u.titleEn : u.titleAr}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={row.unitNumber}
+            onChange={(e) => onUpdate({ unitNumber: e.target.value })}
+            maxLength={100}
+            placeholder={isEn ? "e.g. 302, Villa 5…" : "مثال: 302، فيلا 5…"}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+          />
         </div>
 
         {/* Description */}

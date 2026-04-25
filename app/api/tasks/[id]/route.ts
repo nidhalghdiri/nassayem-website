@@ -27,7 +27,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
     where: { id },
     include: {
       building:   { select: { id: true, nameEn: true, nameAr: true } },
-      unit:       { select: { id: true, unitCode: true, titleEn: true, titleAr: true } },
       createdBy:  { select: { id: true, name: true, email: true, role: true } },
       assignedTo: { select: { id: true, name: true, email: true, role: true } },
       approvedBy: { select: { id: true, name: true, email: true } },
@@ -110,6 +109,23 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         { error: `Cannot transition from ${task.status} to ${newStatus}` },
         { status: 422 },
       );
+    }
+
+    // Inspection ISSUES_FOUND → COMPLETED requires all sub-tasks to be terminal
+    if (task.type === "INSPECTION" && task.status === "ISSUES_FOUND" && newStatus === "COMPLETED") {
+      const subTasks = await prisma.task.findMany({
+        where: { parentTaskId: id },
+        select: { status: true },
+      });
+      const allDone = subTasks.length > 0 && subTasks.every(
+        (st) => TERMINAL_STATUSES.includes(st.status as never),
+      );
+      if (!allDone) {
+        return NextResponse.json(
+          { error: "All sub-tasks must be completed before closing this inspection." },
+          { status: 422 },
+        );
+      }
     }
 
     updates.status = newStatus;

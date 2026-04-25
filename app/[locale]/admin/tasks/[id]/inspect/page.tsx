@@ -18,7 +18,6 @@ export default async function InspectTaskPage({ params }: PageProps) {
     where: { id: taskId },
     include: {
       building: { select: { nameEn: true, nameAr: true } },
-      unit:     { select: { titleEn: true, titleAr: true } },
       inspectionChecklist: {
         include: {
           items: { orderBy: [{ category: "asc" }, { displayOrder: "asc" }] },
@@ -79,11 +78,9 @@ export default async function InspectTaskPage({ params }: PageProps) {
   const serializedTask = {
     id: task.id,
     title: task.title,
+    unitNumber: task.unitNumber,
     building: task.building
       ? { nameEn: task.building.nameEn, nameAr: task.building.nameAr }
-      : null,
-    unit: task.unit
-      ? { titleEn: task.unit.titleEn, titleAr: task.unit.titleAr }
       : null,
   };
 

@@ -107,10 +107,8 @@ const TaskCard = memo(function TaskCard({
         {task.building && (
           <p className="text-xs text-gray-500 truncate">
             {isEn ? task.building.nameEn : task.building.nameAr}
-            {task.unit && (
-              <span className="text-gray-400">
-                {" "}· {task.unit.unitCode ? `[${task.unit.unitCode}] ` : ""}{isEn ? task.unit.titleEn : task.unit.titleAr}
-              </span>
+            {task.unitNumber && (
+              <span className="text-gray-400"> · {task.unitNumber}</span>
             )}
           </p>
         )}

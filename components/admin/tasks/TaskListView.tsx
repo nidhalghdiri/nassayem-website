@@ -92,15 +92,8 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                     {task.building ? (
                       <div className="min-w-0">
                         <p className="truncate font-medium">{isEn ? task.building.nameEn : task.building.nameAr}</p>
-                        {task.unit && (
-                          <p className="text-gray-400 mt-0.5 flex items-center gap-1">
-                            {task.unit.unitCode && (
-                              <span className="shrink-0 px-1 py-0.5 bg-gray-50 text-gray-500 rounded text-[9px] font-mono font-bold border border-gray-100">
-                                {task.unit.unitCode}
-                              </span>
-                            )}
-                            <span className="truncate">{isEn ? task.unit.titleEn : task.unit.titleAr}</span>
-                          </p>
+                        {task.unitNumber && (
+                          <p className="text-gray-400 mt-0.5 truncate">{task.unitNumber}</p>
                         )}
                       </div>
                     ) : "—"}
@@ -159,16 +152,8 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
               {task.building && (
                 <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   <span>{isEn ? task.building.nameEn : task.building.nameAr}</span>
-                  {task.unit && (
-                    <span className="flex items-center gap-1 text-gray-400">
-                      · 
-                      {task.unit.unitCode && (
-                        <span className="shrink-0 px-1 py-0.5 bg-gray-50 text-gray-500 rounded text-[9px] font-mono font-bold border border-gray-100 uppercase">
-                          {task.unit.unitCode}
-                        </span>
-                      )}
-                      {isEn ? task.unit.titleEn : task.unit.titleAr}
-                    </span>
+                  {task.unitNumber && (
+                    <span className="text-gray-400"> · {task.unitNumber}</span>
                   )}
                 </div>
               )}

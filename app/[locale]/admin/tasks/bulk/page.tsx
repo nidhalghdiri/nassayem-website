@@ -23,15 +23,7 @@ export default async function BulkTasksPage({ params }: PageProps) {
 
   const [buildings, assignableStaff] = await Promise.all([
     prisma.building.findMany({
-      select: {
-        id: true,
-        nameEn: true,
-        nameAr: true,
-        units: {
-          select: { id: true, unitCode: true, titleEn: true, titleAr: true },
-          orderBy: { unitCode: "asc" },
-        },
-      },
+      select: { id: true, nameEn: true, nameAr: true },
       orderBy: { nameEn: "asc" },
     }),
     prisma.adminUser.findMany({

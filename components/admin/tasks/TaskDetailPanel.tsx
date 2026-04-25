@@ -58,10 +58,11 @@ type FullTask = {
   requiresApproval: boolean;
   approvalStatus: string | null;
   building: { id: string; nameEn: string; nameAr: string } | null;
-  unit: { id: string; unitCode: string | null; titleEn: string; titleAr: string } | null;
+  unitNumber: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
   approvedBy: { id: string; name: string | null; email: string } | null;
+  parentTask: { id: string; title: string; type: string } | null;
   notes: NoteItem[];
   photos: PhotoItem[];
   activities: ActivityItem[];
@@ -497,6 +498,14 @@ export default function TaskDetailPanel({
     }
   }
 
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  function openTask(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("taskId", id);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   // ── Derived values ───────────────────────────────────────────────────────────
 
   const validNextStatuses: TTaskStatus[] = task
@@ -504,6 +513,16 @@ export default function TaskDetailPanel({
         task.type
       ]?.[task.status] ?? [])
     : [];
+
+  // For INSPECTION+ISSUES_FOUND, handle COMPLETED separately as a gated "Complete" button
+  const isInspectionWithIssues = task?.type === "INSPECTION" && task?.status === "ISSUES_FOUND";
+  const regularNextStatuses = isInspectionWithIssues
+    ? validNextStatuses.filter((s) => s !== "COMPLETED")
+    : validNextStatuses;
+  const allSubTasksDone =
+    isInspectionWithIssues &&
+    task!.subTasks.length > 0 &&
+    task!.subTasks.every((st) => TERMINAL_STATUSES.includes(st.status as TTaskStatus));
 
   const isAssignedToMe = task?.assignedTo?.id === currentUserId;
   const canAct =
@@ -745,9 +764,9 @@ export default function TaskDetailPanel({
                 )}
 
                 {/* Status transition buttons */}
-                {canAct && validNextStatuses.length > 0 && (
+                {canAct && regularNextStatuses.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {validNextStatuses.map((next) => {
+                    {regularNextStatuses.map((next) => {
                       const btnLabel = TRANSITION_BUTTON_LABEL[next];
                       return (
                         <button
@@ -767,20 +786,27 @@ export default function TaskDetailPanel({
                   </div>
                 )}
 
-                {/* Spawn sub-task */}
-                {task.type === "INSPECTION" &&
-                  task.status === "ISSUES_FOUND" &&
-                  canSpawnSubtasks(currentUserRole as TStaffRole) && (
-                    <a
-                      href={`/${locale}/admin/tasks/new?parentTaskId=${task.id}`}
-                      className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-xl hover:bg-orange-100 transition-colors w-fit"
+                {/* Complete Inspection — only when all sub-tasks are done */}
+                {isInspectionWithIssues && canAct && (
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => handleStatus("COMPLETED")}
+                      disabled={actionLoading || !allSubTasksDone}
+                      title={!allSubTasksDone ? (isEn ? "Complete all sub-tasks first" : "أكمل جميع المهام الفرعية أولاً") : undefined}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {isEn ? "Spawn Work Order / Maintenance" : "إنشاء أمر عمل / صيانة"}
-                    </a>
-                  )}
+                      {isEn ? "Complete Inspection" : "إنهاء الفحص"}
+                    </button>
+                    {!allSubTasksDone && (
+                      <p className="text-xs text-gray-400">
+                        {isEn ? "Complete all related sub-tasks to unlock." : "أكمل جميع المهام الفرعية لإتاحة هذا الخيار."}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {isTerminal && (
                   <p className="text-xs text-gray-400 italic">
@@ -803,17 +829,8 @@ export default function TaskDetailPanel({
                         ? isEn ? task.building.nameEn : task.building.nameAr
                         : "—"}
                     </dd>
-                    {task.unit && (
-                      <dd className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
-                        {task.unit.unitCode && (
-                          <span className="shrink-0 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-mono font-bold border border-gray-200">
-                            {task.unit.unitCode}
-                          </span>
-                        )}
-                        <span className="truncate">
-                          {isEn ? task.unit.titleEn : task.unit.titleAr}
-                        </span>
-                      </dd>
+                    {task.unitNumber && (
+                      <dd className="text-xs text-gray-500 mt-1 truncate">{task.unitNumber}</dd>
                     )}
                   </div>
 
@@ -938,6 +955,86 @@ export default function TaskDetailPanel({
                       </div>
                     ))}
                   </div>
+                </section>
+              )}
+
+              {/* ── Related Tasks ────────────────────────────────────────────── */}
+              {(task.parentTask || task.subTasks.length > 0 || isInspectionWithIssues) && (
+                <section className="px-5 py-4 space-y-3">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    {isEn ? "Related Tasks" : "المهام المرتبطة"}
+                  </h3>
+
+                  {/* Parent task */}
+                  {task.parentTask && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">
+                        {isEn ? "Parent Task" : "المهمة الرئيسية"}
+                      </p>
+                      <button
+                        onClick={() => openTask(task.parentTask!.id)}
+                        className="w-full flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-start hover:bg-blue-100 transition-colors"
+                      >
+                        <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-semibold ${TASK_TYPE_CONFIG[task.parentTask.type as TTaskType]?.bg} ${TASK_TYPE_CONFIG[task.parentTask.type as TTaskType]?.text}`}>
+                          {isEn
+                            ? TASK_TYPE_CONFIG[task.parentTask.type as TTaskType]?.labelEn
+                            : TASK_TYPE_CONFIG[task.parentTask.type as TTaskType]?.labelAr}
+                        </span>
+                        <span className="text-sm font-medium text-blue-800 truncate">{task.parentTask.title}</span>
+                        <svg className="w-4 h-4 text-blue-400 shrink-0 ms-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Sub-tasks list */}
+                  {task.subTasks.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">
+                        {isEn ? `Sub-tasks (${task.subTasks.length})` : `مهام فرعية (${task.subTasks.length})`}
+                      </p>
+                      <div className="space-y-1.5">
+                        {task.subTasks.map((sub) => {
+                          const subStatus = STATUS_CONFIG[sub.status as TTaskStatus];
+                          const subType = TASK_TYPE_CONFIG[sub.type as TTaskType];
+                          const subTerminal = TERMINAL_STATUSES.includes(sub.status as TTaskStatus);
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => openTask(sub.id)}
+                              className="w-full flex items-center gap-2.5 bg-white border border-gray-200 rounded-xl px-3 py-2 text-start hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                            >
+                              <span className={`shrink-0 w-2 h-2 rounded-full ${subTerminal ? "bg-green-500" : "bg-orange-400"}`} />
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${subType?.bg} ${subType?.text}`}>
+                                {isEn ? subType?.labelEn : subType?.labelAr}
+                              </span>
+                              <span className="text-xs text-gray-700 truncate flex-1">{sub.title}</span>
+                              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${subStatus?.badge}`}>
+                                {isEn ? subStatus?.labelEn : subStatus?.labelAr}
+                              </span>
+                              <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add sub-task button */}
+                  {isInspectionWithIssues && canSpawnSubtasks(currentUserRole as TStaffRole) && (
+                    <a
+                      href={`/${locale}/admin/tasks/new?parentTaskId=${task.id}`}
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-xl hover:bg-orange-100 transition-colors w-fit"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      {isEn ? "Add Sub-task" : "إضافة مهمة فرعية"}
+                    </a>
+                  )}
                 </section>
               )}
 

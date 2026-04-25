@@ -25,15 +25,7 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
 
   const [buildings, assignableStaff, parentTask] = await Promise.all([
     prisma.building.findMany({
-      select: {
-        id: true,
-        nameEn: true,
-        nameAr: true,
-        units: {
-          select: { id: true, unitCode: true, titleEn: true, titleAr: true },
-          orderBy: { unitCode: "asc" },
-        },
-      },
+      select: { id: true, nameEn: true, nameAr: true },
       orderBy: { nameEn: "asc" },
     }),
     prisma.adminUser.findMany({

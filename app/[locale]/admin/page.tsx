@@ -361,8 +361,8 @@ async function TaskDashboard({
         status: true,
         dueDate: true,
         priority: true,
+        unitNumber: true,
         building: { select: { nameEn: true, nameAr: true } },
-        unit: { select: { unitCode: true, titleEn: true, titleAr: true } },
         assignedTo: { select: { name: true, email: true } },
       },
     }),
@@ -491,7 +491,7 @@ async function TaskDashboard({
                         <span className="text-gray-300">·</span>
                         <span className="text-xs text-gray-400">
                           {isEn ? task.building?.nameEn : task.building?.nameAr}
-                          {task.unit && ` — ${task.unit.unitCode ?? (isEn ? task.unit.titleEn : task.unit.titleAr)}`}
+                          {task.unitNumber && ` — ${task.unitNumber}`}
                         </span>
                         {isSupervisor && task.assignedTo && (
                           <>

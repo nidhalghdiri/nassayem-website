@@ -17,7 +17,7 @@ export async function requestMaintenanceFromItem(
   // 1. Fetch current task to get building/unit context
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    select: { buildingId: true, unitId: true, title: true }
+    select: { buildingId: true, unitNumber: true, title: true }
   });
   if (!task) throw new Error("Task not found");
 
@@ -28,7 +28,7 @@ export async function requestMaintenanceFromItem(
       title: `Maintenance: ${label}`,
       description: `Requested during inspection for task: ${task.title}. ${notes ? `\n\nNotes: ${notes}` : ""}`,
       buildingId: task.buildingId,
-      unitId: task.unitId,
+      unitNumber: task.unitNumber,
       priority: "MEDIUM",
       status: "PENDING_APPROVAL",
       createdById: adminUser.id,

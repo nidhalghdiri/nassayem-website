@@ -27,7 +27,7 @@ export async function createTask(
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const buildingId = formData.get("buildingId") as string;
-  const unitId = (formData.get("unitId") as string) || null;
+  const unitNumber = (formData.get("unitNumber") as string)?.trim() || null;
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
   const assignedToId = formData.get("assignedToId") as string;
   const dueDate = formData.get("dueDate") as string;
@@ -54,7 +54,7 @@ export async function createTask(
       title,
       description,
       buildingId,
-      unitId,
+      unitNumber,
       priority,
       status: initialStatus,
       createdById: adminUser.id,
@@ -114,11 +114,7 @@ export async function createTask(
 
   // Send WhatsApp notification to the assigned user (non-blocking, only if not pending approval)
   if (!requiresApproval) {
-    const [building, unit] = await Promise.all([
-      prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } }),
-      unitId ? prisma.unit.findUnique({ where: { id: unitId }, select: { unitCode: true, titleEn: true } }) : null,
-    ]);
-    const unitName = unit ? (unit.unitCode ? `${unit.unitCode} - ${unit.titleEn}` : unit.titleEn) : "";
+    const building = await prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } });
     notifyTaskAssigned({
       assignee: {
         name: assignee.name,
@@ -127,7 +123,7 @@ export async function createTask(
       },
       taskTitle: title,
       buildingName: building?.nameEn ?? "",
-      unitName,
+      unitName: unitNumber ?? "",
       dueDate: new Date(dueDate),
       priority,
     }).catch(console.error);
@@ -143,7 +139,7 @@ export type BulkTaskInput = {
   title: string;
   description?: string;
   buildingId: string;
-  unitId?: string;
+  unitNumber?: string;
   priority: TaskPriority;
   assignedToId: string;
   dueDate: string;
@@ -197,7 +193,7 @@ export async function createTasksBulk(
           title: t.title.trim(),
           description: t.description?.trim() || null,
           buildingId: t.buildingId,
-          unitId: t.unitId || null,
+          unitNumber: t.unitNumber?.trim() || null,
           priority: t.priority,
           status: initialStatus,
           createdById: adminUser.id,
@@ -255,11 +251,10 @@ export async function createTasksBulk(
 
       // Send WhatsApp notification (non-blocking)
       if (!requiresApproval && assignee.whatsappNumber) {
-        const [building, unit] = await Promise.all([
-          prisma.building.findUnique({ where: { id: t.buildingId }, select: { nameEn: true } }),
-          t.unitId ? prisma.unit.findUnique({ where: { id: t.unitId }, select: { unitCode: true, titleEn: true } }) : null,
-        ]);
-        const unitName = unit ? (unit.unitCode ? `${unit.unitCode} - ${unit.titleEn}` : unit.titleEn) : "";
+        const building = await prisma.building.findUnique({
+          where: { id: t.buildingId },
+          select: { nameEn: true },
+        });
         notifyTaskAssigned({
           assignee: {
             name: assignee.name,
@@ -268,7 +263,7 @@ export async function createTasksBulk(
           },
           taskTitle: t.title.trim(),
           buildingName: building?.nameEn ?? "",
-          unitName,
+          unitName: t.unitNumber ?? "",
           dueDate: new Date(t.dueDate),
           priority: t.priority,
         }).catch(console.error);
@@ -301,7 +296,7 @@ export async function createMaintenanceRequest(
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const buildingId = formData.get("buildingId") as string;
-  const unitId = (formData.get("unitId") as string) || null;
+  const unitNumber = (formData.get("unitNumber") as string)?.trim() || null;
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
   const dueDate = formData.get("dueDate") as string;
 
@@ -315,7 +310,7 @@ export async function createMaintenanceRequest(
       title,
       description,
       buildingId,
-      unitId,
+      unitNumber,
       priority,
       status: "PENDING_APPROVAL",
       createdById: adminUser.id,

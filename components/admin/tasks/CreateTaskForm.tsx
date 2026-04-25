@@ -5,11 +5,10 @@ import { createTask } from "@/app/actions/tasks";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
-type BuildingWithUnits = {
+type Building = {
   id: string;
   nameEn: string;
   nameAr: string;
-  units: { id: string; unitCode: string | null; titleEn: string; titleAr: string }[];
 };
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
@@ -17,7 +16,7 @@ type StaffUser = { id: string; name: string | null; email: string; role: string 
 type ParentTask = { id: string; title: string; type: string } | null;
 
 type Props = {
-  buildings: BuildingWithUnits[];
+  buildings: Building[];
   assignableStaff: StaffUser[];
   locale: string;
   parentTask?: ParentTask;
@@ -28,10 +27,7 @@ const initialState = { error: null };
 export default function CreateTaskForm({ buildings, assignableStaff, locale, parentTask }: Props) {
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
-  const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [selectedType, setSelectedType] = useState("");
-
-  const units = buildings.find((b) => b.id === selectedBuildingId)?.units ?? [];
   const showApprovalToggle = selectedType === "MAINTENANCE";
 
   return (
@@ -145,8 +141,6 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
             id="buildingId"
             name="buildingId"
             required
-            value={selectedBuildingId}
-            onChange={(e) => setSelectedBuildingId(e.target.value)}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
@@ -159,29 +153,20 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="unitId">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="unitNumber">
             {isEn ? "Unit" : "الوحدة"}
             <span className="text-gray-400 font-normal ms-1.5 text-xs">
               ({isEn ? "optional" : "اختياري"})
             </span>
           </label>
-          <select
-            id="unitId"
-            name="unitId"
-            disabled={!selectedBuildingId}
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="">
-              {!selectedBuildingId
-                ? (isEn ? "Select a building first" : "اختر مبنى أولاً")
-                : (isEn ? "No specific unit" : "لا وحدة محددة")}
-            </option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.unitCode ? `${u.unitCode} - ` : ""}{isEn ? u.titleEn : u.titleAr}
-              </option>
-            ))}
-          </select>
+          <input
+            id="unitNumber"
+            name="unitNumber"
+            type="text"
+            maxLength={100}
+            placeholder={isEn ? "e.g. 302, Villa 5, Block A…" : "مثال: 302، فيلا 5، بلوك أ…"}
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+          />
         </div>
       </div>
 
