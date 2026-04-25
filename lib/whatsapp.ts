@@ -123,11 +123,10 @@ export async function notifyTaskAssigned({
 
   const unitDisplay = unitName || (isAr ? "منطقة مشتركة" : "Common Area");
 
+  const templateName = isAr ? "nassayem_task_assigned_ar" : "nassayem_task_assigned";
+
   // Fire-and-forget — don't block the task creation
-  const tempName = isAr
-    ? "nassayem_task_assigned"
-    : "nassayem_task_assigned_ar";
-  sendTemplate(assignee.whatsappNumber, "nassayem_task_assigned", langCode, [
+  sendTemplate(assignee.whatsappNumber, templateName, langCode, [
     name,
     taskTitle,
     buildingName,
