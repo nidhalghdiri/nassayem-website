@@ -38,7 +38,7 @@ export function canSpawnSubtasks(role: TStaffRole): boolean {
 
 /** Can this role see all tasks in the system (not just their own)? */
 export function canSeeAllTasks(role: TStaffRole): boolean {
-  return role === "MANAGER";
+  return role === "MANAGER" || role === "SUPERVISOR";
 }
 
 /**
