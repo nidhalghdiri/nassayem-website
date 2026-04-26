@@ -7,8 +7,8 @@ import type { SerializedTask } from "./types";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
   });
 }

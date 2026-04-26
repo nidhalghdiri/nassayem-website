@@ -69,7 +69,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
   const [isPending, startTransition] = useTransition();
   const formId = useId();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().slice(0, 16);
 
   const [shared, setShared] = useState<SharedDefaults>({
     buildingId: "",
@@ -242,10 +242,10 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {isEn ? "Default Due Date" : "تاريخ الاستحقاق الافتراضي"} <span className="text-red-500">*</span>
+              {isEn ? "Default Due Date & Time" : "تاريخ ووقت الاستحقاق الافتراضي"} <span className="text-red-500">*</span>
             </label>
             <input
-              type="date"
+              type="datetime-local"
               min={today}
               value={shared.dueDate}
               onChange={(e) => setShared((s) => ({ ...s, dueDate: e.target.value }))}
@@ -569,10 +569,10 @@ function TaskRowCard({
             {row.overrideDueDate && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  {isEn ? "Due Date" : "تاريخ الاستحقاق"}
+                  {isEn ? "Due Date & Time" : "تاريخ ووقت الاستحقاق"}
                 </label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   min={today}
                   value={row.dueDate}
                   onChange={(e) => onUpdate({ dueDate: e.target.value })}

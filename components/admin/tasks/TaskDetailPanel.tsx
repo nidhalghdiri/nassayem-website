@@ -94,11 +94,11 @@ function formatDate(iso: string, withTime = false) {
   const d = new Date(iso);
   if (withTime) {
     return d.toLocaleDateString("en-GB", {
-      day: "numeric", month: "short", year: "numeric",
+      day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
   }
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function initials(name: string | null, email: string) {
@@ -861,7 +861,7 @@ export default function TaskDetailPanel({
 
                   <div>
                     <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                      {isEn ? "Due Date" : "تاريخ الاستحقاق"}
+                      {isEn ? "Due Date & Time" : "تاريخ ووقت الاستحقاق"}
                     </dt>
                     <dd
                       className={`font-medium ${
@@ -870,7 +870,7 @@ export default function TaskDetailPanel({
                           : "text-gray-800"
                       }`}
                     >
-                      {formatDate(task.dueDate)}
+                      {formatDate(task.dueDate, true)}
                     </dd>
                   </div>
 

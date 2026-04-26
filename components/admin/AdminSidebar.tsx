@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logoutAdmin } from "@/app/actions/auth";
+import AdminLocaleSwitcher from "./AdminLocaleSwitcher";
 
 type Props = {
   locale: string;
@@ -108,16 +109,19 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
         <span className="font-bold text-base">
           Nassayem <span className="text-nassayem">Admin</span>
         </span>
-        <button onClick={() => setIsOpen(!isOpen)} className="focus:outline-none p-1">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
-            />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <AdminLocaleSwitcher locale={locale} />
+          <button onClick={() => setIsOpen(!isOpen)} className="focus:outline-none p-1">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Sidebar panel */}

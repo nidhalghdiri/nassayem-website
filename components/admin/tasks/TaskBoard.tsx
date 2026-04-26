@@ -86,7 +86,7 @@ const BoardFilters = memo(({
           ))}
         </select>
 
-        {currentUserRole === "MANAGER" && staffUsers.length > 0 && (
+        {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && staffUsers.length > 0 && (
           <select
             value={currentAssignedTo}
             onChange={(e) => updateFilter("assignedToId", e.target.value)}
@@ -242,7 +242,10 @@ export default function TaskBoard({
               </button>
             </div>
             {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && (
-              <button onClick={() => router.push(`${pathname.replace("/tasks", "")}/tasks/approvals`)} className="px-3 py-2 border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-lg text-sm font-medium hover:bg-yellow-100 transition-colors">
+              <button onClick={() => router.push(`${pathname.replace("/tasks", "")}/tasks/approvals`)} className="flex items-center gap-1.5 px-3 py-2 border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-lg text-sm font-medium hover:bg-yellow-100 transition-colors">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 <span className="hidden sm:inline">{isEn ? "Approvals" : "الموافقات"}</span>
               </button>
             )}
@@ -254,7 +257,10 @@ export default function TaskBoard({
                   </svg>
                   <span className="hidden sm:inline">{isEn ? "Bulk Add" : "إضافة متعددة"}</span>
                 </button>
-                <button onClick={() => router.push(`${pathname}/new`)} className="bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                <button onClick={() => router.push(`${pathname}/new`)} className="flex items-center gap-1.5 bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-nassayem/90 transition-colors">
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                  </svg>
                   <span className="hidden sm:inline">{isEn ? "New Task" : "مهمة جديدة"}</span>
                 </button>
               </>

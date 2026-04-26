@@ -225,17 +225,17 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         </div>
       </div>
 
-      {/* ── Due Date ─────────────────────────────────────────────────────── */}
+      {/* ── Due Date & Time ──────────────────────────────────────────────── */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="dueDate">
-          {isEn ? "Due Date" : "تاريخ الاستحقاق"} <span className="text-red-500">*</span>
+          {isEn ? "Due Date & Time" : "تاريخ ووقت الاستحقاق"} <span className="text-red-500">*</span>
         </label>
         <input
           id="dueDate"
           name="dueDate"
-          type="date"
+          type="datetime-local"
           required
-          min={new Date().toISOString().split("T")[0]}
+          min={new Date().toISOString().slice(0, 16)}
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
         />
       </div>

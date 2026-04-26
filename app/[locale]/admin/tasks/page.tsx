@@ -40,9 +40,9 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
   const assignedToId = sp.assignedToId as string | undefined;
   const search = sp.search as string | undefined;
 
-  const isManager = adminUser.role === "MANAGER";
+  const canSeeAll = adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR";
 
-  const visibilityFilter = isManager
+  const visibilityFilter = canSeeAll
     ? {}
     : { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
 
@@ -83,7 +83,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
     overdue: number;
   } | null = null;
 
-  if (isManager) {
+  if (canSeeAll) {
     const [total, pendingApproval, active, overdue] = await Promise.all([
       prisma.task.count({ where: { status: { notIn: TERMINAL_STATUSES } } }),
       prisma.task.count({ where: { status: "PENDING_APPROVAL" } }),

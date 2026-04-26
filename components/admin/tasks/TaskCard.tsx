@@ -9,7 +9,7 @@ import type { TTaskStatus } from "@/lib/tasks/statuses";
 function formatDueDate(iso: string): { label: string; isOverdue: boolean } {
   const d = new Date(iso);
   const isOverdue = d < new Date();
-  const label = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const label = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" });
   return { label, isOverdue };
 }
 
