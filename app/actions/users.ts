@@ -50,9 +50,19 @@ export async function createAdminUser(
 
   if (error) return { error: error.message, success: false };
 
-  await prisma.adminUser.create({
+  const newUser = await prisma.adminUser.create({
     data: { supabaseId: data.user.id, email, name, role, whatsappNumber, preferredLanguage },
   });
+
+  if (role === "RECEPTIONIST") {
+    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(Boolean);
+    if (buildingIds.length > 0) {
+      await prisma.adminUserBuilding.createMany({
+        data: buildingIds.map((bId) => ({ adminUserId: newUser.id, buildingId: bId })),
+        skipDuplicates: true,
+      });
+    }
+  }
 
   revalidateUsers();
   return { error: null, success: true };
@@ -89,6 +99,20 @@ export async function updateAdminUser(
     where: { id: adminUserId },
     data: { name, role, whatsappNumber, preferredLanguage },
   });
+
+  // Sync building assignments (only meaningful for RECEPTIONIST; clear for other roles)
+  if (role === "RECEPTIONIST") {
+    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(Boolean);
+    await prisma.adminUserBuilding.deleteMany({ where: { adminUserId } });
+    if (buildingIds.length > 0) {
+      await prisma.adminUserBuilding.createMany({
+        data: buildingIds.map((bId) => ({ adminUserId, buildingId: bId })),
+        skipDuplicates: true,
+      });
+    }
+  } else {
+    await prisma.adminUserBuilding.deleteMany({ where: { adminUserId } });
+  }
 
   if (newPassword) {
     const { error } = await supabaseAdmin.auth.admin.updateUserById(supabaseId, {

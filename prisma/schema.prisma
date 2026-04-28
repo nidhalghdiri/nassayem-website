@@ -105,6 +105,7 @@ model Building {
   // Relations
   units         Unit[]
   tasks         Task[]
+  assignedStaff AdminUserBuilding[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -211,8 +212,22 @@ model AdminUser {
   taskActivities  TaskActivity[]
   posts           Post[]
 
+  // Receptionist building scope
+  assignedBuildings AdminUserBuilding[]
+
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+}
+
+// Receptionist ↔ Building scope (many-to-many)
+model AdminUserBuilding {
+  adminUserId String
+  buildingId  String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  building    Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@id([adminUserId, buildingId])
+  @@index([adminUserId])
 }
 
 model Task {

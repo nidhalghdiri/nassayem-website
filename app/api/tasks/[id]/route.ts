@@ -166,15 +166,24 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     });
   }
 
-  // Send WhatsApp notification to supervisors/managers when task is completed
+  // Send WhatsApp notifications when task reaches a completed status
   if (updates.status && COMPLETED_STATUSES.includes(updates.status as TaskStatus)) {
-    const notifyUsers = await prisma.adminUser.findMany({
-      where: {
-        role: { in: ["SUPERVISOR", "MANAGER"] },
-        whatsappNumber: { not: null },
-      },
-      select: { name: true, whatsappNumber: true, preferredLanguage: true },
-    });
+    const [managersAndSupervisors, creator] = await Promise.all([
+      prisma.adminUser.findMany({
+        where: { role: { in: ["SUPERVISOR", "MANAGER"] }, whatsappNumber: { not: null } },
+        select: { id: true, name: true, whatsappNumber: true, preferredLanguage: true },
+      }),
+      prisma.adminUser.findUnique({
+        where: { id: task.createdById },
+        select: { id: true, name: true, whatsappNumber: true, preferredLanguage: true },
+      }),
+    ]);
+
+    // Deduplicate: include creator even if they're not a manager/supervisor
+    const notifyMap = new Map(managersAndSupervisors.map((u) => [u.id, u]));
+    if (creator?.whatsappNumber) notifyMap.set(creator.id, creator);
+
+    const notifyUsers = Array.from(notifyMap.values()).filter((u) => u.whatsappNumber);
 
     if (notifyUsers.length > 0) {
       const completedByName = adminUser.name ?? adminUser.email.split("@")[0];
@@ -188,6 +197,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         completedByName,
         buildingName: updated.building?.nameEn ?? "",
         completedAt: new Date(),
+        taskId: id,
       }).catch(console.error);
     }
   }

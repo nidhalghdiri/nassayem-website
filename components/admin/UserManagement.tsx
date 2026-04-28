@@ -16,17 +16,25 @@ type AdminUser = {
   whatsappNumber: string | null;
   preferredLanguage: string;
   createdAt: Date;
+  assignedBuildingIds: string[];
+};
+
+type Building = {
+  id: string;
+  nameEn: string;
+  nameAr: string;
 };
 
 type Props = {
   users: AdminUser[];
+  buildings: Building[];
   currentSupabaseId: string;
   locale: string;
 };
 
 const ALL_ROLES = Object.keys(STAFF_ROLE_CONFIG) as TStaffRole[];
 
-export default function UserManagement({ users, currentSupabaseId, locale }: Props) {
+export default function UserManagement({ users, buildings, currentSupabaseId, locale }: Props) {
   const isEn = locale === "en";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -35,6 +43,10 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
+
+  // ── Role tracking for building selector ──────────────────────────────────────
+  const [createRole, setCreateRole] = useState<string>("RECEPTIONIST");
+  const [editRole, setEditRole] = useState<string>("");
 
   // ── Form errors ──────────────────────────────────────────────────────────────
   const [createError, setCreateError] = useState<string | null>(null);
@@ -140,7 +152,7 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => { setEditError(null); setEditUser(u); }}
+                      onClick={() => { setEditError(null); setEditUser(u); setEditRole(u.role); }}
                       className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       {isEn ? "Edit" : "تعديل"}
@@ -199,7 +211,12 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
             </Field>
 
             <Field label={isEn ? "Role" : "الدور"} isEn={isEn}>
-              <select name="role" defaultValue="RECEPTIONIST" className={inputCls}>
+              <select
+                name="role"
+                value={createRole}
+                onChange={(e) => setCreateRole(e.target.value)}
+                className={inputCls}
+              >
                 {ALL_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {isEn ? STAFF_ROLE_CONFIG[r].labelEn : STAFF_ROLE_CONFIG[r].labelAr}
@@ -207,6 +224,14 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
                 ))}
               </select>
             </Field>
+
+            {createRole === "RECEPTIONIST" && buildings.length > 0 && (
+              <BuildingSelector
+                buildings={buildings}
+                selectedIds={[]}
+                isEn={isEn}
+              />
+            )}
 
             <Field label={isEn ? "WhatsApp Number" : "رقم واتساب"} optional isEn={isEn}>
               <input name="whatsappNumber" type="tel" maxLength={15}
@@ -248,7 +273,12 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
             </Field>
 
             <Field label={isEn ? "Role" : "الدور"} isEn={isEn}>
-              <select name="role" defaultValue={editUser.role} className={inputCls}>
+              <select
+                name="role"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                className={inputCls}
+              >
                 {ALL_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {isEn ? STAFF_ROLE_CONFIG[r].labelEn : STAFF_ROLE_CONFIG[r].labelAr}
@@ -256,6 +286,14 @@ export default function UserManagement({ users, currentSupabaseId, locale }: Pro
                 ))}
               </select>
             </Field>
+
+            {editRole === "RECEPTIONIST" && buildings.length > 0 && (
+              <BuildingSelector
+                buildings={buildings}
+                selectedIds={editUser.assignedBuildingIds}
+                isEn={isEn}
+              />
+            )}
 
             <Field label={isEn ? "WhatsApp Number" : "رقم واتساب"} optional isEn={isEn}>
               <input name="whatsappNumber" type="tel" maxLength={15}
@@ -378,6 +416,41 @@ function ErrorBanner({ message }: { message: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       {message}
+    </div>
+  );
+}
+
+function BuildingSelector({
+  buildings,
+  selectedIds,
+  isEn,
+}: {
+  buildings: Building[];
+  selectedIds: string[];
+  isEn: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        {isEn ? "Assigned Buildings" : "المباني المُسنَدة"}
+        <span className="text-gray-400 font-normal ms-1.5 text-xs">
+          ({isEn ? "receptionist sees only these" : "يرى الموظف هذه المباني فقط"})
+        </span>
+      </label>
+      <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-40 overflow-y-auto">
+        {buildings.map((b) => (
+          <label key={b.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+            <input
+              type="checkbox"
+              name="buildingIds"
+              value={b.id}
+              defaultChecked={selectedIds.includes(b.id)}
+              className="w-4 h-4 rounded border-gray-300 text-nassayem focus:ring-nassayem cursor-pointer"
+            />
+            <span className="text-sm text-gray-700">{isEn ? b.nameEn : b.nameAr}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

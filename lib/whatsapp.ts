@@ -4,10 +4,75 @@
 // Env vars required (add to .env):
 //   WHATSAPP_ACCESS_TOKEN      — permanent or long-lived token from Meta Business
 //   WHATSAPP_PHONE_NUMBER_ID   — the phone number ID from WhatsApp Cloud API
+//   NEXT_PUBLIC_APP_URL        — e.g. https://admin.nassayem.com  (no trailing slash)
 //
-// Templates to register in Meta Business Manager:
-//   nassayem_task_assigned    (EN + AR) — sent to the assigned user
-//   nassayem_task_completed   (EN + AR) — sent to supervisors / managers
+// ── Templates to register in Meta Business Manager ────────────────────────────
+//
+//   nassayem_task_assigned  (EN)
+//   Body params: {{1}} name, {{2}} title, {{3}} building, {{4}} unit,
+//                {{5}} dueDate, {{6}} priority
+//   Button (URL, index 0):
+//     Text: "View Task"
+//     URL:  https://yoursite.com/en/admin/tasks?taskId={{1}}
+//
+//   nassayem_task_assigned_ar  (AR)
+//   Body params: same order
+//   Button (URL, index 0):
+//     Text: "عرض المهمة"
+//     URL:  https://yoursite.com/ar/admin/tasks?taskId={{1}}
+//
+//   nassayem_task_completed  (EN)
+//   Body params: {{1}} name, {{2}} title, {{3}} building,
+//                {{4}} completedBy, {{5}} date
+//   Button (URL, index 0):
+//     Text: "View Task"
+//     URL:  https://yoursite.com/en/admin/tasks?taskId={{1}}
+//
+//   nassayem_task_completed_ar  (AR)
+//   Body params: same order
+//   Button (URL, index 0):
+//     Text: "عرض المهمة"
+//     URL:  https://yoursite.com/ar/admin/tasks?taskId={{1}}
+//
+// ── Example template bodies ───────────────────────────────────────────────────
+//
+//   nassayem_task_assigned (EN):
+//     Hello {{1}} 👋
+//     You have been assigned a new task:
+//     📋 {{2}}
+//     🏢 Building: {{3}}
+//     🏠 Unit: {{4}}
+//     📅 Due: {{5}}
+//     ⚡ Priority: {{6}}
+//     Tap the button below to open the task.
+//
+//   nassayem_task_assigned_ar (AR):
+//     مرحباً {{1}} 👋
+//     تم تعيين مهمة جديدة لك:
+//     📋 {{2}}
+//     🏢 المبنى: {{3}}
+//     🏠 الوحدة: {{4}}
+//     📅 الموعد: {{5}}
+//     ⚡ الأولوية: {{6}}
+//     اضغط على الزر أدناه لفتح المهمة.
+//
+//   nassayem_task_completed (EN):
+//     Hello {{1}},
+//     Great news! A task has been completed ✅
+//     📋 {{2}}
+//     🏢 Building: {{3}}
+//     👤 Completed by: {{4}}
+//     📅 Date: {{5}}
+//     Tap the button below to view the details.
+//
+//   nassayem_task_completed_ar (AR):
+//     مرحباً {{1}}،
+//     تم إنجاز المهمة ✅
+//     📋 {{2}}
+//     🏢 المبنى: {{3}}
+//     👤 أنجزها: {{4}}
+//     📅 بتاريخ: {{5}}
+//     اضغط على الزر أدناه لعرض التفاصيل.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BASE_URL = "https://graph.facebook.com/v19.0";
@@ -19,6 +84,7 @@ async function sendTemplate(
   templateName: string,
   languageCode: string,       // "en_US" | "ar"
   bodyParams: string[],
+  buttonUrlSuffix?: string,   // dynamic suffix for URL button (e.g. taskId)
 ): Promise<void> {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -32,6 +98,23 @@ async function sendTemplate(
   const cleanTo = to.replace(/\D/g, "");
   if (!cleanTo) return;
 
+  const components: object[] = [
+    {
+      type: "body",
+      parameters: bodyParams.map((text) => ({ type: "text", text })),
+    },
+  ];
+
+  // Add URL button component when the template has one registered
+  if (buttonUrlSuffix !== undefined) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: buttonUrlSuffix }],
+    });
+  }
+
   const payload = {
     messaging_product: "whatsapp",
     to: cleanTo,
@@ -39,12 +122,7 @@ async function sendTemplate(
     template: {
       name: templateName,
       language: { code: languageCode },
-      components: [
-        {
-          type: "body",
-          parameters: bodyParams.map((text) => ({ type: "text", text })),
-        },
-      ],
+      components,
     },
   };
 
@@ -83,8 +161,9 @@ type NotifyUser = {
 
 /**
  * Notify the assigned user when a new task is created for them.
- * Template: nassayem_task_assigned
+ * Template: nassayem_task_assigned (EN) / nassayem_task_assigned_ar (AR)
  * Params: [1] name, [2] title, [3] building, [4] unit, [5] dueDate, [6] priority
+ * Button URL suffix: taskId
  */
 export async function notifyTaskAssigned({
   assignee,
@@ -93,6 +172,7 @@ export async function notifyTaskAssigned({
   unitName,
   dueDate,
   priority,
+  taskId,
 }: {
   assignee: AssignedUser;
   taskTitle: string;
@@ -100,6 +180,7 @@ export async function notifyTaskAssigned({
   unitName: string;   // pass "" or "Common Area" when there is no unit
   dueDate: Date;
   priority: string;
+  taskId: string;
 }): Promise<void> {
   if (!assignee.whatsappNumber) return;
 
@@ -108,7 +189,7 @@ export async function notifyTaskAssigned({
   const name = assignee.name ?? "Team Member";
 
   const dueDateStr = dueDate.toLocaleDateString(isAr ? "ar-OM" : "en-GB", {
-    day: "numeric", month: "short", year: "numeric",
+    day: "2-digit", month: "2-digit", year: "numeric",
   });
 
   const priorityLabels: Record<string, { en: string; ar: string }> = {
@@ -122,7 +203,6 @@ export async function notifyTaskAssigned({
     : (priorityLabels[priority]?.en ?? priority);
 
   const unitDisplay = unitName || (isAr ? "منطقة مشتركة" : "Common Area");
-
   const templateName = isAr ? "nassayem_task_assigned_ar" : "nassayem_task_assigned";
 
   // Fire-and-forget — don't block the task creation
@@ -133,13 +213,14 @@ export async function notifyTaskAssigned({
     unitDisplay,
     dueDateStr,
     priorityLabel,
-  ]).catch(console.error);
+  ], taskId).catch(console.error);
 }
 
 /**
- * Notify supervisors / managers when a task reaches a terminal (completed) status.
- * Template: nassayem_task_completed
- * Params: [1] supervisor name, [2] task title, [3] completed-by name, [4] building, [5] completedAt date
+ * Notify users (managers, supervisors, and the task creator) when a task is completed.
+ * Template: nassayem_task_completed (EN) / nassayem_task_completed_ar (AR)
+ * Params: [1] name, [2] title, [3] building, [4] completedBy, [5] date
+ * Button URL suffix: taskId
  */
 export async function notifyTaskCompleted({
   notifyUsers,
@@ -147,30 +228,33 @@ export async function notifyTaskCompleted({
   completedByName,
   buildingName,
   completedAt,
+  taskId,
 }: {
   notifyUsers: NotifyUser[];
   taskTitle: string;
   completedByName: string;
   buildingName: string;
   completedAt: Date;
+  taskId: string;
 }): Promise<void> {
   const dateStr = (lang: string) =>
     completedAt.toLocaleDateString(lang === "ar" ? "ar-OM" : "en-GB", {
-      day: "numeric", month: "short", year: "numeric",
+      day: "2-digit", month: "2-digit", year: "numeric",
     });
 
   for (const user of notifyUsers) {
     if (!user.whatsappNumber) continue;
     const isAr = user.preferredLanguage === "ar";
     const langCode = isAr ? "ar" : "en_US";
-    const name = user.name ?? "Supervisor";
+    const name = user.name ?? "Team Member";
+    const templateName = isAr ? "nassayem_task_completed_ar" : "nassayem_task_completed";
 
-    sendTemplate(user.whatsappNumber, "nassayem_task_completed", langCode, [
+    sendTemplate(user.whatsappNumber, templateName, langCode, [
       name,
       taskTitle,
-      completedByName,
       buildingName,
+      completedByName,
       dateStr(user.preferredLanguage),
-    ]).catch(console.error);
+    ], taskId).catch(console.error);
   }
 }

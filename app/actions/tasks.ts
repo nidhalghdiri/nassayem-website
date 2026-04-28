@@ -126,6 +126,7 @@ export async function createTask(
       unitName: unitNumber ?? "",
       dueDate: new Date(dueDate),
       priority,
+      taskId: task.id,
     }).catch(console.error);
   }
 
@@ -266,6 +267,7 @@ export async function createTasksBulk(
           unitName: t.unitNumber ?? "",
           dueDate: new Date(t.dueDate),
           priority: t.priority,
+          taskId: task.id,
         }).catch(console.error);
       }
 

@@ -24,9 +24,16 @@ export default async function AdminUsersPage({ params }: PageProps) {
     data: { user: sessionUser },
   } = await supabase.auth.getUser();
 
-  const adminUsers = await prisma.adminUser.findMany({
-    orderBy: { createdAt: "asc" },
-  });
+  const [adminUsers, buildings] = await Promise.all([
+    prisma.adminUser.findMany({
+      orderBy: { createdAt: "asc" },
+      include: { assignedBuildings: { select: { buildingId: true } } },
+    }),
+    prisma.building.findMany({
+      select: { id: true, nameEn: true, nameAr: true },
+      orderBy: { nameEn: "asc" },
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -45,7 +52,11 @@ export default async function AdminUsersPage({ params }: PageProps) {
       </div>
 
       <UserManagement
-        users={adminUsers}
+        users={adminUsers.map((u) => ({
+          ...u,
+          assignedBuildingIds: u.assignedBuildings.map((b) => b.buildingId),
+        }))}
+        buildings={buildings}
         currentSupabaseId={sessionUser?.id ?? ""}
         locale={locale}
       />

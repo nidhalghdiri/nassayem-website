@@ -42,9 +42,21 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
 
   const canSeeAll = adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR";
 
-  const visibilityFilter = canSeeAll
-    ? {}
-    : { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
+  let visibilityFilter: object = {};
+  if (canSeeAll) {
+    visibilityFilter = {};
+  } else if (adminUser.role === "RECEPTIONIST") {
+    const assigned = await prisma.adminUserBuilding.findMany({
+      where: { adminUserId: adminUser.id },
+      select: { buildingId: true },
+    });
+    const buildingIds = assigned.map((b) => b.buildingId);
+    visibilityFilter = buildingIds.length > 0
+      ? { buildingId: { in: buildingIds } }
+      : { buildingId: { in: [] } };
+  } else {
+    visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
+  }
 
   const [tasks, buildings, staffUsers] = await Promise.all([
     prisma.task.findMany({
@@ -63,7 +75,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         createdBy: { select: { id: true, name: true, email: true } },
         _count: { select: { notes: true, photos: true, subTasks: true } },
       },
-      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      orderBy: [{ createdAt: "desc" }],
     }),
     prisma.building.findMany({
       select: { id: true, nameEn: true, nameAr: true },
