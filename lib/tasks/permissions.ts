@@ -42,26 +42,14 @@ export function canSeeAllTasks(role: TStaffRole): boolean {
 }
 
 /**
- * Can `actorRole` update the status on a task assigned to `assigneeRole`?
- * The assigned user and anyone in the hierarchy above them can update status.
- *
- * Hierarchy (top → bottom): MANAGER > SUPERVISOR > RECEPTIONIST > HK / MAINT
+ * Can this actor update the status of a task?
+ * Only the assigned user or a MANAGER may change task status.
  */
-const ROLE_LEVEL: Record<TStaffRole, number> = {
-  MANAGER:      4,
-  SUPERVISOR:   3,
-  RECEPTIONIST: 2,
-  HOUSEKEEPING: 1,
-  MAINTENANCE:  1,
-};
-
 export function canUpdateTaskStatus(
   actorRole: TStaffRole,
-  assigneeRole: TStaffRole,
+  _assigneeRole: TStaffRole,
   isAssignedToActor: boolean,
 ): boolean {
-  // The assigned person can always update their own task
   if (isAssignedToActor) return true;
-  // Anyone with a higher role level can also update
-  return ROLE_LEVEL[actorRole] > ROLE_LEVEL[assigneeRole];
+  return actorRole === "MANAGER";
 }
