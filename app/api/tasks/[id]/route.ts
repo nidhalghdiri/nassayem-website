@@ -166,33 +166,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     });
   }
 
-  // Send WhatsApp notifications when task reaches a completed status
+  // Notify only the task creator when a task reaches a completed status
   if (updates.status && COMPLETED_STATUSES.includes(updates.status as TaskStatus)) {
-    const [managersAndSupervisors, creator] = await Promise.all([
-      prisma.adminUser.findMany({
-        where: { role: { in: ["SUPERVISOR", "MANAGER"] }, whatsappNumber: { not: null } },
-        select: { id: true, name: true, whatsappNumber: true, preferredLanguage: true },
-      }),
-      prisma.adminUser.findUnique({
-        where: { id: task.createdById },
-        select: { id: true, name: true, whatsappNumber: true, preferredLanguage: true },
-      }),
-    ]);
+    const creator = await prisma.adminUser.findUnique({
+      where: { id: task.createdById },
+      select: { name: true, whatsappNumber: true, preferredLanguage: true },
+    });
 
-    // Deduplicate: include creator even if they're not a manager/supervisor
-    const notifyMap = new Map(managersAndSupervisors.map((u) => [u.id, u]));
-    if (creator?.whatsappNumber) notifyMap.set(creator.id, creator);
-
-    const notifyUsers = Array.from(notifyMap.values()).filter((u) => u.whatsappNumber);
-
-    if (notifyUsers.length > 0) {
+    if (creator?.whatsappNumber) {
       const completedByName = adminUser.name ?? adminUser.email.split("@")[0];
       notifyTaskCompleted({
-        notifyUsers: notifyUsers.map((u) => ({
-          name: u.name,
-          whatsappNumber: u.whatsappNumber,
-          preferredLanguage: u.preferredLanguage,
-        })),
+        notifyUsers: [{ name: creator.name, whatsappNumber: creator.whatsappNumber, preferredLanguage: creator.preferredLanguage }],
         taskTitle: task.title,
         completedByName,
         buildingName: updated.building?.nameEn ?? "",
