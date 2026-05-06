@@ -19,9 +19,9 @@ type Props = {
 // HOUSEKEEPING : Dashboard, Tasks
 // MAINTENANCE  : Dashboard, Tasks
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "tasks", "blog", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "netsuitePayments", "tasks", "blog", "users", "settings"],
   SUPERVISOR:   ["dashboard", "buildings", "units", "tasks"],
-  RECEPTIONIST: ["dashboard", "tasks"],
+  RECEPTIONIST: ["dashboard", "netsuitePayments", "tasks"],
   HOUSEKEEPING: ["dashboard", "tasks"],
   MAINTENANCE:  ["dashboard", "tasks"],
 };
@@ -65,6 +65,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/bookings`,
       exact: false,
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    },
+    {
+      key: "netsuitePayments",
+      nameEn: "NetSuite Payments",
+      nameAr: "مدفوعات NetSuite",
+      href: `/${locale}/admin/netsuite-payments`,
+      exact: false,
+      icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
     },
     {
       key: "tasks",

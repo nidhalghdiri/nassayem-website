@@ -37,6 +37,14 @@ enum BookingStatus {
   REFUNDED
 }
 
+enum NetsuitePaymentStatus {
+  PENDING       // Link created, customer has not paid yet
+  PAID          // SmartPay confirmed payment success
+  FAILED        // SmartPay declined / cancelled
+  EXPIRED       // Link expired before customer paid
+  VOIDED        // Manually voided by admin
+}
+
 // ------------------------------------------------------
 // ENUMS — Staff & Task management
 // ------------------------------------------------------
@@ -188,6 +196,57 @@ model Booking {
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+}
+
+// ------------------------------------------------------
+// MODELS — NetSuite payment links (off-website reservations)
+// ------------------------------------------------------
+
+model NetsuitePayment {
+  id                       String                @id @default(uuid())
+  token                    String                @unique // public URL token (random, unguessable)
+
+  // NetSuite reservation context (provided by NetSuite when link is created)
+  netsuiteReservationId    String                // internal NetSuite record id
+  netsuiteReservationRef   String?               // human-readable reservation number, e.g. "RES-2026-00412"
+  unitCode                 String?               // e.g. "OK-305"
+  checkIn                  DateTime?
+  checkOut                 DateTime?
+
+  // Customer details (provided by NetSuite, may be confirmed/edited on the public page)
+  customerName             String
+  customerPhone            String?
+  customerEmail            String?               // collected on the public page if NetSuite did not send it
+
+  // Payment details
+  amount                   Float                 // amount the customer will be charged
+  currency                 String                @default("OMR")
+  description              String?               // free-text shown to the customer
+
+  // Receptionist who triggered the link (for notification emails)
+  receptionistEmail        String?
+  receptionistName         String?
+
+  // Lifecycle
+  status                   NetsuitePaymentStatus @default(PENDING)
+  expiresAt                DateTime
+  paidAt                   DateTime?
+
+  // SmartPay traces
+  smartpayOrderId          String?               @unique
+  smartpayBankRefNo        String?
+  smartpayRawResponse      Json?
+
+  // NetSuite sync trace
+  netsuiteSyncedAt         DateTime?
+  netsuiteSyncError        String?               @db.Text
+
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  @@index([status])
+  @@index([netsuiteReservationId])
+  @@index([createdAt])
 }
 
 // ------------------------------------------------------
