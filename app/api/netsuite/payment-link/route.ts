@@ -22,6 +22,21 @@ const DEFAULT_EXPIRY_HOURS = 72; // 3 days
 const MIN_AMOUNT_OMR = 0.001;
 const MAX_AMOUNT_OMR = 100_000;
 
+// CORS — needed when the call comes from a NetSuite Client Script via fetch().
+// The endpoint is protected by the x-netsuite-secret header check, so allowing
+// any origin to *attempt* a request is safe; only requests with the right
+// secret get a successful response.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-netsuite-secret",
+  "Access-Control-Max-Age": "86400",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 type CreatePaymentLinkBody = {
   netsuiteReservationId: string;
   netsuiteReservationRef?: string;
@@ -48,8 +63,12 @@ function generateToken(): string {
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json(
     { ok: false, error: message, details },
-    { status: 400 },
+    { status: 400, headers: CORS_HEADERS },
   );
+}
+
+function jsonOk<T extends object>(body: T, status = 200) {
+  return NextResponse.json(body, { status, headers: CORS_HEADERS });
 }
 
 export async function POST(req: NextRequest) {
@@ -58,7 +77,7 @@ export async function POST(req: NextRequest) {
   if (!verifyNetsuiteInboundSecret(providedSecret)) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized" },
-      { status: 401 },
+      { status: 401, headers: CORS_HEADERS },
     );
   }
 
@@ -124,7 +143,7 @@ export async function POST(req: NextRequest) {
 
   if (existing) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-    return NextResponse.json({
+    return jsonOk({
       ok: true,
       reused: true,
       paymentLinkId: existing.id,
@@ -159,7 +178,7 @@ export async function POST(req: NextRequest) {
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-  return NextResponse.json({
+  return jsonOk({
     ok: true,
     reused: false,
     paymentLinkId: record.id,
