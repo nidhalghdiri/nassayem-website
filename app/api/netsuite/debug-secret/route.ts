@@ -1,14 +1,18 @@
 /**
- * Diagnostic endpoint — reports the *fingerprint* of NETSUITE_INBOUND_SECRET
- * (length + first/last 2 chars + Unicode codepoints + SHA-256) so you can
- * compare it to whatever the Suitelet is sending without exposing the value.
+ * Diagnostic endpoint for the NetSuite ↔ Vercel secret handshake.
  *
- * Same gating as test-simulate-payment: dev by default, prod requires
+ * GET  /api/netsuite/debug-secret
+ *   - Returns fingerprint of the env var NETSUITE_INBOUND_SECRET on Vercel.
+ *
+ * GET  /api/netsuite/debug-secret?candidate=<value>
+ *   - Compares that <value> against the env var byte-for-byte.
+ *
+ * POST /api/netsuite/debug-secret
+ *   - Echoes back the fingerprint of the x-netsuite-secret header that Vercel
+ *     actually received. Use this from the Suitelet to prove what reached us.
+ *
+ * Same gating as the simulator: dev by default, prod requires
  * ALLOW_TEST_SIMULATE_PAYMENT=true.
- *
- * Optional: append ?candidate=<value> to compare a candidate value byte-for-byte.
- *   - Equal-length and identical-bytes => "match: true"
- *   - Anything else => returns the codepoints of both for visual diff.
  *
  * REMOVE this file once the issue is resolved.
  */
@@ -24,7 +28,7 @@ function sha256(s: string) {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");
 }
 
-export async function GET(req: NextRequest) {
+function checkEnabled() {
   const isProd = process.env.NODE_ENV === "production";
   const explicitlyAllowed =
     process.env.ALLOW_TEST_SIMULATE_PAYMENT === "true";
@@ -32,27 +36,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Disabled in production. Set ALLOW_TEST_SIMULATE_PAYMENT=true to enable.",
+        error:
+          "Disabled in production. Set ALLOW_TEST_SIMULATE_PAYMENT=true to enable.",
       },
       { status: 403 },
     );
   }
+  return null;
+}
 
-  const raw = process.env.NETSUITE_INBOUND_SECRET;
-  const trimmed = raw?.trim() ?? "";
-
-  const baseFingerprint = {
-    present: Boolean(raw && raw.length > 0),
-    length: raw?.length ?? 0,
+function fingerprint(value: string | null) {
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return {
+    present: value.length > 0,
+    length: value.length,
     trimmedLength: trimmed.length,
-    hasLeadingOrTrailingWhitespace: Boolean(raw && raw.length !== trimmed.length),
-    first2: trimmed.slice(0, 2),
-    last2: trimmed.slice(-2),
-    // Unicode codepoint of each char — exposes hidden lookalikes
-    codepoints: trimmed ? codepoints(trimmed) : [],
-    // Stable hash so we can compare across systems without revealing the value
-    sha256: trimmed ? sha256(trimmed) : null,
+    hasLeadingOrTrailingWhitespace: value.length !== trimmed.length,
+    first2: value.slice(0, 2),
+    last2: value.slice(-2),
+    codepoints: codepoints(value),
+    sha256: value.length > 0 ? sha256(value) : null,
   };
+}
+
+export async function GET(req: NextRequest) {
+  const blocked = checkEnabled();
+  if (blocked) return blocked;
+
+  const raw = process.env.NETSUITE_INBOUND_SECRET ?? null;
 
   const candidate = req.nextUrl.searchParams.get("candidate");
   let comparison: Record<string, unknown> | null = null;
@@ -69,11 +81,8 @@ export async function GET(req: NextRequest) {
       }
     }
     comparison = {
-      candidateLength: candidate.length,
-      candidateCodepoints: codepoints(candidate),
-      candidateSha256: sha256(candidate),
+      candidateFingerprint: fingerprint(candidate),
       sameLength,
-      // -1 means identical (when sameLength is true) OR length differs
       firstMismatchIndex,
       match: sameLength && firstMismatchIndex === -1,
     };
@@ -81,7 +90,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    secretFingerprint: baseFingerprint,
+    method: "GET",
+    envSecretFingerprint: fingerprint(raw),
     comparison,
     env: {
       nodeEnv: process.env.NODE_ENV,
@@ -90,6 +100,45 @@ export async function GET(req: NextRequest) {
       vercelDeploymentUrl: process.env.VERCEL_URL ?? null,
       vercelGitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     },
-    note: "Pass ?candidate=<value> to compare. Codepoints reveal Unicode lookalikes; sha256 confirms byte-equality across systems.",
+    note: "POST to this endpoint with x-netsuite-secret header to see what Vercel actually receives.",
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const blocked = checkEnabled();
+  if (blocked) return blocked;
+
+  const raw = process.env.NETSUITE_INBOUND_SECRET ?? null;
+
+  // Inspect every header the Suitelet sent so we can spot if any of the
+  // multiple secret-named headers arrived with a different value than expected.
+  const allHeaders: Record<string, ReturnType<typeof fingerprint>> = {};
+  for (const [name, value] of req.headers.entries()) {
+    if (
+      /secret|auth|token|key/i.test(name) ||
+      name.toLowerCase().startsWith("x-")
+    ) {
+      allHeaders[name] = fingerprint(value);
+    }
+  }
+
+  const received = req.headers.get("x-netsuite-secret");
+  const matchesEnv =
+    received !== null && raw !== null && received === raw;
+
+  return NextResponse.json({
+    ok: true,
+    method: "POST",
+    received: {
+      "x-netsuite-secret": fingerprint(received),
+    },
+    interestingHeaders: allHeaders,
+    matchesEnv,
+    envSecretFingerprint: fingerprint(raw),
+    env: {
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+      vercelGitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    },
+    note: "Compare 'received.x-netsuite-secret.sha256' to 'envSecretFingerprint.sha256'. If they differ, the header was mutated in transit. Also check 'interestingHeaders' for any *other* header carrying the right value.",
   });
 }
