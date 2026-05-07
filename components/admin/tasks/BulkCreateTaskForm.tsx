@@ -120,7 +120,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
       return;
     }
 
-    const filledRows = rows.filter((r) => r.type && r.title.trim() && r.assignedToId);
+    const filledRows = rows.filter((r) => r.type && r.title.trim() && r.unitNumber.trim() && r.assignedToId);
     if (filledRows.length === 0) {
       setGlobalError(isEn ? "Add at least one complete task row." : "أضف صفاً مكتملاً على الأقل.");
       return;
@@ -147,7 +147,7 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
     });
   }
 
-  const filledCount = rows.filter((r) => r.type && r.title.trim() && r.assignedToId).length;
+  const filledCount = rows.filter((r) => r.type && r.title.trim() && r.unitNumber.trim() && r.assignedToId).length;
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-6">
@@ -366,7 +366,7 @@ function TaskRowCard({
   onDuplicate: () => void;
   canRemove: boolean;
 }) {
-  const isReady = !!(row.type && row.title.trim() && row.assignedToId);
+  const isReady = !!(row.type && row.title.trim() && row.unitNumber.trim() && row.assignedToId);
   const showApprovalToggle = row.type === "MAINTENANCE";
 
   return (
@@ -494,8 +494,7 @@ function TaskRowCard({
         {/* Unit */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            {isEn ? "Unit" : "الوحدة"}
-            <span className="text-gray-400 font-normal ms-1 text-xs">({isEn ? "optional" : "اختياري"})</span>
+            {isEn ? "Unit" : "الوحدة"} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"

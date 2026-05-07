@@ -105,12 +105,16 @@ const TaskCard = memo(function TaskCard({
 
         {/* Building / Unit */}
         {task.building && (
-          <p className="text-xs text-gray-500 truncate">
-            {isEn ? task.building.nameEn : task.building.nameAr}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-xs text-gray-500 truncate">
+              {isEn ? task.building.nameEn : task.building.nameAr}
+            </p>
             {task.unitNumber && (
-              <span className="text-gray-400"> · {task.unitNumber}</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem shrink-0">
+                {task.unitNumber}
+              </span>
             )}
-          </p>
+          </div>
         )}
 
         {/* Assignee + Due date */}

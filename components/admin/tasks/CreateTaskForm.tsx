@@ -154,15 +154,13 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="unitNumber">
-            {isEn ? "Unit" : "الوحدة"}
-            <span className="text-gray-400 font-normal ms-1.5 text-xs">
-              ({isEn ? "optional" : "اختياري"})
-            </span>
+            {isEn ? "Unit" : "الوحدة"} <span className="text-red-500">*</span>
           </label>
           <input
             id="unitNumber"
             name="unitNumber"
             type="text"
+            required
             maxLength={100}
             placeholder={isEn ? "e.g. 302, Villa 5, Block A…" : "مثال: 302، فيلا 5، بلوك أ…"}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"

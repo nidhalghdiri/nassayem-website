@@ -34,7 +34,7 @@ export async function createTask(
   const requiresApproval = formData.get("requiresApproval") === "on";
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
-  if (!type || !title || !buildingId || !assignedToId || !dueDate) {
+  if (!type || !title || !buildingId || !unitNumber || !assignedToId || !dueDate) {
     return { error: "Please fill in all required fields." };
   }
 
@@ -169,7 +169,7 @@ export async function createTasksBulk(
     const t = tasks[i];
     const rowLabel = `Row ${i + 1}`;
 
-    if (!t.type || !t.title?.trim() || !t.buildingId || !t.assignedToId || !t.dueDate) {
+    if (!t.type || !t.title?.trim() || !t.buildingId || !t.unitNumber?.trim() || !t.assignedToId || !t.dueDate) {
       errors.push(`${rowLabel}: Missing required fields.`);
       continue;
     }

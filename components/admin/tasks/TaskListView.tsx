@@ -93,7 +93,9 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                       <div className="min-w-0">
                         <p className="truncate font-medium">{isEn ? task.building.nameEn : task.building.nameAr}</p>
                         {task.unitNumber && (
-                          <p className="text-gray-400 mt-0.5 truncate">{task.unitNumber}</p>
+                          <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem">
+                            {task.unitNumber}
+                          </span>
                         )}
                       </div>
                     ) : "—"}
@@ -153,7 +155,9 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                 <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   <span>{isEn ? task.building.nameEn : task.building.nameAr}</span>
                   {task.unitNumber && (
-                    <span className="text-gray-400"> · {task.unitNumber}</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem">
+                      {task.unitNumber}
+                    </span>
                   )}
                 </div>
               )}
