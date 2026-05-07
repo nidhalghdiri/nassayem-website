@@ -1,5 +1,5 @@
 /**
- * DEV-ONLY simulator for the SmartPay success callback.
+ * Simulator for the SmartPay success callback.
  *
  * Lets you verify the full post-payment flow without spending real money:
  *   - marks a NetsuitePayment as PAID
@@ -7,8 +7,13 @@
  *   - sends customer + receptionist receipt emails
  *   - returns the success-page URL the bank would normally redirect to
  *
- * Hard-disabled in production. Also requires the x-netsuite-secret header,
- * the same shared secret used for the real inbound endpoint.
+ * Default behavior:
+ *   - Always available in dev (NODE_ENV !== "production").
+ *   - Disabled in production UNLESS ALLOW_TEST_SIMULATE_PAYMENT="true".
+ *     Use this opt-in flag to test on Vercel, then unset it when done.
+ *
+ * Always requires the x-netsuite-secret header (same secret as the real
+ * inbound endpoint), so the env flag alone is never enough.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,10 +22,17 @@ import { verifyNetsuiteInboundSecret, notifyNetsuitePaymentSucceeded } from "@/l
 import { sendNetsuitePaymentReceipt } from "@/lib/email/sendNetsuitePaymentReceipt";
 
 export async function POST(req: NextRequest) {
-  // Hard guard: never run in production
-  if (process.env.NODE_ENV === "production") {
+  // Production guard with explicit opt-in
+  const isProd = process.env.NODE_ENV === "production";
+  const explicitlyAllowed =
+    process.env.ALLOW_TEST_SIMULATE_PAYMENT === "true";
+  if (isProd && !explicitlyAllowed) {
     return NextResponse.json(
-      { ok: false, error: "Disabled in production" },
+      {
+        ok: false,
+        error:
+          "Disabled in production. Set ALLOW_TEST_SIMULATE_PAYMENT=true in env to enable temporarily, then remove it after testing.",
+      },
       { status: 403 },
     );
   }
