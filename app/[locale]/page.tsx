@@ -89,42 +89,25 @@ export default async function HomePage({ params }: PageProps) {
       />
 
       {/* 1. HERO SECTION */}
-      <section className="relative h-[85vh] min-h-[600px] flex items-center">
-        {/* Bottom gradient for smooth page transition */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 z-10 pointer-events-none" />
-        {/* Side overlay — direction-aware for text readability */}
-        <div className={`absolute inset-0 ${isEn ? "bg-gradient-to-r" : "bg-gradient-to-l"} from-white/60 via-white/20 to-transparent z-10 pointer-events-none`} />
-        {/* LCP hero image — using next/image with priority for fast paint */}
-        <Image
-          src="/images/hero.png"
-          alt="Nassayem Salalah furnished apartments – premium vacation rentals in Dhofar, Oman"
-          fill
-          priority
-          quality={85}
-          className="object-cover object-center z-0"
-          style={{ transform: isEn ? undefined : "scaleX(-1)" }}
-        />
+      <section className="relative">
+        {/* Hero image — natural aspect ratio so logo/text stay visible at any width */}
+        <div className="relative w-full aspect-[1392/787] min-h-[280px] max-h-[820px] overflow-hidden">
+          <Image
+            src="/images/hero.jpeg"
+            alt="Nassayem Salalah furnished apartments – premium vacation rentals in Dhofar, Oman"
+            fill
+            priority
+            quality={90}
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        </div>
 
-        <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-          <div className="w-full lg:w-1/2">
-            <AnimatedSection className="mb-10">
-              <p className="text-xs font-bold text-[#2a7475] tracking-widest uppercase mb-4 flex items-center gap-2">
-                <span className="inline-block w-8 h-px bg-[#2a7475]" />
-                {isEn ? "Salalah, Oman" : "صلالة، عُمان"}
-              </p>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-[#1d5455] mb-5 tracking-tight leading-tight">
-                {isEn ? "Nassayem\nSalalah" : "نسائم\nصلالة"}
-              </h1>
-              <p className="text-lg md:text-xl text-[#1d5455]/75 font-light max-w-md leading-relaxed">
-                {isEn
-                  ? "Elevated living. Exceptional stays. Experience the comfort of home with the luxury of a hotel."
-                  : "حياة راقية. إقامات استثنائية. استمتع براحة المنزل مع فخامة الفنادق."}
-              </p>
-            </AnimatedSection>
-            <AnimatedSection delay={0.2}>
-              <HeroSearchWidget locale={locale} />
-            </AnimatedSection>
-          </div>
+        {/* Horizontal search bar — half inside hero, half outside */}
+        <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-20 lg:-mt-24 mb-12 sm:mb-16">
+          <AnimatedSection delay={0.2}>
+            <HeroSearchWidget locale={locale} />
+          </AnimatedSection>
         </div>
       </section>
 
