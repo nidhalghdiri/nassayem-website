@@ -11,6 +11,7 @@ import BlogSection from "@/components/home/BlogSection";
 import TestimonialsSection from "@/components/home/TestimonialsSection";
 import VideoSection from "@/components/home/VideoSection";
 import BuildingCarousel from "@/components/home/BuildingCarousel";
+import PromotionsCarousel from "@/components/home/PromotionsCarousel";
 import WhatsAppButton from "@/components/home/WhatsAppButton";
 import type { Metadata } from "next";
 
@@ -61,6 +62,28 @@ export default async function HomePage({ params }: PageProps) {
       building: true,
     },
   });
+
+  const today = new Date();
+  const activePromotionsRaw = await prisma.promotion.findMany({
+    where: {
+      isActive: true,
+      endDate: { gte: today },
+    },
+    orderBy: { startDate: "asc" },
+    include: { rows: { select: { promoPrice: true } } },
+  });
+  const activePromotions = activePromotionsRaw.map((p) => ({
+    id: p.id,
+    titleEn: p.titleEn,
+    titleAr: p.titleAr,
+    descriptionEn: p.descriptionEn,
+    descriptionAr: p.descriptionAr,
+    imageUrl: p.imageUrl,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    minPromoPrice:
+      p.rows.length > 0 ? Math.min(...p.rows.map((r) => r.promoPrice)) : null,
+  }));
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -221,6 +244,30 @@ export default async function HomePage({ params }: PageProps) {
           <BuildingCarousel buildings={buildings} locale={locale} />
         </AnimatedSection>
       </section>
+
+      {/* 3.5. ACTIVE PROMOTIONS */}
+      {activePromotions.length > 0 && (
+        <section className="py-20 bg-white w-full">
+          <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-end mb-2">
+              <div>
+                <p className="text-xs font-bold text-[#2a7475] tracking-widest uppercase mb-2">
+                  {isEn ? "Limited time" : "لفترة محدودة"}
+                </p>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  {isEn ? "Current Promotions" : "العروض الحالية"}
+                </h2>
+                <p className="text-gray-600">
+                  {isEn
+                    ? "Save more on selected stays — discounts apply automatically at checkout."
+                    : "وفر أكثر على إقامات مختارة — يتم تطبيق الخصم تلقائيًا عند الحجز."}
+                </p>
+              </div>
+            </div>
+            <PromotionsCarousel promotions={activePromotions} locale={locale} />
+          </AnimatedSection>
+        </section>
+      )}
 
       {/* 4. FEATURED UNITS */}
       <section className="py-20 bg-white">

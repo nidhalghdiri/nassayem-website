@@ -38,11 +38,11 @@ enum BookingStatus {
 }
 
 enum NetsuitePaymentStatus {
-  PENDING       // Link created, customer has not paid yet
-  PAID          // SmartPay confirmed payment success
-  FAILED        // SmartPay declined / cancelled
-  EXPIRED       // Link expired before customer paid
-  VOIDED        // Manually voided by admin
+  PENDING // Link created, customer has not paid yet
+  PAID // SmartPay confirmed payment success
+  FAILED // SmartPay declined / cancelled
+  EXPIRED // Link expired before customer paid
+  VOIDED // Manually voided by admin
 }
 
 // ------------------------------------------------------
@@ -73,8 +73,8 @@ enum TaskPriority {
 
 // Unified status enum — valid values depend on TaskType (enforced in app logic)
 enum TaskStatus {
-  PENDING_APPROVAL    // Maintenance requests awaiting Manager/Supervisor approval
-  ASSIGNED            // Task created and assigned, work not started
+  PENDING_APPROVAL // Maintenance requests awaiting Manager/Supervisor approval
+  ASSIGNED // Task created and assigned, work not started
   CLEANING_STARTED
   CLEANING_COMPLETED
   INSPECTING
@@ -82,8 +82,8 @@ enum TaskStatus {
   NO_ISSUES
   WORK_STARTED
   WORK_COMPLETED
-  IN_PROGRESS         // Work Order
-  COMPLETED           // Work Order final
+  IN_PROGRESS // Work Order
+  COMPLETED // Work Order final
   ON_HOLD
   CANCELLED
 }
@@ -99,7 +99,7 @@ enum ApprovalStatus {
 // ------------------------------------------------------
 
 model Building {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   nameEn        String
   nameAr        String
   locationEn    String
@@ -114,88 +114,133 @@ model Building {
   units         Unit[]
   tasks         Task[]
   assignedStaff AdminUserBuilding[]
+  promotionRows PromotionRow[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Unit {
-  id            String   @id @default(uuid())
-  buildingId    String
+  id         String @id @default(uuid())
+  buildingId String
 
-  unitCode      String?  @unique
+  unitCode      String? @unique
   titleEn       String
   titleAr       String
-  descriptionEn String   @db.Text
-  descriptionAr String   @db.Text
+  descriptionEn String  @db.Text
+  descriptionAr String  @db.Text
 
-  unitType      UnitType
-  rentType      RentType
+  unitType UnitType
+  rentType RentType
 
-  dailyPrice    Float?
-  monthlyPrice  Float?
+  dailyPrice   Float?
+  monthlyPrice Float?
 
-  guests        Int      @default(1)
-  bedrooms      Int      @default(1)
-  beds          Int      @default(1)
-  bathrooms     Int      @default(1)
+  guests    Int @default(1)
+  bedrooms  Int @default(1)
+  beds      Int @default(1)
+  bathrooms Int @default(1)
 
-  isPublished   Boolean  @default(false)
+  isPublished Boolean @default(false)
 
   // Relations
-  building      Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  images        UnitImage[]
-  amenities     Amenity[]
-  bookings      Booking[]
+  building  Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  images    UnitImage[]
+  amenities Amenity[]
+  bookings  Booking[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UnitImage {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   unitId       String
   url          String
-  isMain       Boolean  @default(false)
-  displayOrder Int      @default(0)
+  isMain       Boolean @default(false)
+  displayOrder Int     @default(0)
 
-  unit         Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Amenity {
-  id        String  @id @default(uuid())
-  nameEn    String  @unique
-  nameAr    String  @unique
-  iconSvg   String?
+  id      String  @id @default(uuid())
+  nameEn  String  @unique
+  nameAr  String  @unique
+  iconSvg String?
 
-  units     Unit[]
+  units Unit[]
 
   createdAt DateTime @default(now())
 }
 
 model Booking {
-  id                String        @id @default(uuid())
-  bookingCode       String?       @unique // Short human-readable ID, e.g. NSM-K4X7Q2
-  unitId            String
+  id          String  @id @default(uuid())
+  bookingCode String? @unique // Short human-readable ID, e.g. NSM-K4X7Q2
+  unitId      String
 
-  guestName         String
-  guestEmail        String
-  guestPhone        String
-  guestNationality  String?
-  guestNotes        String?
-  paymentMethod     String        @default("CARD") // CASH or CARD
+  guestName        String
+  guestEmail       String
+  guestPhone       String
+  guestNationality String?
+  guestNotes       String?
+  paymentMethod    String  @default("CARD") // CASH or CARD
 
-  checkIn           DateTime
-  checkOut          DateTime
-  totalPrice        Float
-  status            BookingStatus @default(PENDING)
+  checkIn    DateTime
+  checkOut   DateTime
+  totalPrice Float
+  status     BookingStatus @default(PENDING)
 
-  unit              Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------
+// MODELS — Promotions
+// ------------------------------------------------------
+
+model Promotion {
+  id            String   @id @default(uuid())
+  titleEn       String
+  titleAr       String
+  descriptionEn String?  @db.Text
+  descriptionAr String?  @db.Text
+  imageUrl      String?
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean  @default(true)
+
+  rows PromotionRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, startDate, endDate])
+}
+
+model PromotionRow {
+  id          String    @id @default(uuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  // null = applies to ALL buildings / ALL unit types
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unitType   UnitType?
+
+  regularPrice Float
+  promoPrice   Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([promotionId])
+  @@index([buildingId])
+  @@index([unitType])
 }
 
 // ------------------------------------------------------
@@ -203,46 +248,46 @@ model Booking {
 // ------------------------------------------------------
 
 model NetsuitePayment {
-  id                       String                @id @default(uuid())
-  token                    String                @unique // public URL token (random, unguessable)
+  id    String @id @default(uuid())
+  token String @unique // public URL token (random, unguessable)
 
   // NetSuite reservation context (provided by NetSuite when link is created)
-  netsuiteReservationId    String                // internal NetSuite record id
-  netsuiteReservationRef   String?               // human-readable reservation number, e.g. "RES-2026-00412"
-  unitCode                 String?               // e.g. "OK-305"
-  checkIn                  DateTime?
-  checkOut                 DateTime?
+  netsuiteReservationId  String // internal NetSuite record id
+  netsuiteReservationRef String? // human-readable reservation number, e.g. "RES-2026-00412"
+  unitCode               String? // e.g. "OK-305"
+  checkIn                DateTime?
+  checkOut               DateTime?
 
   // Customer details (provided by NetSuite, may be confirmed/edited on the public page)
-  customerName             String
-  customerPhone            String?
-  customerEmail            String?               // collected on the public page if NetSuite did not send it
+  customerName  String
+  customerPhone String?
+  customerEmail String? // collected on the public page if NetSuite did not send it
 
   // Payment details
-  amount                   Float                 // amount the customer will be charged
-  currency                 String                @default("OMR")
-  description              String?               // free-text shown to the customer
+  amount      Float // amount the customer will be charged
+  currency    String  @default("OMR")
+  description String? // free-text shown to the customer
 
   // Receptionist who triggered the link (for notification emails)
-  receptionistEmail        String?
-  receptionistName         String?
+  receptionistEmail String?
+  receptionistName  String?
 
   // Lifecycle
-  status                   NetsuitePaymentStatus @default(PENDING)
-  expiresAt                DateTime
-  paidAt                   DateTime?
+  status    NetsuitePaymentStatus @default(PENDING)
+  expiresAt DateTime
+  paidAt    DateTime?
 
   // SmartPay traces
-  smartpayOrderId          String?               @unique
-  smartpayBankRefNo        String?
-  smartpayRawResponse      Json?
+  smartpayOrderId     String? @unique
+  smartpayBankRefNo   String?
+  smartpayRawResponse Json?
 
   // NetSuite sync trace
-  netsuiteSyncedAt         DateTime?
-  netsuiteSyncError        String?               @db.Text
+  netsuiteSyncedAt  DateTime?
+  netsuiteSyncError String?   @db.Text
 
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([netsuiteReservationId])
@@ -259,23 +304,23 @@ model AdminUser {
   email             String    @unique
   name              String?
   role              StaffRole @default(MANAGER)
-  whatsappNumber    String?            // e.g. "96898590405" — no + or spaces
+  whatsappNumber    String? // e.g. "96898590405" — no + or spaces
   preferredLanguage String    @default("en") // "en" or "ar"
 
   // Task relations
-  createdTasks    Task[]         @relation("TaskCreatedBy")
-  assignedTasks   Task[]         @relation("TaskAssignedTo")
-  approvedTasks   Task[]         @relation("TaskApprovedBy")
-  taskNotes       TaskNote[]
-  taskPhotos      TaskPhoto[]
-  taskActivities  TaskActivity[]
-  posts           Post[]
+  createdTasks   Task[]         @relation("TaskCreatedBy")
+  assignedTasks  Task[]         @relation("TaskAssignedTo")
+  approvedTasks  Task[]         @relation("TaskApprovedBy")
+  taskNotes      TaskNote[]
+  taskPhotos     TaskPhoto[]
+  taskActivities TaskActivity[]
+  posts          Post[]
 
   // Receptionist building scope
   assignedBuildings AdminUserBuilding[]
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Receptionist ↔ Building scope (many-to-many)
@@ -290,49 +335,49 @@ model AdminUserBuilding {
 }
 
 model Task {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   type        TaskType
   title       String
-  description String?      @db.Text
+  description String?  @db.Text
 
   // Location
-  buildingId  String
-  unitNumber  String?      // free-text unit name/code, null = common area
+  buildingId String
+  unitNumber String? // free-text unit name/code, null = common area
 
   // Priority & status
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(ASSIGNED)
+  priority TaskPriority @default(MEDIUM)
+  status   TaskStatus   @default(ASSIGNED)
 
   // People
   createdById  String
   assignedToId String
 
-  dueDate      DateTime
+  dueDate DateTime
 
   // Sub-task / parent link (Inspection → spawns Cleaning or Maintenance)
   parentTaskId String?
 
   // Maintenance request approval
-  requiresApproval Boolean        @default(false)
+  requiresApproval Boolean         @default(false)
   approvedById     String?
   approvalStatus   ApprovalStatus?
 
   // Relations
-  building     Building       @relation(fields: [buildingId], references: [id])
+  building   Building   @relation(fields: [buildingId], references: [id])
   // (no Unit relation — unitNumber is free text)
-  createdBy    AdminUser      @relation("TaskCreatedBy",  fields: [createdById],  references: [id])
-  assignedTo   AdminUser      @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  approvedBy   AdminUser?     @relation("TaskApprovedBy", fields: [approvedById], references: [id])
-  parentTask   Task?          @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks     Task[]         @relation("SubTasks")
+  createdBy  AdminUser  @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignedTo AdminUser  @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  approvedBy AdminUser? @relation("TaskApprovedBy", fields: [approvedById], references: [id])
+  parentTask Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks   Task[]     @relation("SubTasks")
 
-  notes                TaskNote[]
-  photos               TaskPhoto[]
-  activities           TaskActivity[]
-  inspectionChecklist  InspectionChecklist?
+  notes               TaskNote[]
+  photos              TaskPhoto[]
+  activities          TaskActivity[]
+  inspectionChecklist InspectionChecklist?
 
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([assignedToId])
@@ -342,41 +387,41 @@ model Task {
 }
 
 model TaskNote {
-  id        String    @id @default(uuid())
-  taskId    String
-  userId    String
-  text      String    @db.Text
+  id     String @id @default(uuid())
+  taskId String
+  userId String
+  text   String @db.Text
 
-  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user      AdminUser @relation(fields: [userId], references: [id])
+  task Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user AdminUser @relation(fields: [userId], references: [id])
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 model TaskPhoto {
-  id        String    @id @default(uuid())
-  taskId    String
-  userId    String
-  photoUrl  String
-  caption   String?
+  id       String  @id @default(uuid())
+  taskId   String
+  userId   String
+  photoUrl String
+  caption  String?
 
-  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user      AdminUser @relation(fields: [userId], references: [id])
+  task Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user AdminUser @relation(fields: [userId], references: [id])
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 // Auto-generated audit log — one record per meaningful action on a task
 model TaskActivity {
-  id      String    @id @default(uuid())
+  id      String @id @default(uuid())
   taskId  String
   userId  String
   // action: "task_created" | "status_changed" | "note_added" | "photo_uploaded" | "approved" | "rejected"
   action  String
-  details String    @db.Text
+  details String @db.Text
 
-  task    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user    AdminUser @relation(fields: [userId], references: [id])
+  task Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user AdminUser @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -390,33 +435,33 @@ model InspectionChecklist {
   taskId         String                    @unique
   task           Task                      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   items          InspectionChecklistItem[]
-  overallRating  String?                   // "excellent" | "good" | "fair" | "poor"
+  overallRating  String? // "excellent" | "good" | "fair" | "poor"
   inspectorNotes String?                   @db.Text
   completedAt    DateTime?
 
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([taskId])
 }
 
 model InspectionChecklistItem {
-  id             String              @id @default(uuid())
-  checklistId    String
-  checklist      InspectionChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  id          String              @id @default(uuid())
+  checklistId String
+  checklist   InspectionChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
-  category       String
-  label          String
-  status         String              @default("pending") // "pending" | "pass" | "fail" | "na"
-  notes          String?             @db.Text
-  severity       String?             // "minor" | "major" | "critical"
-  photoUrls      String[]            @default([])
-  displayOrder   Int                 @default(0)
-  followUpTaskId String?
-  maintenanceTaskId String?           // ID of the maintenance task if requested from here
+  category          String
+  label             String
+  status            String   @default("pending") // "pending" | "pass" | "fail" | "na"
+  notes             String?  @db.Text
+  severity          String? // "minor" | "major" | "critical"
+  photoUrls         String[] @default([])
+  displayOrder      Int      @default(0)
+  followUpTaskId    String?
+  maintenanceTaskId String? // ID of the maintenance task if requested from here
 
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([checklistId])
 }
@@ -430,21 +475,21 @@ model InspectionCategory {
   displayOrder Int              @default(0)
   items        InspectionItem[]
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model InspectionItem {
-  id           String             @id @default(uuid())
-  categoryId   String
-  category     InspectionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
+  id         String             @id @default(uuid())
+  categoryId String
+  category   InspectionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
   labelEn      String
   labelAr      String
-  displayOrder Int                @default(0)
+  displayOrder Int    @default(0)
 
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ------------------------------------------------------
@@ -452,25 +497,25 @@ model InspectionItem {
 // ------------------------------------------------------
 
 model Post {
-  id            String   @id @default(uuid())
-  slug          String   @unique
-  
-  titleEn       String
-  titleAr       String
-  contentEn     String   @db.Text
-  contentAr     String   @db.Text
-  excerptEn     String?  @db.Text
-  excerptAr     String?  @db.Text
-  
-  coverImage    String?
-  isPublished   Boolean  @default(false)
+  id   String @id @default(uuid())
+  slug String @unique
+
+  titleEn   String
+  titleAr   String
+  contentEn String  @db.Text
+  contentAr String  @db.Text
+  excerptEn String? @db.Text
+  excerptAr String? @db.Text
+
+  coverImage  String?
+  isPublished Boolean @default(false)
 
   // Relations
-  authorId      String?
-  author        AdminUser? @relation(fields: [authorId], references: [id])
+  authorId String?
+  author   AdminUser? @relation(fields: [authorId], references: [id])
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([isPublished])

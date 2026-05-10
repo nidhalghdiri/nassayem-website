@@ -6,6 +6,7 @@ import {
   calculateBookingPrice,
   checkUnitAvailability,
 } from "@/app/actions/booking";
+import { getActivePromotionForUnit } from "@/app/actions/promotion";
 import { gtagEvent } from "@/lib/gtag";
 
 type BookingWidgetProps = {
@@ -47,15 +48,11 @@ export default function BookingWidget({
         ? "OMR / night"
         : "ر.ع / ليلة";
 
-  const [isKhareefSeason, setIsKhareefSeason] = useState(false);
-
-  // Helper to check if dates fall in July (6) or August (7)
+  // Helper to check if any date in the range falls in July (6) or August (7)
   const checkKhareef = (start: string, end: string) => {
     if (!start || !end) return false;
     const startDate = new Date(start);
     const endDate = new Date(end);
-    
-    // Check if any date in the range is in July or August
     let current = new Date(startDate);
     while (current <= endDate) {
       const month = current.getMonth();
@@ -69,17 +66,24 @@ export default function BookingWidget({
   useEffect(() => {
     async function fetchPricing() {
       if (checkIn && checkOut) {
-        const khareef = checkKhareef(checkIn, checkOut);
-        setIsKhareefSeason(khareef);
+        const isKhareef = checkKhareef(checkIn, checkOut);
 
-        if (khareef) {
-          setError(
-            isEn
-              ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
-              : "إذا كنت ترغب في الحجز خلال موسم الخريف (يوليو وأغسطس)، يرجى التواصل مع الإدارة على الرقم 96899551237+",
+        // If Khareef dates, only block when no promotion covers the period.
+        if (isKhareef) {
+          const promo = await getActivePromotionForUnit(
+            unitId,
+            checkIn,
+            checkOut,
           );
-          setPriceDetails(null);
-          return;
+          if (!promo) {
+            setError(
+              isEn
+                ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
+                : "إذا كنت ترغب في الحجز خلال موسم الخريف (يوليو وأغسطس)، يرجى التواصل مع الإدارة على الرقم 96899551237+",
+            );
+            setPriceDetails(null);
+            return;
+          }
         }
 
         setIsCalculating(true);
@@ -101,7 +105,7 @@ export default function BookingWidget({
             return;
           }
 
-          // 2. Calculate Price
+          // 2. Calculate Price (will include `promotion` block if one applies)
           const pricing = await calculateBookingPrice(
             unitId,
             checkIn,
@@ -257,7 +261,51 @@ export default function BookingWidget({
       {/* Dynamic Price Breakdown */}
       {priceDetails && (
         <div className="animate-in fade-in duration-300">
+          {priceDetails.promotion && (
+            <div className="mb-4 p-3 rounded-xl bg-gradient-to-br from-[#2a7475]/10 to-[#deeff8] border border-[#2a7475]/20">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1 bg-[#2a7475] text-white px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+                  </svg>
+                  {isEn ? "Promotion" : "عرض"}
+                </span>
+                <span className="text-xs font-bold text-[#1d5455] truncate">
+                  {isEn ? priceDetails.promotion.titleEn : priceDetails.promotion.titleAr}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2 text-sm">
+                <span className="text-gray-400 line-through">
+                  {priceDetails.promotion.regularPrice} {isEn ? "OMR" : "ر.ع"}
+                </span>
+                <span className="text-[#2a7475] font-extrabold text-lg">
+                  {priceDetails.promotion.promoPrice} {isEn ? "OMR" : "ر.ع"}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {isEn ? "/ night" : "/ ليلة"}
+                </span>
+              </div>
+              {priceDetails.promotion.savings > 0 && (
+                <p className="text-xs text-green-700 font-bold mt-1">
+                  {isEn
+                    ? `You save ${priceDetails.promotion.savings} OMR`
+                    : `وفرت ${priceDetails.promotion.savings} ر.ع`}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3 border-b border-gray-200 pb-4 text-gray-600 text-sm">
+            {priceDetails.promotion && (
+              <div className="flex justify-between text-gray-400">
+                <span>
+                  {isEn ? "Original" : "السعر الأصلي"}
+                </span>
+                <span className="line-through">
+                  {priceDetails.promotion.originalBaseRent} {isEn ? "OMR" : "ر.ع"}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="underline">
                 {priceDetails.calculationMethod}

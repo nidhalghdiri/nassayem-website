@@ -13,13 +13,13 @@ type Props = {
 };
 
 // ── Which nav items each role can see ──────────────────────────────────────────
-// MANAGER      : everything
+// MANAGER      : everything (incl. Promotions)
 // SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks
 // RECEPTIONIST : Dashboard, Tasks
 // HOUSEKEEPING : Dashboard, Tasks
 // MAINTENANCE  : Dashboard, Tasks
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "netsuitePayments", "tasks", "blog", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "netsuitePayments", "tasks", "blog", "users", "settings"],
   SUPERVISOR:   ["dashboard", "buildings", "units", "tasks"],
   RECEPTIONIST: ["dashboard", "netsuitePayments", "tasks"],
   HOUSEKEEPING: ["dashboard", "tasks"],
@@ -65,6 +65,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/bookings`,
       exact: false,
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    },
+    {
+      key: "promotions",
+      nameEn: "Promotions",
+      nameAr: "العروض",
+      href: `/${locale}/admin/promotions`,
+      exact: false,
+      icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
     },
     {
       key: "netsuitePayments",

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { BookingStatus } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
+import { getActivePromotionForUnit } from "@/app/actions/promotion";
 
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
@@ -63,6 +64,11 @@ export async function checkUnitAvailability(
 
 /**
  * CORE FUNCTION 2: Dynamic Pricing Engine
+ *
+ * Applies a promotion only to daily rentals — monthly bookings keep the unit's
+ * normal monthlyPrice. When a promotion matches, baseRent uses the promo price
+ * and the response includes a `promotion` block so the UI can show the
+ * struck-through original alongside the new price.
  */
 export async function calculateBookingPrice(
   unitId: string,
@@ -79,31 +85,72 @@ export async function calculateBookingPrice(
 
   let baseRent = 0;
   let calculationMethod = "";
+  let promotion: {
+    promotionId: string;
+    titleEn: string;
+    titleAr: string;
+    regularPrice: number;
+    promoPrice: number;
+    originalBaseRent: number;
+    savings: number;
+  } | null = null;
+
+  // Daily-mode pricing — checked first because BOTH may resolve to daily.
+  const usingDaily =
+    unit.rentType === "DAILY" ||
+    (unit.rentType === "BOTH" && (totalNights < 30 || !unit.monthlyPrice));
 
   if (unit.rentType === "MONTHLY") {
     if (totalNights < 30) throw new Error("This unit requires a minimum stay of 30 nights.");
     const months = totalNights / 30;
     baseRent = (unit.monthlyPrice || 0) * months;
     calculationMethod = `${totalNights} nights (Monthly Rate prorated)`;
-  } else if (unit.rentType === "DAILY") {
-    baseRent = (unit.dailyPrice || 0) * totalNights;
-    calculationMethod = `${totalNights} nights x ${unit.dailyPrice} OMR`;
-  } else if (unit.rentType === "BOTH") {
-    if (totalNights >= 30 && unit.monthlyPrice) {
-      const months = totalNights / 30;
-      baseRent = unit.monthlyPrice * months;
-      calculationMethod = `${totalNights} nights (Monthly Rate applied)`;
+  } else if (usingDaily) {
+    const activePromo = await getActivePromotionForUnit(
+      unitId,
+      checkInDate,
+      checkOutDate,
+    );
+
+    if (activePromo) {
+      const originalDaily = unit.dailyPrice ?? activePromo.regularPrice;
+      const originalBaseRent =
+        Math.round(originalDaily * totalNights * 100) / 100;
+      baseRent = activePromo.promoPrice * totalNights;
+      calculationMethod = `${totalNights} nights x ${activePromo.promoPrice} OMR (promo)`;
+      promotion = {
+        promotionId: activePromo.promotionId,
+        titleEn: activePromo.titleEn,
+        titleAr: activePromo.titleAr,
+        regularPrice: activePromo.regularPrice,
+        promoPrice: activePromo.promoPrice,
+        originalBaseRent,
+        savings: Math.round((originalBaseRent - baseRent) * 100) / 100,
+      };
     } else {
       baseRent = (unit.dailyPrice || 0) * totalNights;
       calculationMethod = `${totalNights} nights x ${unit.dailyPrice} OMR`;
     }
+  } else {
+    // BOTH with monthly threshold met
+    const months = totalNights / 30;
+    baseRent = (unit.monthlyPrice || 0) * months;
+    calculationMethod = `${totalNights} nights (Monthly Rate applied)`;
   }
 
   baseRent = Math.round(baseRent * 100) / 100;
   const taxes = Math.round((baseRent + CLEANING_FEE_OMR) * TAX_RATE * 100) / 100;
   const grandTotal = Math.round((baseRent + CLEANING_FEE_OMR + taxes) * 100) / 100;
 
-  return { totalNights, baseRent, cleaningFee: CLEANING_FEE_OMR, taxes, grandTotal, calculationMethod };
+  return {
+    totalNights,
+    baseRent,
+    cleaningFee: CLEANING_FEE_OMR,
+    taxes,
+    grandTotal,
+    calculationMethod,
+    promotion,
+  };
 }
 
 /**
