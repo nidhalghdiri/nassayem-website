@@ -38,7 +38,11 @@ export default function PromotionsCarousel({ promotions, locale }: Props) {
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPaused, setIsPaused] = useState(false);
 
-  const items = promotions.length > 0 ? [...promotions, ...promotions] : [];
+  // Render each promotion exactly once. We previously doubled the list to
+  // hide the autoplay loop-reset, but with few promotions the duplicates
+  // are visible side-by-side. Instead, autoplay smooth-scrolls back to
+  // the start when it reaches the end.
+  const items = promotions;
 
   const stepCard = useCallback(
     (dir: "prev" | "next") => {
@@ -66,9 +70,12 @@ export default function PromotionsCarousel({ promotions, locale }: Props) {
       const el = scrollRef.current;
       if (!el) return;
       const max = el.scrollWidth - el.clientWidth;
+      // Nothing to scroll — autoplay would be a no-op.
+      if (max <= 0) return;
       const absLeft = Math.abs(el.scrollLeft);
       if (absLeft >= max - 2) {
-        el.scrollTo({ left: 0, behavior: "auto" });
+        // Reached the end — glide back to the start.
+        el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         stepCard("next");
       }

@@ -6,7 +6,6 @@ import {
   calculateBookingPrice,
   checkUnitAvailability,
 } from "@/app/actions/booking";
-import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 import { gtagEvent } from "@/lib/gtag";
 
 type BookingWidgetProps = {
@@ -107,15 +106,17 @@ export default function BookingWidget({
         // Made it through (server-side khareef gate did not trip).
         setError(null);
         setPriceDetails(pricing);
-      } catch (err: any) {
+      } catch {
         if (cancelled) return;
-        const msg = err?.message;
-        if (msg === KHAREEF_NO_PROMO_ERROR) {
+        // Next.js obscures Server Action error messages in production, so
+        // we cannot rely on err.message to identify the failure. Use the
+        // synchronous date check as the source of truth — if the stay
+        // touches July/August, show the bilingual khareef notice; otherwise
+        // a generic message. Never display the raw thrown error to users.
+        if (rangeIsKhareef(checkIn, checkOut)) {
           setError(khareefMessage);
         } else {
-          setError(
-            msg || (isEn ? "Error calculating price" : "خطأ في حساب السعر"),
-          );
+          setError(isEn ? "Error calculating price" : "خطأ في حساب السعر");
         }
         setPriceDetails(null);
       } finally {
