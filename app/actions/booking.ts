@@ -7,14 +7,10 @@ import { BookingStatus } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { getActivePromotionForUnit } from "@/app/actions/promotion";
+import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
-
-// Sentinel error code: thrown when a daily booking touches July/August
-// and no active promotion covers the dates. The client maps this back to
-// the bilingual "contact administration" message.
-export const KHAREEF_NO_PROMO_ERROR = "KHAREEF_NO_PROMO";
 
 // Returns true when any night in [start, end) falls in July (6) or August (7).
 // `end` is the morning of departure, so it is exclusive.

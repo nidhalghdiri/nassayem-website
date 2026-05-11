@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   calculateBookingPrice,
   checkUnitAvailability,
-  KHAREEF_NO_PROMO_ERROR,
 } from "@/app/actions/booking";
+import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 import { gtagEvent } from "@/lib/gtag";
 
 type BookingWidgetProps = {
