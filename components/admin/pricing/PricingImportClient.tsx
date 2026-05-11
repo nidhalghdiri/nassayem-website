@@ -18,14 +18,11 @@ type BuildingHint = { id: string; nameEn: string; nameAr: string };
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/\s+/g, " ");
 }
-const HEADER_MAP: Record<string, keyof Omit<CsvRowInput, "rowNumber">> = {
-  building: "building",
-  "unit type": "unitType",
-  date: "date",
-  "daily price": "dailyPrice",
-};
 
-const REQUIRED_HEADERS = ["building", "unit type", "date", "daily price"];
+// CSV header (after normalization) → property in CsvRowInput.
+// Keys MUST match what Papa.parse exposes on each row object, which is
+// the normalized header string. Values are the property names we read into.
+const REQUIRED_HEADERS = ["building", "unit type", "date", "daily price"] as const;
 
 export default function PricingImportClient({
   locale,
@@ -84,10 +81,10 @@ export default function PricingImportClient({
         const data = results.data;
         accumulated.push({
           rowNumber: rowIdx,
-          building: data[HEADER_MAP.building] ?? "",
-          unitType: data[HEADER_MAP["unit type"]] ?? "",
-          date: data[HEADER_MAP.date] ?? "",
-          dailyPrice: data[HEADER_MAP["daily price"]] ?? "",
+          building: data["building"] ?? "",
+          unitType: data["unit type"] ?? "",
+          date: data["date"] ?? "",
+          dailyPrice: data["daily price"] ?? "",
         });
       },
       complete: () => {
