@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   calculateBookingPrice,
   checkUnitAvailability,
+  KHAREEF_NO_PROMO_ERROR,
 } from "@/app/actions/booking";
-import { getActivePromotionForUnit } from "@/app/actions/promotion";
 import { gtagEvent } from "@/lib/gtag";
 
 type BookingWidgetProps = {
@@ -48,84 +48,85 @@ export default function BookingWidget({
         ? "OMR / night"
         : "ر.ع / ليلة";
 
-  // Helper to check if any date in the range falls in July (6) or August (7)
-  const checkKhareef = (start: string, end: string) => {
+  const khareefMessage = isEn
+    ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
+    : "إذا كنت ترغب في الحجز خلال موسم الخريف (يوليو وأغسطس)، يرجى التواصل مع الإدارة على الرقم 96899551237+";
+
+  // True when any stay night (check-in inclusive, check-out exclusive) falls in
+  // July (6) or August (7). The check-out date itself is the morning of
+  // departure — it must not count as a stay night.
+  const rangeIsKhareef = (start: string, end: string) => {
     if (!start || !end) return false;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    let current = new Date(startDate);
-    while (current <= endDate) {
-      const month = current.getMonth();
-      if (month === 6 || month === 7) return true;
-      current.setDate(current.getDate() + 1);
+    const s = new Date(start);
+    const e = new Date(end);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+    const cursor = new Date(s);
+    while (cursor < e) {
+      const m = cursor.getMonth();
+      if (m === 6 || m === 7) return true;
+      cursor.setDate(cursor.getDate() + 1);
     }
     return false;
   };
 
-  // Effect to trigger calculation when both dates are filled
   useEffect(() => {
-    async function fetchPricing() {
-      if (checkIn && checkOut) {
-        const isKhareef = checkKhareef(checkIn, checkOut);
-
-        // If Khareef dates, only block when no promotion covers the period.
-        if (isKhareef) {
-          const promo = await getActivePromotionForUnit(
-            unitId,
-            checkIn,
-            checkOut,
-          );
-          if (!promo) {
-            setError(
-              isEn
-                ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
-                : "إذا كنت ترغب في الحجز خلال موسم الخريف (يوليو وأغسطس)، يرجى التواصل مع الإدارة على الرقم 96899551237+",
-            );
-            setPriceDetails(null);
-            return;
-          }
-        }
-
-        setIsCalculating(true);
-        setError(null);
-        try {
-          // 1. Check Availability First
-          const availability = await checkUnitAvailability(
-            unitId,
-            checkIn,
-            checkOut,
-          );
-          if (!availability.available) {
-            setError(
-              availability.error ||
-                (isEn ? "Dates unavailable" : "التواريخ غير متاحة"),
-            );
-            setPriceDetails(null);
-            setIsCalculating(false);
-            return;
-          }
-
-          // 2. Calculate Price (will include `promotion` block if one applies)
-          const pricing = await calculateBookingPrice(
-            unitId,
-            checkIn,
-            checkOut,
-          );
-          setPriceDetails(pricing);
-        } catch (err: any) {
-          setError(
-            err.message ||
-              (isEn ? "Error calculating price" : "خطأ في حساب السعر"),
-          );
-          setPriceDetails(null);
-        } finally {
-          setIsCalculating(false);
-        }
-      }
+    if (!checkIn || !checkOut) {
+      setError(null);
+      setPriceDetails(null);
+      return;
     }
 
-    fetchPricing();
-  }, [checkIn, checkOut, unitId, isEn]);
+    // Pre-set the khareef error SYNCHRONOUSLY so the Reserve button disables
+    // on this render — before any network round-trip. If a promotion covers
+    // the dates, calculateBookingPrice succeeds below and we clear the error.
+    const looksKhareef = rangeIsKhareef(checkIn, checkOut);
+    if (looksKhareef) {
+      setError(khareefMessage);
+      setPriceDetails(null);
+    } else {
+      setError(null);
+    }
+
+    let cancelled = false;
+    (async () => {
+      setIsCalculating(true);
+      try {
+        const availability = await checkUnitAvailability(unitId, checkIn, checkOut);
+        if (cancelled) return;
+        if (!availability.available) {
+          setError(
+            availability.error ||
+              (isEn ? "Dates unavailable" : "التواريخ غير متاحة"),
+          );
+          setPriceDetails(null);
+          return;
+        }
+
+        const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
+        if (cancelled) return;
+        // Made it through (server-side khareef gate did not trip).
+        setError(null);
+        setPriceDetails(pricing);
+      } catch (err: any) {
+        if (cancelled) return;
+        const msg = err?.message;
+        if (msg === KHAREEF_NO_PROMO_ERROR) {
+          setError(khareefMessage);
+        } else {
+          setError(
+            msg || (isEn ? "Error calculating price" : "خطأ في حساب السعر"),
+          );
+        }
+        setPriceDetails(null);
+      } finally {
+        if (!cancelled) setIsCalculating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkIn, checkOut, unitId, isEn, khareefMessage]);
 
   const handleReserve = () => {
     if (!checkIn || !checkOut) {
@@ -136,9 +137,18 @@ export default function BookingWidget({
       );
       return;
     }
-    if (error) return;
 
-    // Fire GA4 begin_checkout before navigating
+    // Last-line client gate: block khareef dates that don't have a confirmed
+    // promotion in priceDetails. This survives even if state hasn't settled.
+    if (rangeIsKhareef(checkIn, checkOut) && !priceDetails?.promotion) {
+      setError(khareefMessage);
+      return;
+    }
+
+    // Require a successful price calculation — never let the user navigate
+    // to checkout while we're still computing or an error is showing.
+    if (error || isCalculating || !priceDetails) return;
+
     gtagEvent("begin_checkout", {
       currency: "OMR",
       value: priceDetails?.grandTotal ?? undefined,
@@ -153,7 +163,6 @@ export default function BookingWidget({
       ],
     });
 
-    // Push to the checkout page with the query params
     const params = new URLSearchParams({ checkIn, checkOut, guests });
     router.push(
       `/${locale}/properties/${unitId}/checkout?${params.toString()}`,
@@ -221,10 +230,11 @@ export default function BookingWidget({
         </div>
       )}
 
-      {/* Reserve Button */}
+      {/* Reserve Button — disabled until we have a successful priceDetails so
+          the user can never navigate to checkout during the calc round-trip. */}
       <button
         onClick={handleReserve}
-        disabled={isCalculating || !!error}
+        disabled={isCalculating || !!error || !priceDetails}
         className="w-full bg-nassayem text-white py-4 rounded-xl font-bold text-lg hover:bg-nassayem-dark transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
       >
         {isCalculating ? (

@@ -11,6 +11,23 @@ import { getActivePromotionForUnit } from "@/app/actions/promotion";
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
 
+// Sentinel error code: thrown when a daily booking touches July/August
+// and no active promotion covers the dates. The client maps this back to
+// the bilingual "contact administration" message.
+export const KHAREEF_NO_PROMO_ERROR = "KHAREEF_NO_PROMO";
+
+// Returns true when any night in [start, end) falls in July (6) or August (7).
+// `end` is the morning of departure, so it is exclusive.
+function rangeContainsKhareef(start: Date, end: Date): boolean {
+  const cursor = new Date(start);
+  while (cursor < end) {
+    const m = cursor.getMonth();
+    if (m === 6 || m === 7) return true;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return false;
+}
+
 // Generates a short human-readable booking code like NSM-K4X7Q2 (10 chars)
 async function generateBookingCode(): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I to avoid confusion
@@ -100,18 +117,24 @@ export async function calculateBookingPrice(
     unit.rentType === "DAILY" ||
     (unit.rentType === "BOTH" && (totalNights < 30 || !unit.monthlyPrice));
 
+  // Fetch promo once (daily-style only — monthly bookings cannot use a daily promo).
+  const activePromo = usingDaily
+    ? await getActivePromotionForUnit(unitId, checkInDate, checkOutDate)
+    : null;
+
+  // Khareef gate: refuse any booking that touches July/August unless a
+  // promotion fully covers the dates. This is the server-side bulletproof
+  // check — the client can't bypass it by racing the UI state.
+  if (rangeContainsKhareef(requestedStart, requestedEnd) && !activePromo) {
+    throw new Error(KHAREEF_NO_PROMO_ERROR);
+  }
+
   if (unit.rentType === "MONTHLY") {
     if (totalNights < 30) throw new Error("This unit requires a minimum stay of 30 nights.");
     const months = totalNights / 30;
     baseRent = (unit.monthlyPrice || 0) * months;
     calculationMethod = `${totalNights} nights (Monthly Rate prorated)`;
   } else if (usingDaily) {
-    const activePromo = await getActivePromotionForUnit(
-      unitId,
-      checkInDate,
-      checkOutDate,
-    );
-
     if (activePromo) {
       const originalDaily = unit.dailyPrice ?? activePromo.regularPrice;
       const originalBaseRent =
