@@ -111,10 +111,11 @@ model Building {
   imageUrl      String?
 
   // Relations
-  units         Unit[]
-  tasks         Task[]
-  assignedStaff AdminUserBuilding[]
-  promotionRows PromotionRow[]
+  units               Unit[]
+  tasks               Task[]
+  assignedStaff       AdminUserBuilding[]
+  promotionRows       PromotionRow[]
+  unitTypeDailyPrices UnitTypeDailyPrice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,10 +145,11 @@ model Unit {
   isPublished Boolean @default(false)
 
   // Relations
-  building  Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  images    UnitImage[]
-  amenities Amenity[]
-  bookings  Booking[]
+  building       Building                 @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  images         UnitImage[]
+  amenities      Amenity[]
+  bookings       Booking[]
+  priceOverrides UnitDailyPriceOverride[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,6 +199,43 @@ model Booking {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------
+// MODELS — Pricing (daily rates by unit type + per-unit overrides)
+// ------------------------------------------------------
+
+// Base daily rate per (Building, UnitType, Date). Default used when no
+// per-unit override exists. Mass-imported from CSV; edited via grid.
+model UnitTypeDailyPrice {
+  id         String   @id @default(uuid())
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unitType   UnitType
+  date       DateTime @db.Date
+  dailyPrice Decimal  @db.Decimal(10, 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buildingId, unitType, date])
+  @@index([buildingId, unitType, date])
+}
+
+// Optional per-Unit override. Takes precedence over UnitTypeDailyPrice
+// for the same date when present.
+model UnitDailyPriceOverride {
+  id         String   @id @default(uuid())
+  unitId     String
+  unit       Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  dailyPrice Decimal  @db.Decimal(10, 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([unitId, date])
+  @@index([unitId, date])
 }
 
 // ------------------------------------------------------

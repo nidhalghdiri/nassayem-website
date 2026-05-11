@@ -21,3 +21,15 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
 
   return adminUser;
 }
+
+/**
+ * Throws if the caller is not a MANAGER. Use at the top of every
+ * mutation that should be manager-restricted (Pricing, Promotions, etc.).
+ */
+export async function requireManager(): Promise<AdminUser> {
+  const user = await getCurrentAdminUser();
+  if (!user || user.role !== "MANAGER") {
+    throw new Error("Forbidden: manager role required");
+  }
+  return user;
+}
