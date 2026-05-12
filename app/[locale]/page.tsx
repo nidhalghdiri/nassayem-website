@@ -113,8 +113,11 @@ export default async function HomePage({ params }: PageProps) {
 
       {/* 1. HERO SECTION */}
       <section className="relative">
-        {/* Hero image — natural aspect ratio so logo/text stay visible at any width */}
-        <div className="relative w-full aspect-[1392/787] min-h-[280px] max-h-[820px] overflow-hidden">
+        {/* Hero image — capped at 90vh so the search bar peeks into the initial
+            viewport. object-top keeps the logo + Arabic title visible when the
+            image is cropped on tall screens (the bottom of the photo is cropped,
+            not the top). */}
+        <div className="relative w-full aspect-[1392/787] min-h-[280px] max-h-[90vh] overflow-hidden">
           <Image
             src="/images/hero.jpeg"
             alt="Nassayem Salalah furnished apartments – premium vacation rentals in Dhofar, Oman"
@@ -122,7 +125,7 @@ export default async function HomePage({ params }: PageProps) {
             priority
             quality={90}
             sizes="100vw"
-            className="object-cover object-center"
+            className="object-cover object-top"
           />
         </div>
 
