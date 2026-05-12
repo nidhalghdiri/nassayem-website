@@ -7,6 +7,7 @@ import { BookingStatus } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { getActivePromotionForUnit } from "@/app/actions/promotion";
+import { getPeriodPricing } from "@/app/actions/pricing";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 
 const CLEANING_FEE_OMR = 0;
@@ -22,6 +23,14 @@ function rangeContainsKhareef(start: Date, end: Date): boolean {
     cursor.setDate(cursor.getDate() + 1);
   }
   return false;
+}
+
+// "2026-07-05" → "2026-07-04". TZ-safe (UTC date math only).
+function subtractOneDayISO(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
 }
 
 // Generates a short human-readable booking code like NSM-K4X7Q2 (10 chars)
@@ -113,15 +122,37 @@ export async function calculateBookingPrice(
     unit.rentType === "DAILY" ||
     (unit.rentType === "BOTH" && (totalNights < 30 || !unit.monthlyPrice));
 
-  // Fetch promo once (daily-style only — monthly bookings cannot use a daily promo).
-  const activePromo = usingDaily
-    ? await getActivePromotionForUnit(unitId, checkInDate, checkOutDate)
-    : null;
+  // Fetch promo + per-day pricing-module data in parallel (daily-style only).
+  // The pricing module is the inclusive [first-night, last-night] window —
+  // checkOut morning is not a stay night, so we subtract one day.
+  const lastNightISO = subtractOneDayISO(checkOutDate);
+  const [activePromo, modulePricing] = usingDaily
+    ? await Promise.all([
+        getActivePromotionForUnit(unitId, checkInDate, checkOutDate),
+        getPeriodPricing({
+          buildingId: unit.buildingId,
+          unitType: unit.unitType,
+          unitId: unit.id,
+          startDate: checkInDate,
+          endDate: lastNightISO,
+        }),
+      ])
+    : [null, null];
 
-  // Khareef gate: refuse any booking that touches July/August unless a
-  // promotion fully covers the dates. This is the server-side bulletproof
-  // check — the client can't bypass it by racing the UI state.
-  if (rangeContainsKhareef(requestedStart, requestedEnd) && !activePromo) {
+  const moduleAllPriced =
+    modulePricing !== null &&
+    modulePricing.totals.unpricedNights === 0 &&
+    modulePricing.totals.pricedNights > 0;
+
+  // Khareef gate: refuse any booking touching July/August unless EITHER
+  //   (a) an active promotion covers the dates, OR
+  //   (b) the pricing module has a price for every stay night.
+  // Server-side check — the client can't bypass it.
+  if (
+    rangeContainsKhareef(requestedStart, requestedEnd) &&
+    !activePromo &&
+    !moduleAllPriced
+  ) {
     throw new Error(KHAREEF_NO_PROMO_ERROR);
   }
 
@@ -131,6 +162,7 @@ export async function calculateBookingPrice(
     baseRent = (unit.monthlyPrice || 0) * months;
     calculationMethod = `${totalNights} nights (Monthly Rate prorated)`;
   } else if (usingDaily) {
+    // Pricing priority: active promotion > pricing module > unit.dailyPrice.
     if (activePromo) {
       const originalDaily = unit.dailyPrice ?? activePromo.regularPrice;
       const originalBaseRent =
@@ -146,6 +178,10 @@ export async function calculateBookingPrice(
         originalBaseRent,
         savings: Math.round((originalBaseRent - baseRent) * 100) / 100,
       };
+    } else if (moduleAllPriced) {
+      // Sum the per-night effective prices (override > base, resolved by SQL).
+      baseRent = modulePricing!.totals.total ?? 0;
+      calculationMethod = `${totalNights} nights (per-day pricing)`;
     } else {
       baseRent = (unit.dailyPrice || 0) * totalNights;
       calculationMethod = `${totalNights} nights x ${unit.dailyPrice} OMR`;

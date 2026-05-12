@@ -139,9 +139,13 @@ export default function BookingWidget({
       return;
     }
 
-    // Last-line client gate: block khareef dates that don't have a confirmed
-    // promotion in priceDetails. This survives even if state hasn't settled.
-    if (rangeIsKhareef(checkIn, checkOut) && !priceDetails?.promotion) {
+    // Last-line client gate: block khareef dates until the server has
+    // returned a valid priceDetails. If priceDetails is populated, the
+    // server already authorized the booking — either via a promotion,
+    // via the pricing module (per-day rates set for every stay night),
+    // or both. We trust that. If priceDetails is null, the server either
+    // rejected it (state hasn't settled) or hasn't responded yet — block.
+    if (rangeIsKhareef(checkIn, checkOut) && !priceDetails) {
       setError(khareefMessage);
       return;
     }
