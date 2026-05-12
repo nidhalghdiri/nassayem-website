@@ -164,12 +164,12 @@ export default function PropertyCard({
       </div>
 
       <div className="mt-3 border-t border-gray-100 pt-3">
-        <p className="font-extrabold text-nassayem text-lg">
-          {unit.dailyPrice || unit.monthlyPrice}{" "}
-          <span className="text-sm font-medium text-gray-500">
-            {isEn ? "OMR" : "ر.ع"}
-          </span>
-        </p>
+        <span className="inline-flex items-center gap-1.5 bg-nassayem/10 text-nassayem font-bold text-sm px-4 py-2 rounded-xl group-hover:bg-nassayem group-hover:text-white transition-colors">
+          {isEn ? "Show Price" : "عرض السعر"}
+          <svg className="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
       </div>
     </Link>
   );

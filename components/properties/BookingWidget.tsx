@@ -36,8 +36,6 @@ export default function BookingWidget({
   const [error, setError] = useState<string | null>(null);
   const [priceDetails, setPriceDetails] = useState<any>(null);
 
-  // Determine the display price (fallback if dates aren't selected yet)
-  const displayPrice = rentType === "MONTHLY" ? priceMonthly : priceDaily;
   const priceLabel =
     rentType === "MONTHLY"
       ? isEn
@@ -46,6 +44,16 @@ export default function BookingWidget({
       : isEn
         ? "OMR / night"
         : "ر.ع / ليلة";
+
+  // Resolved per-night price to display once the server returns. Promotions
+  // expose a flat promoPrice; the pricing module may vary by night, so we
+  // fall back to the average (baseRent / totalNights) which matches what the
+  // checkout will charge. Null until priceDetails arrives.
+  const resolvedDaily =
+    priceDetails && priceDetails.totalNights > 0
+      ? priceDetails.promotion?.promoPrice ??
+        priceDetails.baseRent / priceDetails.totalNights
+      : null;
 
   const khareefMessage = isEn
     ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
@@ -75,16 +83,14 @@ export default function BookingWidget({
       return;
     }
 
-    // Pre-set the khareef error SYNCHRONOUSLY so the Reserve button disables
-    // on this render — before any network round-trip. If a promotion covers
-    // the dates, calculateBookingPrice succeeds below and we clear the error.
-    const looksKhareef = rangeIsKhareef(checkIn, checkOut);
-    if (looksKhareef) {
-      setError(khareefMessage);
-      setPriceDetails(null);
-    } else {
-      setError(null);
-    }
+    // Reset state immediately so the Reserve button disables (it requires
+    // priceDetails to be populated). We deliberately do NOT pre-set the
+    // khareef error here — no message is shown until the server has had a
+    // chance to look up promo + pricing-module coverage. If the server
+    // returns priceDetails, we show the price; if it throws, we show the
+    // contact-administration message at that point.
+    setError(null);
+    setPriceDetails(null);
 
     let cancelled = false;
     (async () => {
@@ -176,11 +182,34 @@ export default function BookingWidget({
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xl lg:sticky lg:top-28 mb-8 lg:mb-0">
-      <div className="flex items-end gap-1 mb-6">
-        <span className="text-3xl font-extrabold text-gray-900">
-          {displayPrice}
-        </span>
-        <span className="text-gray-500 font-medium pb-1">{priceLabel}</span>
+      {/* Price header — only shown once the server has resolved a real price
+          for the selected stay. Before then, a neutral prompt to pick dates. */}
+      <div className="mb-6 min-h-[3rem]">
+        {priceDetails && resolvedDaily !== null ? (
+          <>
+            <div className="flex items-end gap-1">
+              <span className="text-3xl font-extrabold text-gray-900">
+                {resolvedDaily.toFixed(3)}
+              </span>
+              <span className="text-gray-500 font-medium pb-1">{priceLabel}</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              {isEn
+                ? `Total: ${priceDetails.grandTotal} OMR for ${priceDetails.totalNights} night${priceDetails.totalNights === 1 ? "" : "s"}`
+                : `الإجمالي: ${priceDetails.grandTotal} ر.ع لـ ${priceDetails.totalNights} ${priceDetails.totalNights === 1 ? "ليلة" : "ليالٍ"}`}
+            </p>
+          </>
+        ) : isCalculating ? (
+          <p className="text-gray-500 text-sm">
+            {isEn ? "Calculating price…" : "جاري حساب السعر…"}
+          </p>
+        ) : (
+          <p className="text-gray-500 text-sm">
+            {isEn
+              ? "Select check-in and check-out dates to see the price."
+              : "اختر تاريخي الدخول والخروج لعرض السعر."}
+          </p>
+        )}
       </div>
 
       {/* Form Inputs */}
