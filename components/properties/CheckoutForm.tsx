@@ -4,6 +4,22 @@ import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking } from "@/app/actions/booking";
 
+// Returns true when any night in [checkIn, checkOut) lands in July or August.
+// `checkOut` is the morning of departure, so it's exclusive.
+function stayTouchesKhareef(checkIn: string, checkOut: string): boolean {
+  const [sy, sm, sd] = checkIn.split("-").map(Number);
+  const [ey, em, ed] = checkOut.split("-").map(Number);
+  const start = new Date(Date.UTC(sy, sm - 1, sd));
+  const end = new Date(Date.UTC(ey, em - 1, ed));
+  const cursor = new Date(start);
+  while (cursor < end) {
+    const m = cursor.getUTCMonth();
+    if (m === 6 || m === 7) return true;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return false;
+}
+
 // ── Country data (GCC first, then broader region, then global) ─────────────────
 const COUNTRIES = [
   { code: "OM", nameEn: "Oman",             nameAr: "عُمان",            dialCode: "+968" },
@@ -55,8 +71,13 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">("CASH");
+  // Khareef season (July/August) forces online payment.
+  const isKhareef = stayTouchesKhareef(checkIn, checkOut);
+
+  // Payment method — Khareef stays must pay online.
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">(
+    isKhareef ? "CARD" : "CASH",
+  );
 
   // Nationality & phone
   const [nationalityCode, setNationalityCode] = useState("");
@@ -130,8 +151,21 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
             {isEn ? "Payment Method" : "طريقة الدفع"}
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Cash card */}
+          {isKhareef && (
+            <p className="mb-5 text-xs text-nassayem bg-nassayem/5 border border-nassayem/20 rounded-xl px-4 py-3 leading-relaxed">
+              {isEn
+                ? "During Khareef season (July–August), online payment is required to confirm your booking."
+                : "خلال موسم الخريف (يوليو–أغسطس)، الدفع الإلكتروني مطلوب لتأكيد حجزك."}
+            </p>
+          )}
+
+          <div
+            className={`grid gap-4 ${
+              isKhareef ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"
+            }`}
+          >
+            {/* Cash card — hidden during Khareef season */}
+            {!isKhareef && (
             <button
               type="button"
               onClick={() => setPaymentMethod("CASH")}
@@ -180,6 +214,7 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
                 </span>
               )}
             </button>
+            )}
 
             {/* Card payment */}
             <button

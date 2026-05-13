@@ -229,6 +229,21 @@ export async function createBooking(
     throw new Error("Please fill in all contact details.");
   }
 
+  // Khareef stays (any night in July/August) must be paid online.
+  if (
+    paymentMethod === "CASH" &&
+    rangeContainsKhareef(
+      startOfDay(parseISO(checkIn)),
+      startOfDay(parseISO(checkOut)),
+    )
+  ) {
+    throw new Error(
+      locale === "ar"
+        ? "خلال موسم الخريف (يوليو–أغسطس)، الدفع الإلكتروني مطلوب."
+        : "Online payment is required during Khareef season (July–August).",
+    );
+  }
+
   const availability = await checkUnitAvailability(unitId, checkIn, checkOut);
   if (!availability.available) {
     throw new Error("Sorry, these dates are no longer available.");
