@@ -53,7 +53,13 @@ async function generateBookingCode(): Promise<string> {
 }
 
 /**
- * CORE FUNCTION 1: Overlap Prevention
+ * CORE FUNCTION 1: Inventory-aware availability check.
+ *
+ * A unit represents a pool of `inventoryCount` identical rooms. We block the
+ * dates only when the number of overlapping CONFIRMED/COMPLETED bookings has
+ * already reached the inventory pool. PENDING bookings never block.
+ *
+ * Returns `remaining` so the UI can render urgency badges ("Only 1 left").
  */
 export async function checkUnitAvailability(
   unitId: string,
@@ -67,7 +73,13 @@ export async function checkUnitAvailability(
     return { available: false, error: "Check-out date must be after check-in date." };
   }
 
-  const overlappingBookings = await prisma.booking.findMany({
+  const unit = await prisma.unit.findUnique({
+    where: { id: unitId },
+    select: { inventoryCount: true },
+  });
+  if (!unit) return { available: false, error: "Unit not found." };
+
+  const overlappingCount = await prisma.booking.count({
     where: {
       unitId,
       status: { in: ["CONFIRMED", "COMPLETED"] }, // PENDING does not block dates
@@ -78,10 +90,12 @@ export async function checkUnitAvailability(
     },
   });
 
-  if (overlappingBookings.length > 0) {
-    return { available: false, error: "These dates are already booked." };
+  const remaining = Math.max(0, unit.inventoryCount - overlappingCount);
+
+  if (remaining <= 0) {
+    return { available: false, remaining: 0, error: "These dates are already booked." };
   }
-  return { available: true };
+  return { available: true, remaining };
 }
 
 /**
@@ -244,33 +258,69 @@ export async function createBooking(
     );
   }
 
-  const availability = await checkUnitAvailability(unitId, checkIn, checkOut);
-  if (!availability.available) {
-    throw new Error("Sorry, these dates are no longer available.");
-  }
-
   const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
   const bookingCode = await generateBookingCode();
 
-  // Both CASH and CARD start as PENDING.
-  // CASH: admin confirms manually after guest pays at reception.
-  // CARD: confirmed automatically by the SmartPay webhook.
-  const booking = await prisma.booking.create({
-    data: {
-      bookingCode,
-      unitId,
-      guestName,
-      guestEmail,
-      guestPhone,
-      guestNationality,
-      guestNotes,
-      paymentMethod,
-      checkIn: startOfDay(parseISO(checkIn)),
-      checkOut: startOfDay(parseISO(checkOut)),
-      totalPrice: pricing.grandTotal,
-      status: "PENDING",
-    },
-  });
+  const startDate = startOfDay(parseISO(checkIn));
+  const endDate = startOfDay(parseISO(checkOut));
+
+  // Serializable transaction: re-count CONFIRMED/COMPLETED overlapping
+  // bookings against the unit's inventory pool right before insert. If two
+  // requests race for the last room, one transaction will be aborted by
+  // Postgres and we surface a clean "no longer available" error.
+  // Both CASH and CARD start as PENDING; PENDING does not consume inventory.
+  let booking;
+  try {
+    booking = await prisma.$transaction(
+      async (tx) => {
+        const unit = await tx.unit.findUnique({
+          where: { id: unitId },
+          select: { inventoryCount: true },
+        });
+        if (!unit) throw new Error("Unit not found.");
+
+        const overlappingCount = await tx.booking.count({
+          where: {
+            unitId,
+            status: { in: ["CONFIRMED", "COMPLETED"] },
+            AND: [
+              { checkIn: { lt: endDate } },
+              { checkOut: { gt: startDate } },
+            ],
+          },
+        });
+
+        if (overlappingCount >= unit.inventoryCount) {
+          throw new Error("Sorry, these dates are no longer available.");
+        }
+
+        return tx.booking.create({
+          data: {
+            bookingCode,
+            unitId,
+            guestName,
+            guestEmail,
+            guestPhone,
+            guestNationality,
+            guestNotes,
+            paymentMethod,
+            checkIn: startDate,
+            checkOut: endDate,
+            totalPrice: pricing.grandTotal,
+            status: "PENDING",
+          },
+        });
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch (err: any) {
+    // Postgres raises 40001 (serialization_failure) when it aborts a
+    // serializable txn — translate that to the same user-facing message.
+    if (err?.code === "P2034" || /serialization/i.test(err?.message ?? "")) {
+      throw new Error("Sorry, these dates are no longer available.");
+    }
+    throw err;
+  }
 
   if (paymentMethod === "CASH") {
     // No payment gateway — send confirmation email immediately

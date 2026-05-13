@@ -35,6 +35,7 @@ export default function BookingWidget({
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [priceDetails, setPriceDetails] = useState<any>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
 
   const priceLabel =
     rentType === "MONTHLY"
@@ -91,6 +92,7 @@ export default function BookingWidget({
     // contact-administration message at that point.
     setError(null);
     setPriceDetails(null);
+    setRemaining(null);
 
     let cancelled = false;
     (async () => {
@@ -104,8 +106,10 @@ export default function BookingWidget({
               (isEn ? "Dates unavailable" : "التواريخ غير متاحة"),
           );
           setPriceDetails(null);
+          setRemaining(0);
           return;
         }
+        setRemaining(availability.remaining ?? null);
 
         const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
         if (cancelled) return;
@@ -261,6 +265,28 @@ export default function BookingWidget({
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 font-medium">
           {error}
+        </div>
+      )}
+
+      {/* Urgency: only after dates picked, when remaining is low and positive. */}
+      {!error && remaining !== null && remaining > 0 && remaining <= 2 && (
+        <div className="mb-4 p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 font-medium flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+            />
+          </svg>
+          <span>
+            {isEn
+              ? remaining === 1
+                ? "Only 1 unit left for your dates — book soon!"
+                : `Only ${remaining} units left for your dates — book soon!`
+              : remaining === 1
+                ? "آخر وحدة متاحة لتواريخك — احجز الآن!"
+                : `تبقى ${remaining} وحدات لتواريخك — احجز الآن!`}
+          </span>
         </div>
       )}
 

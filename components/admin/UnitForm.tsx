@@ -272,6 +272,35 @@ export default function UnitForm({
         </div>
       </div>
 
+      {/* 4b. Inventory */}
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+        <h2 className="text-xl font-bold text-gray-900 mb-2 border-b border-gray-100 pb-4">
+          {isEn ? "Availability Pool" : "عدد الوحدات المتاحة"}
+        </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          {isEn
+            ? "How many identical rooms of this listing exist. Guests can book this listing up to this many times for the same nights."
+            : "عدد الوحدات المتطابقة لهذه الفئة. يمكن للضيوف حجز هذه الوحدة لنفس الليالي حتى هذا العدد."}
+        </p>
+        <div className="max-w-xs">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            {isEn ? "Availability Count" : "عدد الوحدات"}
+          </label>
+          <input
+            type="number"
+            name="inventoryCount"
+            min="1"
+            defaultValue={initialData?.inventoryCount ?? 1}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-nassayem/50 text-center font-bold"
+          />
+          <p className="text-xs text-amber-700 mt-2">
+            {isEn
+              ? "Lowering this below the number of already-confirmed bookings on any night does not cancel existing bookings."
+              : "تخفيض هذا العدد لا يلغي الحجوزات المؤكدة الحالية."}
+          </p>
+        </div>
+      </div>
+
       {/* 5. Publish Toggle & Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4">
         <label className="flex items-center gap-3 cursor-pointer">

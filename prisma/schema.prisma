@@ -142,6 +142,10 @@ model Unit {
   beds      Int @default(1)
   bathrooms Int @default(1)
 
+  // Number of identical interchangeable rooms backing this listing.
+  // The unit can be booked concurrently up to this count for any given night.
+  inventoryCount Int @default(1)
+
   isPublished Boolean @default(false)
 
   // Relations

@@ -25,6 +25,10 @@ export async function createUnit(formData: FormData, locale: string) {
   const bedrooms = parseInt((formData.get("bedrooms") as string) || "1", 10);
   const beds = parseInt((formData.get("beds") as string) || "1", 10);
   const bathrooms = parseInt((formData.get("bathrooms") as string) || "1", 10);
+  const inventoryCount = Math.max(
+    1,
+    parseInt((formData.get("inventoryCount") as string) || "1", 10),
+  );
 
   // 4. Extract Booleans
   const isPublished = formData.get("isPublished") === "on";
@@ -50,6 +54,7 @@ export async function createUnit(formData: FormData, locale: string) {
       bedrooms,
       beds,
       bathrooms,
+      inventoryCount,
       isPublished,
     },
   });
@@ -81,6 +86,10 @@ export async function updateUnit(
   const bedrooms = parseInt((formData.get("bedrooms") as string) || "1", 10);
   const beds = parseInt((formData.get("beds") as string) || "1", 10);
   const bathrooms = parseInt((formData.get("bathrooms") as string) || "1", 10);
+  const inventoryCount = Math.max(
+    1,
+    parseInt((formData.get("inventoryCount") as string) || "1", 10),
+  );
 
   await prisma.unit.update({
     where: { id },
@@ -99,6 +108,7 @@ export async function updateUnit(
       bedrooms,
       beds,
       bathrooms,
+      inventoryCount,
       isPublished,
     },
   });
