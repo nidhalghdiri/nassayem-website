@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from '@next/third-parties/google'
+import Script from "next/script";
 
 // Optimize fonts for both languages
 const inter = Inter({
@@ -118,6 +119,19 @@ export default async function RootLayout({
 
         {!isAdmin && <Footer locale={locale} />}
         <GoogleAnalytics gaId="G-JVX3CTNWVT" />
+        {/* Google Ads (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-18162111437"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads-gtag" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-18162111437');
+          `}
+        </Script>
       </body>
     </html>
   );
