@@ -100,7 +100,13 @@ async function handleBookingPayment(args: {
       return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
     }
 
-    const expectedAmount = Number(booking.totalPrice).toFixed(3);
+    // For advance-payment bookings the charged amount is half the total, so
+    // verify against (totalPrice - amountDueAtCheckIn) — what we actually
+    // asked SmartPay to charge.
+    const expectedChargeNow =
+      Math.round((booking.totalPrice - booking.amountDueAtCheckIn) * 1000) /
+      1000;
+    const expectedAmount = Number(expectedChargeNow).toFixed(3);
     const receivedAmount = Number(bankAmount).toFixed(3);
     if (expectedAmount !== receivedAmount) {
       console.error(
@@ -115,7 +121,7 @@ async function handleBookingPayment(args: {
 
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "CONFIRMED" },
+      data: { status: "CONFIRMED", amountPaid: expectedChargeNow },
     });
     console.log("SUCCESS: Booking Confirmed & Securely Validated!");
 

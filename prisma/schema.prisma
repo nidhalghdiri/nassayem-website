@@ -194,6 +194,12 @@ model Booking {
   guestNotes       String?
   paymentMethod    String  @default("CARD") // CASH or CARD
 
+  // Payment plan — FULL = pay totalPrice online; ADVANCE_50 = pay 50% online,
+  // collect the rest at reception. Only meaningful for CARD bookings.
+  paymentPlan        String @default("FULL") // FULL or ADVANCE_50
+  amountPaid         Float? // what SmartPay actually charged (or what was paid in cash)
+  amountDueAtCheckIn Float  @default(0) // balance reception must collect
+
   checkIn    DateTime
   checkOut   DateTime
   totalPrice Float

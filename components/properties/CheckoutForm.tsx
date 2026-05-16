@@ -63,9 +63,24 @@ type CheckoutFormProps = {
   checkIn: string;
   checkOut: string;
   locale: string;
+  totalPrice: number;
 };
 
-export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: CheckoutFormProps) {
+// Mirrors the server-side policy in app/actions/booking.ts.
+const ADVANCE_PAYMENT_MIN_TOTAL_OMR = 30;
+const ADVANCE_PAYMENT_RATIO = 0.5;
+
+function round3(n: number) {
+  return Math.round(n * 1000) / 1000;
+}
+
+export default function CheckoutForm({
+  unitId,
+  checkIn,
+  checkOut,
+  locale,
+  totalPrice,
+}: CheckoutFormProps) {
   const isEn = locale === "en";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -74,9 +89,18 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
   // Khareef season (July/August) forces online payment.
   const isKhareef = stayTouchesKhareef(checkIn, checkOut);
 
+  // Advance payment is offered only for Khareef bookings with total > 30 OMR.
+  const advanceEligible = isKhareef && totalPrice > ADVANCE_PAYMENT_MIN_TOTAL_OMR;
+  const advanceAmount = round3(totalPrice * ADVANCE_PAYMENT_RATIO);
+  const remainingAmount = round3(totalPrice - advanceAmount);
+
   // Payment method — Khareef stays must pay online.
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">(
     isKhareef ? "CARD" : "CASH",
+  );
+  // Payment plan — default to ADVANCE_50 when eligible to encourage bookings.
+  const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE_50">(
+    advanceEligible ? "ADVANCE_50" : "FULL",
   );
 
   // Nationality & phone
@@ -112,6 +136,10 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
     // Override phone with the combined value
     rawForm.set("guestPhone", fullPhone);
     rawForm.set("paymentMethod", paymentMethod);
+    rawForm.set(
+      "paymentPlan",
+      paymentMethod === "CARD" && advanceEligible ? paymentPlan : "FULL",
+    );
     setError(null);
 
     startTransition(async () => {
@@ -274,11 +302,156 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
                 : "سيتم تأكيد حجزك فوراً. يرجى إحضار المبلغ نقداً عند وصولك."}
             </p>
           )}
+
+          {/* Advance-payment selector — Khareef only, total > 30 OMR. */}
+          {paymentMethod === "CARD" && advanceEligible && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">
+                  {isEn ? "Choose your payment plan" : "اختر خطة الدفع"}
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 uppercase tracking-wider">
+                  {isEn ? "New" : "جديد"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 50% advance — recommended */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentPlan("ADVANCE_50")}
+                  className={`relative flex flex-col gap-2 p-5 rounded-xl border-2 text-start transition-all ${
+                    paymentPlan === "ADVANCE_50"
+                      ? "border-nassayem bg-nassayem/5 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <span className="absolute -top-3 start-4 text-[10px] font-bold text-white bg-emerald-600 rounded-full px-3 py-1 uppercase tracking-wider shadow-sm">
+                    {isEn ? "Most popular" : "الأكثر اختياراً"}
+                  </span>
+                  <span
+                    className={`absolute top-4 end-4 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      paymentPlan === "ADVANCE_50"
+                        ? "border-nassayem bg-nassayem"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {paymentPlan === "ADVANCE_50" && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">
+                    {isEn ? "Pay 50% Today" : "ادفع 50% اليوم"}
+                  </p>
+                  <p className="text-2xl font-extrabold text-gray-900" dir="ltr">
+                    {advanceAmount.toFixed(3)}{" "}
+                    <span className="text-sm font-bold text-gray-500">
+                      {isEn ? "OMR" : "ر.ع"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {isEn
+                      ? `Pay the remaining ${remainingAmount.toFixed(3)} OMR at check-in.`
+                      : `ادفع المبلغ المتبقي ${remainingAmount.toFixed(3)} ر.ع عند الوصول.`}
+                  </p>
+                  <p className="text-[11px] font-bold text-emerald-700 mt-1">
+                    {isEn
+                      ? "Lock in your dates — easy on your wallet."
+                      : "احجز تواريخك الآن — مريح لميزانيتك."}
+                  </p>
+                </button>
+
+                {/* Full payment */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentPlan("FULL")}
+                  className={`relative flex flex-col gap-2 p-5 rounded-xl border-2 text-start transition-all ${
+                    paymentPlan === "FULL"
+                      ? "border-nassayem bg-nassayem/5 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-4 end-4 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      paymentPlan === "FULL"
+                        ? "border-nassayem bg-nassayem"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {paymentPlan === "FULL" && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">
+                    {isEn ? "Pay Full Amount" : "ادفع المبلغ كاملاً"}
+                  </p>
+                  <p className="text-2xl font-extrabold text-gray-900" dir="ltr">
+                    {totalPrice.toFixed(3)}{" "}
+                    <span className="text-sm font-bold text-gray-500">
+                      {isEn ? "OMR" : "ر.ع"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {isEn
+                      ? "Nothing to pay at check-in."
+                      : "لا يوجد دفع عند الوصول."}
+                  </p>
+                  <p className="text-[11px] font-bold text-nassayem mt-1">
+                    {isEn
+                      ? "Skip the queue at check-in."
+                      : "تجاوز طابور الاستقبال."}
+                  </p>
+                </button>
+              </div>
+
+              {/* Cost breakdown */}
+              <div className="mt-4 bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">
+                    {isEn ? "Pay today" : "ادفع اليوم"}
+                  </span>
+                  <span className="font-bold text-gray-900" dir="ltr">
+                    {(paymentPlan === "ADVANCE_50" ? advanceAmount : totalPrice).toFixed(3)}{" "}
+                    {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">
+                    {isEn ? "Due at check-in" : "مستحق عند الوصول"}
+                  </span>
+                  <span className="font-bold text-gray-900" dir="ltr">
+                    {(paymentPlan === "ADVANCE_50" ? remainingAmount : 0).toFixed(3)}{" "}
+                    {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="font-bold text-gray-900">
+                    {isEn ? "Total stay" : "إجمالي الإقامة"}
+                  </span>
+                  <span className="font-extrabold text-gray-900" dir="ltr">
+                    {totalPrice.toFixed(3)} {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {paymentMethod === "CARD" && (
-            <p className="mt-4 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 leading-relaxed">
-              {isEn
-                ? "You will be redirected to Bank Muscat's secure payment page. Your booking is saved only after the payment succeeds."
-                : "سيتم توجيهك إلى صفحة الدفع الآمنة لبنك مسقط. يتم حفظ حجزك فقط بعد نجاح الدفع."}
+            <p className="mt-4 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 leading-relaxed flex items-start gap-2">
+              <svg className="w-4 h-4 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" clipRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+              </svg>
+              <span>
+                {isEn
+                  ? "Secure payment via Bank Muscat SmartPay. Your booking is confirmed only after the payment succeeds."
+                  : "دفع آمن عبر SmartPay بنك مسقط. يتم تأكيد حجزك فقط بعد نجاح الدفع."}
+              </span>
             </p>
           )}
         </div>
@@ -409,6 +582,11 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
           {/* Hidden inputs for combined phone and payment method */}
           <input type="hidden" name="guestPhone" value={fullPhone} />
           <input type="hidden" name="paymentMethod" value={paymentMethod} />
+          <input
+            type="hidden"
+            name="paymentPlan"
+            value={paymentMethod === "CARD" && advanceEligible ? paymentPlan : "FULL"}
+          />
 
           <div className="mt-8 pt-6 border-t border-gray-100">
             <button
@@ -439,7 +617,15 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                       d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
-                  {isEn ? "Proceed to Payment" : "المتابعة للدفع"}
+                  {(() => {
+                    const chargeNow =
+                      paymentMethod === "CARD" && advanceEligible && paymentPlan === "ADVANCE_50"
+                        ? advanceAmount
+                        : totalPrice;
+                    return isEn
+                      ? `Pay ${chargeNow.toFixed(3)} OMR Now`
+                      : `ادفع ${chargeNow.toFixed(3)} ر.ع الآن`;
+                  })()}
                 </>
               )}
             </button>
@@ -449,9 +635,13 @@ export default function CheckoutForm({ unitId, checkIn, checkOut, locale }: Chec
                 ? isEn
                   ? "Your booking will be confirmed immediately with no upfront payment required."
                   : "سيتم تأكيد حجزك فوراً دون الحاجة لدفع مسبق."
-                : isEn
-                  ? "You will be redirected to Bank Muscat's secure payment page."
-                  : "سيتم توجيهك إلى صفحة الدفع الآمنة لبنك مسقط."}
+                : paymentMethod === "CARD" && advanceEligible && paymentPlan === "ADVANCE_50"
+                  ? isEn
+                    ? `You'll be redirected to Bank Muscat to pay ${advanceAmount.toFixed(3)} OMR. Pay the remaining ${remainingAmount.toFixed(3)} OMR at check-in.`
+                    : `سيتم توجيهك إلى بنك مسقط لدفع ${advanceAmount.toFixed(3)} ر.ع. المبلغ المتبقي ${remainingAmount.toFixed(3)} ر.ع يُدفع عند الوصول.`
+                  : isEn
+                    ? "You will be redirected to Bank Muscat's secure payment page."
+                    : "سيتم توجيهك إلى صفحة الدفع الآمنة لبنك مسقط."}
             </p>
           </div>
         </div>

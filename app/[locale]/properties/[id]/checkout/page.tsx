@@ -120,6 +120,7 @@ export default async function CheckoutPage({
               checkIn={checkIn}
               checkOut={checkOut}
               locale={locale}
+              totalPrice={pricing.grandTotal}
             />
           </div>
 

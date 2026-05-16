@@ -22,16 +22,21 @@ function buildEmailHtml(params: {
   totalNights: number;
   totalPrice: number;
   paymentMethod: string;
+  paymentPlan: string;
+  amountPaid: number | null;
+  amountDueAtCheckIn: number;
   status: string;
   locale: string;
 }) {
   const {
     guestName, bookingCode, unitTitleEn, buildingNameEn,
-    checkIn, checkOut, totalNights, totalPrice, paymentMethod, status, locale,
+    checkIn, checkOut, totalNights, totalPrice, paymentMethod,
+    paymentPlan, amountPaid, amountDueAtCheckIn, status, locale,
   } = params;
 
   const isEn = locale !== "ar";
   const isCash = paymentMethod === "CASH";
+  const isAdvance = paymentPlan === "ADVANCE_50" && amountDueAtCheckIn > 0;
   const isPending = status === "PENDING";
   const statusColor = isPending ? "#d97706" : "#059669";
   const statusLabel = isPending ? (isEn ? "Pending Confirmation" : "قيد الانتظار") : (isEn ? "Confirmed" : "مؤكد");
@@ -55,10 +60,14 @@ function buildEmailHtml(params: {
   const footerNote = isEn
     ? isCash
       ? "Please bring this confirmation and pay the full amount at the reception upon check-in."
-      : "Please present this confirmation email or the attached PDF at check-in."
+      : isAdvance
+        ? `Please present this confirmation at check-in and pay the remaining balance of ${amountDueAtCheckIn.toFixed(3)} OMR at the reception.`
+        : "Please present this confirmation email or the attached PDF at check-in."
     : isCash
       ? "يرجى إحضار هذا التأكيد ودفع المبلغ كاملاً عند الاستقبال لدى تسجيل الوصول."
-      : "يرجى تقديم هذا التأكيد أو ملف PDF المرفق عند تسجيل الوصول.";
+      : isAdvance
+        ? `يرجى تقديم هذا التأكيد عند الوصول ودفع المبلغ المتبقي ${amountDueAtCheckIn.toFixed(3)} ر.ع لدى الاستقبال.`
+        : "يرجى تقديم هذا التأكيد أو ملف PDF المرفق عند تسجيل الوصول.";
 
   return {
     subject: subjectLine,
@@ -148,8 +157,14 @@ function buildEmailHtml(params: {
                   <div style="background:#f9fafb;border:1px solid #f3f4f6;border-radius:8px;padding:16px;">
                     <p style="margin:0 0 10px;font-size:10px;font-weight:700;color:#2a7475;letter-spacing:1.5px;text-transform:uppercase;">${isEn ? "Payment" : "الدفع"}</p>
                     <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Method" : "طريقة الدفع"}</p>
-                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#111827;">${isCash ? (isEn ? "Cash at Reception" : "نقدي عند الاستقبال") : (isEn ? "Online (Card)" : "إلكتروني (بطاقة)")}</p>
-                    <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Total Amount" : "المبلغ الإجمالي"}</p>
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#111827;">${isCash ? (isEn ? "Cash at Reception" : "نقدي عند الاستقبال") : isAdvance ? (isEn ? "Online (50% Advance)" : "إلكتروني (دفعة 50%)") : (isEn ? "Online (Card)" : "إلكتروني (بطاقة)")}</p>
+                    ${isAdvance ? `
+                    <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Paid Online" : "المدفوع إلكترونياً"}</p>
+                    <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#059669;">${(amountPaid ?? 0).toFixed(3)} OMR</p>
+                    <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Due at Check-In" : "مستحق عند الوصول"}</p>
+                    <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#d97706;">${amountDueAtCheckIn.toFixed(3)} OMR</p>
+                    ` : ""}
+                    <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Total Stay" : "إجمالي الإقامة"}</p>
                     <p style="margin:0;font-size:18px;font-weight:700;color:#2a7475;">${totalPrice.toFixed(3)} OMR</p>
                   </div>
                 </td>
@@ -252,6 +267,9 @@ export async function sendBookingConfirmation(bookingId: string, locale = "en") 
       totalNights,
       totalPrice: booking.totalPrice,
       paymentMethod: booking.paymentMethod,
+      paymentPlan: booking.paymentPlan,
+      amountPaid: booking.amountPaid,
+      amountDueAtCheckIn: booking.amountDueAtCheckIn,
       status: booking.status,
       locale,
     });

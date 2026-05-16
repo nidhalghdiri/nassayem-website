@@ -13,6 +13,11 @@ import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
 
+// Advance-payment policy: bookings with a total above this threshold may pay
+// 50% online + 50% at reception. Below or equal, full amount is required.
+const ADVANCE_PAYMENT_MIN_TOTAL_OMR = 30;
+const ADVANCE_PAYMENT_RATIO = 0.5;
+
 // Returns true when any night in [start, end) falls in July (6) or August (7).
 // `end` is the morning of departure, so it is exclusive.
 function rangeContainsKhareef(start: Date, end: Date): boolean {
@@ -238,6 +243,7 @@ export async function createBooking(
   const guestNationality = (formData.get("guestNationality") as string) || null;
   const guestNotes = (formData.get("guestNotes") as string) || null;
   const paymentMethod = (formData.get("paymentMethod") as string) || "CARD";
+  const rawPaymentPlan = (formData.get("paymentPlan") as string) || "FULL";
 
   if (!guestName || !guestEmail || !guestPhone) {
     throw new Error("Please fill in all contact details.");
@@ -260,6 +266,31 @@ export async function createBooking(
 
   const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
   const bookingCode = await generateBookingCode();
+
+  // Resolve the effective payment plan + amounts. The server is the source of
+  // truth here — a tampered client payload cannot get advance pricing on a
+  // small booking or outside Khareef season.
+  // Advance-payment is offered only for Khareef CARD bookings strictly above
+  // ADVANCE_PAYMENT_MIN_TOTAL_OMR (30 OMR by default).
+  const stayIsKhareef = rangeContainsKhareef(
+    startOfDay(parseISO(checkIn)),
+    startOfDay(parseISO(checkOut)),
+  );
+  const advanceEligible =
+    paymentMethod === "CARD" &&
+    stayIsKhareef &&
+    pricing.grandTotal > ADVANCE_PAYMENT_MIN_TOTAL_OMR;
+  const paymentPlan =
+    rawPaymentPlan === "ADVANCE_50" && advanceEligible ? "ADVANCE_50" : "FULL";
+
+  // What SmartPay will actually charge today, and what reception must collect.
+  const chargeNowRaw =
+    paymentPlan === "ADVANCE_50"
+      ? pricing.grandTotal * ADVANCE_PAYMENT_RATIO
+      : pricing.grandTotal;
+  const chargeNow = Math.round(chargeNowRaw * 1000) / 1000;
+  const dueAtCheckIn =
+    Math.round((pricing.grandTotal - chargeNow) * 1000) / 1000;
 
   const startDate = startOfDay(parseISO(checkIn));
   const endDate = startOfDay(parseISO(checkOut));
@@ -304,6 +335,9 @@ export async function createBooking(
             guestNationality,
             guestNotes,
             paymentMethod,
+            paymentPlan,
+            amountDueAtCheckIn: dueAtCheckIn,
+            // amountPaid: set by SmartPay webhook (CARD) or admin (CASH).
             checkIn: startDate,
             checkOut: endDate,
             totalPrice: pricing.grandTotal,
@@ -329,8 +363,9 @@ export async function createBooking(
     return { success: true, isCash: true, bookingId: booking.id };
   }
 
-  // CARD: route through SmartPay; booking confirmed only after webhook
-  const formattedAmount = Number(pricing.grandTotal).toFixed(3);
+  // CARD: route through SmartPay; booking confirmed only after webhook.
+  // The amount sent to SmartPay is what we charge today — full or 50% advance.
+  const formattedAmount = Number(chargeNow).toFixed(3);
   const shortOrderId = Date.now().toString();
   const merchantId = process.env.SMARTPAY_MERCHANT_ID;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
