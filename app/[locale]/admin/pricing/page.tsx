@@ -28,6 +28,15 @@ export default async function PricingIndexPage({ params }: PageProps) {
       tone: "bg-emerald-50 text-emerald-700",
     },
     {
+      href: `/${locale}/admin/pricing/period`,
+      titleEn: "Period Pricing",
+      titleAr: "التسعير حسب المدة",
+      descEn: "Set one daily price for every day in a date range, per building + unit type.",
+      descAr: "حدّد سعراً يومياً واحداً لكل يوم ضمن مدة، حسب المبنى ونوع الوحدة.",
+      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zM9 16h6",
+      tone: "bg-purple-50 text-purple-700",
+    },
+    {
       href: `/${locale}/admin/pricing/overrides`,
       titleEn: "Per-Unit Overrides",
       titleAr: "استثناءات الوحدات",
@@ -51,7 +60,7 @@ export default async function PricingIndexPage({ params }: PageProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((card) => (
           <Link
             key={card.href}

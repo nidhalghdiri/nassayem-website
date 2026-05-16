@@ -509,6 +509,102 @@ export async function copyMonthlyPricing(params: {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Period pricing — bulk-fill a (building, unit-type) base price over a
+// date range. Expands the range into one row per day and upserts.
+// ─────────────────────────────────────────────────────────────
+
+export type PeriodPricingWriteResult = {
+  written: number; // days inserted or updated
+  skipped: number; // days left untouched when overwrite=false
+  totalDays: number; // length of the range, inclusive
+};
+
+export async function setPeriodPricing(params: {
+  buildingId: string;
+  unitType: UnitType;
+  fromDate: string; // YYYY-MM-DD, inclusive
+  toDate: string; // YYYY-MM-DD, inclusive
+  price: number;
+  overwrite: boolean;
+}): Promise<PeriodPricingWriteResult> {
+  await requireManager();
+  const { buildingId, unitType, fromDate, toDate, price, overwrite } = params;
+
+  if (!buildingId) throw new Error("Building is required");
+  if (!unitType) throw new Error("Unit type is required");
+
+  const from = parseIsoDate(fromDate);
+  const to = parseIsoDate(toDate);
+  if (!from) throw new Error("Invalid From date (expected YYYY-MM-DD)");
+  if (!to) throw new Error("Invalid To date (expected YYYY-MM-DD)");
+  if (from > to) throw new Error("From date must be on or before To date");
+
+  if (!Number.isFinite(price) || price < 0) {
+    throw new Error("Price must be a non-negative number");
+  }
+  if (price > MAX_DAILY_PRICE) {
+    throw new Error(`Price exceeds maximum of ${MAX_DAILY_PRICE}`);
+  }
+
+  const rounded = Math.round(price * 1000) / 1000;
+  const decimalPrice = new Prisma.Decimal(rounded);
+
+  // Expand the range into one Date per day, inclusive of both endpoints.
+  const dates: Date[] = [];
+  for (
+    let cursor = new Date(from);
+    cursor <= to;
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  ) {
+    dates.push(new Date(cursor));
+  }
+  const totalDays = dates.length;
+
+  // When overwrite=false we need to know which target days already exist.
+  let existingDates = new Set<string>();
+  if (!overwrite) {
+    const existing = await prisma.unitTypeDailyPrice.findMany({
+      where: {
+        buildingId,
+        unitType,
+        date: { gte: from, lte: to },
+      },
+      select: { date: true },
+    });
+    existingDates = new Set(existing.map((e) => toIsoDate(e.date)));
+  }
+
+  let written = 0;
+  let skipped = 0;
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+
+  for (const d of dates) {
+    if (!overwrite && existingDates.has(toIsoDate(d))) {
+      skipped++;
+      continue;
+    }
+    ops.push(
+      prisma.unitTypeDailyPrice.upsert({
+        where: {
+          buildingId_unitType_date: { buildingId, unitType, date: d },
+        },
+        create: { buildingId, unitType, date: d, dailyPrice: decimalPrice },
+        update: { dailyPrice: decimalPrice },
+      }),
+    );
+    written++;
+  }
+
+  // Chunk to respect prepared-statement limits for long ranges.
+  for (let i = 0; i < ops.length; i += UPSERT_CHUNK_SIZE) {
+    await prisma.$transaction(ops.slice(i, i + UPSERT_CHUNK_SIZE));
+  }
+
+  revalidatePath("/admin/pricing");
+  return { written, skipped, totalDays };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Per-unit override mutations
 // ─────────────────────────────────────────────────────────────
 
