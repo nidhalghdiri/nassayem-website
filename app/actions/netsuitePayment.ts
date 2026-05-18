@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { revalidatePath } from "next/cache";
+import { requireManager } from "@/lib/adminAuth";
 
 /**
  * Confirms the customer details on the public payment page and prepares the
@@ -118,6 +119,34 @@ export async function voidNetsuitePayment(id: string) {
   await prisma.netsuitePayment.update({
     where: { id },
     data: { status: "VOIDED" },
+  });
+  revalidatePath("/en/admin/netsuite-payments");
+  revalidatePath("/ar/admin/netsuite-payments");
+}
+
+/**
+ * Manager-only: soft-delete (deactivate) a payment record. Hides it from the
+ * default list — it can still be viewed via the Inactive filter, and reversed
+ * via reactivateNetsuitePayment.
+ */
+export async function deactivateNetsuitePayment(id: string) {
+  await requireManager();
+  await prisma.netsuitePayment.update({
+    where: { id },
+    data: { isActive: false },
+  });
+  revalidatePath("/en/admin/netsuite-payments");
+  revalidatePath("/ar/admin/netsuite-payments");
+}
+
+/**
+ * Manager-only: undo a soft-delete.
+ */
+export async function reactivateNetsuitePayment(id: string) {
+  await requireManager();
+  await prisma.netsuitePayment.update({
+    where: { id },
+    data: { isActive: true },
   });
   revalidatePath("/en/admin/netsuite-payments");
   revalidatePath("/ar/admin/netsuite-payments");

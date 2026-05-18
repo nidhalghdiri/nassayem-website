@@ -326,6 +326,9 @@ model NetsuitePayment {
   expiresAt DateTime
   paidAt    DateTime?
 
+  // Soft-delete flag — false = hidden from the default list, manager only.
+  isActive Boolean @default(true)
+
   // SmartPay traces
   smartpayOrderId     String? @unique
   smartpayBankRefNo   String?
