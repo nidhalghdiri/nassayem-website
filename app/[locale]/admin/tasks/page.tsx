@@ -90,15 +90,13 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
   // Manager-only stats (across all tasks, not just filtered)
   let stats: {
     total: number;
-    pendingApproval: number;
     active: number;
     overdue: number;
   } | null = null;
 
   if (canSeeAll) {
-    const [total, pendingApproval, active, overdue] = await Promise.all([
+    const [total, active, overdue] = await Promise.all([
       prisma.task.count({ where: { status: { notIn: TERMINAL_STATUSES } } }),
-      prisma.task.count({ where: { status: "PENDING_APPROVAL" } }),
       prisma.task.count({ where: { status: { in: ACTIVE_STATUSES } } }),
       prisma.task.count({
         where: {
@@ -107,7 +105,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         },
       }),
     ]);
-    stats = { total, pendingApproval, active, overdue };
+    stats = { total, active, overdue };
   }
 
   // Serialize Prisma Date objects for client component props

@@ -43,7 +43,6 @@ const taskStatusStyles: Record<string, string> = {
   COMPLETED:          "bg-green-100 text-green-700",
   ON_HOLD:            "bg-gray-100 text-gray-600",
   CANCELLED:          "bg-red-100 text-red-700",
-  PENDING_APPROVAL:   "bg-amber-100 text-amber-700",
 };
 
 function taskStatusLabel(status: string, isEn: boolean): string {
@@ -60,7 +59,6 @@ function taskStatusLabel(status: string, isEn: boolean): string {
     COMPLETED:          { en: "Completed",          ar: "مكتمل" },
     ON_HOLD:            { en: "On Hold",            ar: "معلق" },
     CANCELLED:          { en: "Cancelled",          ar: "ملغي" },
-    PENDING_APPROVAL:   { en: "Pending Approval",   ar: "قيد الموافقة" },
   };
   return isEn ? (map[status]?.en ?? status) : (map[status]?.ar ?? status);
 }
@@ -135,12 +133,11 @@ export default async function AdminDashboard({ params }: PageProps) {
       },
     }),
     (async () => {
-      const [activeTasks, pendingApproval, overdueTasks] = await Promise.all([
+      const [activeTasks, overdueTasks] = await Promise.all([
         prisma.task.count({ where: { status: { notIn: TASK_TERMINAL } } }),
-        prisma.task.count({ where: { status: "PENDING_APPROVAL" } }),
         prisma.task.count({ where: { dueDate: { lt: now }, status: { notIn: TASK_TERMINAL } } }),
       ]);
-      return { activeTasks, pendingApproval, overdueTasks };
+      return { activeTasks, overdueTasks };
     })(),
   ]);
 
@@ -222,10 +219,9 @@ export default async function AdminDashboard({ params }: PageProps) {
             {isEn ? "View Board →" : "← عرض اللوحة"}
           </Link>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-gray-100">
+        <div className="grid grid-cols-2 divide-x divide-gray-100">
           {[
             { labelEn: "Active Tasks", labelAr: "مهام نشطة", value: taskStats.activeTasks, href: `/${locale}/admin/tasks`, color: "text-blue-600" },
-            { labelEn: "Pending Approval", labelAr: "قيد الموافقة", value: taskStats.pendingApproval, href: `/${locale}/admin/tasks/approvals`, color: taskStats.pendingApproval > 0 ? "text-yellow-600" : "text-gray-400" },
             { labelEn: "Overdue", labelAr: "متأخرة", value: taskStats.overdueTasks, href: `/${locale}/admin/tasks`, color: taskStats.overdueTasks > 0 ? "text-red-600" : "text-gray-400" },
           ].map((s) => (
             <Link key={s.labelEn} href={s.href} className="flex flex-col items-center justify-center py-5 px-4 hover:bg-gray-50 transition-colors text-center">
@@ -340,13 +336,10 @@ async function TaskDashboard({
     ? { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] }
     : {};
 
-  const [activeTasks, pendingApproval, overdueTasks, recentTasks] = await Promise.all([
+  const [activeTasks, overdueTasks, recentTasks] = await Promise.all([
     prisma.task.count({
       where: { ...visibilityFilter, status: { notIn: TASK_TERMINAL } },
     }),
-    isSupervisor
-      ? prisma.task.count({ where: { status: "PENDING_APPROVAL" } })
-      : Promise.resolve(0),
     prisma.task.count({
       where: { ...visibilityFilter, dueDate: { lt: now }, status: { notIn: TASK_TERMINAL } },
     }),
@@ -388,12 +381,6 @@ async function TaskDashboard({
       bg: "bg-blue-50", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
       href: `/${locale}/admin/tasks`,
     },
-    ...(isSupervisor ? [{
-      labelEn: "Pending Approval", labelAr: "قيد الموافقة",
-      value: pendingApproval, color: pendingApproval > 0 ? "text-yellow-600" : "text-gray-400",
-      bg: "bg-yellow-50", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-      href: `/${locale}/admin/tasks/approvals`,
-    }] : []),
     {
       labelEn: "Overdue", labelAr: "متأخرة",
       value: overdueTasks, color: overdueTasks > 0 ? "text-red-600" : "text-gray-400",
@@ -521,26 +508,15 @@ async function TaskDashboard({
 
       {/* Quick links */}
       {isSupervisor && (
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href={`/${locale}/admin/tasks/new`}
-            className="flex items-center gap-2 justify-center bg-white border border-gray-200 hover:border-nassayem/40 hover:bg-nassayem/5 text-gray-700 hover:text-nassayem px-4 py-3 rounded-xl font-medium text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {isEn ? "New Task" : "مهمة جديدة"}
-          </Link>
-          <Link
-            href={`/${locale}/admin/tasks/approvals`}
-            className="flex items-center gap-2 justify-center bg-yellow-50 border border-yellow-200 hover:bg-yellow-100 text-yellow-800 px-4 py-3 rounded-xl font-medium text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {isEn ? "Approvals" : "الموافقات"}
-          </Link>
-        </div>
+        <Link
+          href={`/${locale}/admin/tasks/new`}
+          className="flex items-center gap-2 justify-center bg-white border border-gray-200 hover:border-nassayem/40 hover:bg-nassayem/5 text-gray-700 hover:text-nassayem px-4 py-3 rounded-xl font-medium text-sm transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+          {isEn ? "New Task" : "مهمة جديدة"}
+        </Link>
       )}
     </div>
   );

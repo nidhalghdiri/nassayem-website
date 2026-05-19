@@ -6,11 +6,12 @@
 import type { TStaffRole } from "./constants";
 
 // ─── Who each role can assign tasks to ──────────────────────────────────────
+// MANAGER and RECEPTIONIST include their own role so they can self-assign.
 export const ASSIGNABLE_ROLES: Record<TStaffRole, TStaffRole[]> = {
-  MANAGER:      ["SUPERVISOR", "RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
+  MANAGER:      ["MANAGER", "SUPERVISOR", "RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
   SUPERVISOR:   ["RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
-  RECEPTIONIST: ["HOUSEKEEPING", "MAINTENANCE"],
-  HOUSEKEEPING: [],   // cannot create regular tasks; uses maintenance requests
+  RECEPTIONIST: ["RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
+  HOUSEKEEPING: ["MAINTENANCE"], // can submit maintenance requests directly (no approval)
   MAINTENANCE:  [],
 };
 
@@ -21,14 +22,9 @@ export function canCreateTasks(role: TStaffRole): boolean {
   return ["MANAGER", "SUPERVISOR", "RECEPTIONIST"].includes(role);
 }
 
-/** Can HouseKeeping submit a maintenance request (special flow)? */
+/** Can HouseKeeping submit a maintenance request (kept as a simpler form). */
 export function canCreateMaintenanceRequest(role: TStaffRole): boolean {
   return role === "HOUSEKEEPING";
-}
-
-/** Can this role approve or reject a pending maintenance request? */
-export function canApproveRequests(role: TStaffRole): boolean {
-  return ["MANAGER", "SUPERVISOR"].includes(role);
 }
 
 /** Can this role spawn sub-tasks from an Inspection task? */

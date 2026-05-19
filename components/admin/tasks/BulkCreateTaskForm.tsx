@@ -32,7 +32,6 @@ type TaskRow = {
   priority: string;
   overrideDueDate: boolean;
   dueDate: string;
-  requiresApproval: boolean;
 };
 
 // Shared defaults — building, priority, due date only
@@ -59,7 +58,6 @@ function emptyRow(): TaskRow {
     priority: "MEDIUM",
     overrideDueDate: false,
     dueDate: "",
-    requiresApproval: false,
   };
 }
 
@@ -135,7 +133,6 @@ export default function BulkCreateTaskForm({ buildings, assignableStaff, locale 
       priority: (r.overridePriority ? r.priority : shared.priority) as BulkTaskInput["priority"],
       assignedToId: r.assignedToId,
       dueDate: (r.overrideDueDate && r.dueDate) ? r.dueDate : shared.dueDate,
-      requiresApproval: r.type === "MAINTENANCE" ? r.requiresApproval : false,
     }));
 
     startTransition(async () => {
@@ -367,7 +364,6 @@ function TaskRowCard({
   canRemove: boolean;
 }) {
   const isReady = !!(row.type && row.title.trim() && row.unitNumber.trim() && row.assignedToId);
-  const showApprovalToggle = row.type === "MAINTENANCE";
 
   return (
     <div className={`bg-white rounded-xl border shadow-sm transition-all ${
@@ -429,7 +425,7 @@ function TaskRowCard({
                 <button
                   key={key}
                   type="button"
-                  onClick={() => onUpdate({ type: key, requiresApproval: false })}
+                  onClick={() => onUpdate({ type: key })}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all select-none
                     ${row.type === key
                       ? `${conf.bg} ${conf.text} border-current shadow-sm`
@@ -582,27 +578,6 @@ function TaskRowCard({
           </div>
         )}
 
-        {/* Requires approval — shown only when this row's type is MAINTENANCE */}
-        {showApprovalToggle && (
-          <label className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg cursor-pointer hover:bg-yellow-100/60 transition-colors">
-            <input
-              type="checkbox"
-              checked={row.requiresApproval}
-              onChange={(e) => onUpdate({ requiresApproval: e.target.checked })}
-              className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-nassayem focus:ring-nassayem cursor-pointer"
-            />
-            <div>
-              <p className="text-xs font-medium text-yellow-800">
-                {isEn ? "Requires Approval" : "يستلزم موافقة"}
-              </p>
-              <p className="text-xs text-yellow-600 mt-0.5">
-                {isEn
-                  ? "Task held until a Manager or Supervisor approves."
-                  : "ستبقى المهمة قيد الموافقة حتى يوافق عليها المدير أو المشرف."}
-              </p>
-            </div>
-          </label>
-        )}
       </div>
     </div>
   );

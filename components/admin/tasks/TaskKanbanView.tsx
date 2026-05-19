@@ -18,7 +18,6 @@ type KanbanColumn = {
 };
 
 const KANBAN_COLUMNS: KanbanColumn[] = [
-  { id: "approval", labelEn: "Pending Approval", labelAr: "قيد الموافقة", statuses: ["PENDING_APPROVAL"], headerBg: "bg-yellow-50 border-yellow-200", dot: "bg-yellow-400" },
   { id: "assigned", labelEn: "Assigned", labelAr: "مُعيَّن", statuses: ["ASSIGNED"], headerBg: "bg-blue-50 border-blue-200", dot: "bg-blue-400" },
   { id: "active", labelEn: "In Progress", labelAr: "جارٍ", statuses: ["CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"], headerBg: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
   { id: "blocked", labelEn: "Issues / On Hold", labelAr: "مشاكل / معلق", statuses: ["ISSUES_FOUND", "ON_HOLD"], headerBg: "bg-red-50 border-red-200", dot: "bg-red-400" },

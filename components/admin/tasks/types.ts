@@ -9,8 +9,6 @@ export type SerializedTask = {
   priority: TTaskPriority;
   status: TTaskStatus;
   dueDate: string;
-  requiresApproval: boolean;
-  approvalStatus: string | null;
   building: { id: string; nameEn: string; nameAr: string } | null;
   unitNumber: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;

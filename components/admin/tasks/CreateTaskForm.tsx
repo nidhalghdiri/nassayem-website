@@ -28,7 +28,6 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const [selectedType, setSelectedType] = useState("");
-  const showApprovalToggle = selectedType === "MAINTENANCE";
 
   return (
     <form action={formAction} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
@@ -237,27 +236,6 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
         />
       </div>
-
-      {/* ── Requires Approval (MAINTENANCE only) ────────────────────────── */}
-      {showApprovalToggle && (
-        <label className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100/60 transition-colors">
-          <input
-            type="checkbox"
-            name="requiresApproval"
-            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-nassayem focus:ring-nassayem cursor-pointer"
-          />
-          <div>
-            <p className="text-sm font-medium text-yellow-800">
-              {isEn ? "Requires Approval" : "يستلزم موافقة"}
-            </p>
-            <p className="text-xs text-yellow-600 mt-0.5 leading-relaxed">
-              {isEn
-                ? "Task will be held in 'Pending Approval' until a Manager or Supervisor approves it."
-                : "ستبقى المهمة في حالة 'قيد الموافقة' حتى يوافق عليها مدير أو مشرف."}
-            </p>
-          </div>
-        </label>
-      )}
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-end gap-3 pt-1 border-t border-gray-100">

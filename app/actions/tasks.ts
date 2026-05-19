@@ -31,7 +31,6 @@ export async function createTask(
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
   const assignedToId = formData.get("assignedToId") as string;
   const dueDate = formData.get("dueDate") as string;
-  const requiresApproval = formData.get("requiresApproval") === "on";
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
   if (!type || !title || !buildingId || !unitNumber || !assignedToId || !dueDate) {
@@ -46,8 +45,6 @@ export async function createTask(
     return { error: `Your role cannot assign tasks to ${assignee.role}.` };
   }
 
-  const initialStatus = getInitialStatus(type, requiresApproval);
-
   const task = await prisma.task.create({
     data: {
       type,
@@ -56,13 +53,11 @@ export async function createTask(
       buildingId,
       unitNumber,
       priority,
-      status: initialStatus,
+      status: getInitialStatus(type),
       createdById: adminUser.id,
       assignedToId,
       dueDate: new Date(dueDate),
       parentTaskId,
-      requiresApproval,
-      approvalStatus: requiresApproval ? "PENDING" : null,
     },
   });
 
@@ -71,9 +66,7 @@ export async function createTask(
       taskId: task.id,
       userId: adminUser.id,
       action: "task_created",
-      details: requiresApproval
-        ? "Task submitted for approval."
-        : `Task created and assigned to ${assignee.name ?? assignee.email}.`,
+      details: `Task created and assigned to ${assignee.name ?? assignee.email}.`,
     },
   });
 
@@ -112,23 +105,21 @@ export async function createTask(
     }
   }
 
-  // Send WhatsApp notification to the assigned user (non-blocking, only if not pending approval)
-  if (!requiresApproval) {
-    const building = await prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } });
-    notifyTaskAssigned({
-      assignee: {
-        name: assignee.name,
-        whatsappNumber: assignee.whatsappNumber ?? null,
-        preferredLanguage: assignee.preferredLanguage,
-      },
-      taskTitle: title,
-      buildingName: building?.nameEn ?? "",
-      unitName: unitNumber ?? "",
-      dueDate: new Date(dueDate),
-      priority,
-      taskId: task.id,
-    }).catch(console.error);
-  }
+  // Send WhatsApp notification to the assigned user (non-blocking).
+  const building = await prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } });
+  notifyTaskAssigned({
+    assignee: {
+      name: assignee.name,
+      whatsappNumber: assignee.whatsappNumber ?? null,
+      preferredLanguage: assignee.preferredLanguage,
+    },
+    taskTitle: title,
+    buildingName: building?.nameEn ?? "",
+    unitName: unitNumber ?? "",
+    dueDate: new Date(dueDate),
+    priority,
+    taskId: task.id,
+  }).catch(console.error);
 
   revalidatePath(`/${locale}/admin/tasks`);
   redirect(`/${locale}/admin/tasks`);
@@ -144,7 +135,6 @@ export type BulkTaskInput = {
   priority: TaskPriority;
   assignedToId: string;
   dueDate: string;
-  requiresApproval?: boolean;
 };
 
 export async function createTasksBulk(
@@ -184,9 +174,6 @@ export async function createTasksBulk(
       continue;
     }
 
-    const requiresApproval = t.requiresApproval ?? false;
-    const initialStatus = getInitialStatus(t.type, requiresApproval);
-
     try {
       const task = await prisma.task.create({
         data: {
@@ -196,12 +183,10 @@ export async function createTasksBulk(
           buildingId: t.buildingId,
           unitNumber: t.unitNumber?.trim() || null,
           priority: t.priority,
-          status: initialStatus,
+          status: getInitialStatus(t.type),
           createdById: adminUser.id,
           assignedToId: t.assignedToId,
           dueDate: new Date(t.dueDate),
-          requiresApproval,
-          approvalStatus: requiresApproval ? "PENDING" : null,
         },
       });
 
@@ -210,9 +195,7 @@ export async function createTasksBulk(
           taskId: task.id,
           userId: adminUser.id,
           action: "task_created",
-          details: requiresApproval
-            ? "Task submitted for approval (bulk create)."
-            : `Task created and assigned to ${assignee.name ?? assignee.email} (bulk create).`,
+          details: `Task created and assigned to ${assignee.name ?? assignee.email} (bulk create).`,
         },
       });
 
@@ -251,7 +234,7 @@ export async function createTasksBulk(
       }
 
       // Send WhatsApp notification (non-blocking)
-      if (!requiresApproval && assignee.whatsappNumber) {
+      if (assignee.whatsappNumber) {
         const building = await prisma.building.findUnique({
           where: { id: t.buildingId },
           select: { nameEn: true },
@@ -282,8 +265,9 @@ export async function createTasksBulk(
 }
 
 // ── Submit a maintenance request (HOUSEKEEPING only) ─────────────────────────
-// Creates a MAINTENANCE task with requiresApproval=true, assigned to self.
-// Bypasses ASSIGNABLE_ROLES — HOUSEKEEPING can't normally assign tasks.
+// Creates a MAINTENANCE task assigned to the housekeeper themselves. Goes
+// straight to ASSIGNED — no approval gate. Manager/Supervisor can reassign
+// to a maintenance staff member later if needed.
 export async function createMaintenanceRequest(
   _prevState: { error: string | null },
   formData: FormData,
@@ -314,12 +298,10 @@ export async function createMaintenanceRequest(
       buildingId,
       unitNumber,
       priority,
-      status: "PENDING_APPROVAL",
+      status: "ASSIGNED",
       createdById: adminUser.id,
-      assignedToId: adminUser.id, // assigned to self; manager will reassign on approval
+      assignedToId: adminUser.id,
       dueDate: new Date(dueDate),
-      requiresApproval: true,
-      approvalStatus: "PENDING",
     },
   });
 
@@ -328,7 +310,7 @@ export async function createMaintenanceRequest(
       taskId: task.id,
       userId: adminUser.id,
       action: "task_created",
-      details: "Maintenance request submitted for approval.",
+      details: "Maintenance request submitted by Housekeeping.",
     },
   });
 

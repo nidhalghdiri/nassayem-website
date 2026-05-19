@@ -73,7 +73,6 @@ enum TaskPriority {
 
 // Unified status enum — valid values depend on TaskType (enforced in app logic)
 enum TaskStatus {
-  PENDING_APPROVAL // Maintenance requests awaiting Manager/Supervisor approval
   ASSIGNED // Task created and assigned, work not started
   CLEANING_STARTED
   CLEANING_COMPLETED
@@ -86,12 +85,6 @@ enum TaskStatus {
   COMPLETED // Work Order final
   ON_HOLD
   CANCELLED
-}
-
-enum ApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 // ------------------------------------------------------
@@ -362,7 +355,6 @@ model AdminUser {
   // Task relations
   createdTasks   Task[]         @relation("TaskCreatedBy")
   assignedTasks  Task[]         @relation("TaskAssignedTo")
-  approvedTasks  Task[]         @relation("TaskApprovedBy")
   taskNotes      TaskNote[]
   taskPhotos     TaskPhoto[]
   taskActivities TaskActivity[]
@@ -409,17 +401,11 @@ model Task {
   // Sub-task / parent link (Inspection → spawns Cleaning or Maintenance)
   parentTaskId String?
 
-  // Maintenance request approval
-  requiresApproval Boolean         @default(false)
-  approvedById     String?
-  approvalStatus   ApprovalStatus?
-
   // Relations
   building   Building   @relation(fields: [buildingId], references: [id])
   // (no Unit relation — unitNumber is free text)
   createdBy  AdminUser  @relation("TaskCreatedBy", fields: [createdById], references: [id])
   assignedTo AdminUser  @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  approvedBy AdminUser? @relation("TaskApprovedBy", fields: [approvedById], references: [id])
   parentTask Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
   subTasks   Task[]     @relation("SubTasks")
 

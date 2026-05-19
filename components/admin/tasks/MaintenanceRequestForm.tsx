@@ -35,28 +35,6 @@ export default function MaintenanceRequestForm({ buildings, locale }: Props) {
     >
       <input type="hidden" name="locale" value={locale} />
 
-      {/* Info banner */}
-      <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-800">
-        <svg
-          className="w-5 h-5 shrink-0 mt-0.5 text-yellow-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <p>
-          {isEn
-            ? "Your request will be submitted for Manager or Supervisor approval before work begins."
-            : "سيتم إرسال طلبك للمراجعة من قِبَل المدير أو المشرف قبل البدء بالعمل."}
-        </p>
-      </div>
-
       {/* Error */}
       {state.error && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">

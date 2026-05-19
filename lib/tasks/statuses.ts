@@ -6,7 +6,6 @@
 import type { TTaskType } from "./constants";
 
 export type TTaskStatus =
-  | "PENDING_APPROVAL"
   | "ASSIGNED"
   | "CLEANING_STARTED"
   | "CLEANING_COMPLETED"
@@ -24,11 +23,6 @@ export const STATUS_CONFIG: Record<
   TTaskStatus,
   { labelEn: string; labelAr: string; badge: string }
 > = {
-  PENDING_APPROVAL: {
-    labelEn: "Pending Approval",
-    labelAr: "قيد الموافقة",
-    badge: "bg-yellow-100 text-yellow-700",
-  },
   ASSIGNED: {
     labelEn: "Assigned",
     labelAr: "مُعيَّن",
@@ -93,8 +87,6 @@ export const STATUS_CONFIG: Record<
 
 // ─── Valid status transitions per task type ──────────────────────────────────
 // Key = current status → Value = statuses the assigned user can move to.
-// Approval transitions (PENDING_APPROVAL → ASSIGNED / CANCELLED) are handled
-// separately in the approve/reject endpoints and are not listed here.
 
 export const STATUS_TRANSITIONS: Record<
   TTaskType,
@@ -112,7 +104,6 @@ export const STATUS_TRANSITIONS: Record<
     ON_HOLD: ["INSPECTING", "CANCELLED"],
   },
   MAINTENANCE: {
-    // PENDING_APPROVAL is handled by approve/reject — not listed here
     ASSIGNED: ["WORK_STARTED", "ON_HOLD", "CANCELLED"],
     WORK_STARTED: ["WORK_COMPLETED", "ON_HOLD"],
     ON_HOLD: ["WORK_STARTED", "CANCELLED"],
@@ -154,11 +145,7 @@ export const TERMINAL_STATUSES: TTaskStatus[] = [
   "CANCELLED",
 ];
 
-/** Returns the initial status for a new task (or PENDING_APPROVAL for requests) */
-export function getInitialStatus(
-  type: TTaskType,
-  requiresApproval: boolean,
-): TTaskStatus {
-  if (requiresApproval) return "PENDING_APPROVAL";
+/** Returns the initial status for a new task. Approval flow has been removed. */
+export function getInitialStatus(_type: TTaskType): TTaskStatus {
   return "ASSIGNED";
 }

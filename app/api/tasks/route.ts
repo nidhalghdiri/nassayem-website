@@ -62,7 +62,6 @@ export async function GET(request: Request) {
       building:   { select: { id: true, nameEn: true, nameAr: true } },
       createdBy:  { select: { id: true, name: true, email: true, role: true } },
       assignedTo: { select: { id: true, name: true, email: true, role: true } },
-      approvedBy: { select: { id: true, name: true, email: true } },
       _count:     { select: { notes: true, photos: true, subTasks: true } },
     },
     orderBy: [{ createdAt: "desc" }],
@@ -74,7 +73,7 @@ export async function GET(request: Request) {
 // ── POST /api/tasks ───────────────────────────────────────────────────────────
 // Creates a new task. Body (JSON):
 // { type, title, description?, buildingId, unitId?, priority, assignedToId,
-//   dueDate, parentTaskId?, requiresApproval? }
+//   dueDate, parentTaskId? }
 export async function POST(request: Request) {
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) {
@@ -115,9 +114,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const requiresApproval = Boolean(body.requiresApproval);
-  const initialStatus = getInitialStatus(type as TaskType, requiresApproval);
-
   const task = await prisma.task.create({
     data: {
       type:         type as TaskType,
@@ -126,13 +122,11 @@ export async function POST(request: Request) {
       buildingId:   buildingId as string,
       unitNumber:   (body.unitNumber as string) ?? null,
       priority:     (body.priority as TaskPriority) ?? "MEDIUM",
-      status:       initialStatus,
+      status:       getInitialStatus(type as TaskType),
       createdById:  adminUser.id,
       assignedToId: assignedToId as string,
       dueDate:      new Date(dueDate as string),
       parentTaskId: (body.parentTaskId as string) ?? null,
-      requiresApproval,
-      approvalStatus: requiresApproval ? "PENDING" : null,
     },
   });
 
@@ -142,7 +136,7 @@ export async function POST(request: Request) {
       taskId:  task.id,
       userId:  adminUser.id,
       action:  "task_created",
-      details: `Task created and ${requiresApproval ? "submitted for approval" : `assigned to ${assignee.name ?? assignee.email}`}`,
+      details: `Task created and assigned to ${assignee.name ?? assignee.email}`,
     },
   });
 

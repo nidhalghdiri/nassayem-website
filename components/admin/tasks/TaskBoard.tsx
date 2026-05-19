@@ -11,7 +11,6 @@ import type { TTaskStatus } from "@/lib/tasks/statuses";
 
 type Stats = {
   total: number;
-  pendingApproval: number;
   active: number;
   overdue: number;
 } | null;
@@ -203,7 +202,6 @@ export default function TaskBoard({
     if (!stats) return [];
     return [
       { labelEn: "Active Tasks", labelAr: "المهام النشطة", value: stats.total, iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-100" },
-      { labelEn: "Pending Approval", labelAr: "قيد الموافقة", value: stats.pendingApproval, iconPath: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-yellow-700", bg: "bg-yellow-50", border: "border-yellow-100" },
       { labelEn: "In Progress", labelAr: "جارٍ العمل", value: stats.active, iconPath: "M13 10V3L4 14h7v7l9-11h-7z", color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-100" },
       { labelEn: "Overdue", labelAr: "متأخرة", value: stats.overdue, iconPath: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z", color: stats.overdue > 0 ? "text-red-700" : "text-gray-400", bg: stats.overdue > 0 ? "bg-red-50" : "bg-gray-50", border: stats.overdue > 0 ? "border-red-100" : "border-gray-100" },
     ];
@@ -241,14 +239,6 @@ export default function TaskBoard({
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
               </button>
             </div>
-            {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && (
-              <button onClick={() => router.push(`${pathname.replace("/tasks", "")}/tasks/approvals`)} className="flex items-center gap-1.5 px-3 py-2 border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-lg text-sm font-medium hover:bg-yellow-100 transition-colors">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="hidden sm:inline">{isEn ? "Approvals" : "الموافقات"}</span>
-              </button>
-            )}
             {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST") && (
               <>
                 <button onClick={() => router.push(`${pathname}/bulk`)} className="flex items-center gap-1.5 px-3 py-2 border border-nassayem/40 text-nassayem rounded-lg text-sm font-medium hover:bg-nassayem/5 transition-colors">

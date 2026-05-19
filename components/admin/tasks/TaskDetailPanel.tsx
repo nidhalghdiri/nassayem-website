@@ -16,7 +16,6 @@ import {
 } from "@/lib/tasks/statuses";
 import {
   canUpdateTaskStatus,
-  canApproveRequests,
   canSpawnSubtasks,
 } from "@/lib/tasks/permissions";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
@@ -55,13 +54,10 @@ type FullTask = {
   priority: string;
   status: string;
   dueDate: string;
-  requiresApproval: boolean;
-  approvalStatus: string | null;
   building: { id: string; nameEn: string; nameAr: string } | null;
   unitNumber: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
-  approvedBy: { id: string; name: string | null; email: string } | null;
   parentTask: { id: string; title: string; type: string } | null;
   notes: NoteItem[];
   photos: PhotoItem[];
@@ -285,10 +281,6 @@ export default function TaskDetailPanel({
   // Lightbox
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Reject flow
-  const [rejectMode, setRejectMode] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   async function loadTask(id: string) {
@@ -301,7 +293,6 @@ export default function TaskDetailPanel({
     if (!taskId) {
       setTask(null);
       setFetchError(null);
-      setRejectMode(false);
       setNoteText("");
       setShowPhotoForm(false);
       setLightboxIndex(null);
@@ -348,46 +339,6 @@ export default function TaskDetailPanel({
         showToast(data.error ?? "Failed to update status.", "error");
         return;
       }
-      await refresh();
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleApprove() {
-    if (!task || actionLoading) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/tasks/${task.id}/approve`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error ?? "Failed to approve.", "error");
-        return;
-      }
-      showToast(isEn ? "Task approved." : "تمت الموافقة.");
-      await refresh();
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleReject() {
-    if (!task || actionLoading) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/tasks/${task.id}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: rejectReason.trim() || undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error ?? "Failed to reject.", "error");
-        return;
-      }
-      setRejectMode(false);
-      setRejectReason("");
-      showToast(isEn ? "Task rejected." : "تم رفض الطلب.");
       await refresh();
     } finally {
       setActionLoading(false);
@@ -528,14 +479,11 @@ export default function TaskDetailPanel({
   const canAct =
     task &&
     !TERMINAL_STATUSES.includes(task.status as TTaskStatus) &&
-    task.status !== "PENDING_APPROVAL" &&
     canUpdateTaskStatus(
       currentUserRole as TStaffRole,
       (task.assignedTo?.role ?? "HOUSEKEEPING") as TStaffRole,
       isAssignedToMe,
     );
-  const canApprove = canApproveRequests(currentUserRole as TStaffRole);
-  const isPending = task?.status === "PENDING_APPROVAL";
   const isTerminal = task
     ? TERMINAL_STATUSES.includes(task.status as TTaskStatus)
     : false;
@@ -706,63 +654,6 @@ export default function TaskDetailPanel({
                   </span>
                 </div>
 
-                {/* Approve / Reject */}
-                {isPending && canApprove && !rejectMode && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleApprove}
-                      disabled={actionLoading}
-                      className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors disabled:opacity-60"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {isEn ? "Approve" : "موافقة"}
-                    </button>
-                    <button
-                      onClick={() => setRejectMode(true)}
-                      disabled={actionLoading}
-                      className="flex-1 flex items-center justify-center gap-2 py-2 border border-red-200 bg-red-50 text-red-700 text-sm font-medium rounded-xl hover:bg-red-100 transition-colors disabled:opacity-60"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      {isEn ? "Reject" : "رفض"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Rejection reason form */}
-                {rejectMode && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
-                    <p className="text-xs font-semibold text-red-800">
-                      {isEn ? "Rejection reason (optional)" : "سبب الرفض (اختياري)"}
-                    </p>
-                    <textarea
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      rows={2}
-                      placeholder={isEn ? "Explain why…" : "اشرح السبب…"}
-                      className="w-full px-3 py-2 text-sm border border-red-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleReject}
-                        disabled={actionLoading}
-                        className="flex-1 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
-                      >
-                        {isEn ? "Confirm Reject" : "تأكيد الرفض"}
-                      </button>
-                      <button
-                        onClick={() => { setRejectMode(false); setRejectReason(""); }}
-                        className="px-3 py-1.5 text-gray-600 text-sm border border-gray-200 bg-white rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        {isEn ? "Cancel" : "إلغاء"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Status transition buttons */}
                 {canAct && regularNextStatuses.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -883,18 +774,6 @@ export default function TaskDetailPanel({
                     </dd>
                   </div>
 
-                  {task.approvedBy && (
-                    <div className="col-span-2">
-                      <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                        {task.approvalStatus === "REJECTED"
-                          ? isEn ? "Rejected By" : "رُفض بواسطة"
-                          : isEn ? "Approved By" : "وافق عليه"}
-                      </dt>
-                      <dd className="font-medium text-gray-800">
-                        {task.approvedBy.name ?? task.approvedBy.email.split("@")[0]}
-                      </dd>
-                    </div>
-                  )}
                 </dl>
               </section>
 

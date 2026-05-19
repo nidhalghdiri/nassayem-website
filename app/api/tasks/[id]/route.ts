@@ -29,7 +29,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
       building:   { select: { id: true, nameEn: true, nameAr: true } },
       createdBy:  { select: { id: true, name: true, email: true, role: true } },
       assignedTo: { select: { id: true, name: true, email: true, role: true } },
-      approvedBy: { select: { id: true, name: true, email: true } },
       parentTask: { select: { id: true, title: true, type: true } },
       subTasks:   { select: { id: true, title: true, type: true, status: true } },
       notes: {

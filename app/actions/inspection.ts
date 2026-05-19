@@ -30,12 +30,10 @@ export async function requestMaintenanceFromItem(
       buildingId: task.buildingId,
       unitNumber: task.unitNumber,
       priority: "MEDIUM",
-      status: "PENDING_APPROVAL",
+      status: "ASSIGNED",
       createdById: adminUser.id,
       assignedToId: adminUser.id,
       dueDate: new Date(),
-      requiresApproval: true,
-      approvalStatus: "PENDING",
       parentTaskId: taskId, // Link them
     }
   });
