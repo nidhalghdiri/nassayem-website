@@ -142,9 +142,9 @@ export async function calculateBookingPrice(
     (unit.rentType === "BOTH" && (totalNights < 30 || !unit.monthlyPrice));
 
   // Fetch promo + per-day pricing-module data in parallel (daily-style only).
-  // The pricing module is the inclusive [first-night, last-night] window —
-  // checkOut morning is not a stay night, so we subtract one day.
-  const lastNightISO = subtractOneDayISO(checkOutDate);
+  // The pricing module covers every calendar day in [checkIn, checkOut]
+  // inclusive — i.e. the checkout day is also a priced day. This matches the
+  // admin's mental model: "I set prices for these dates, charge them all."
   const [activePromo, modulePricing] = usingDaily
     ? await Promise.all([
         getActivePromotionForUnit(unitId, checkInDate, checkOutDate),
@@ -153,7 +153,7 @@ export async function calculateBookingPrice(
           unitType: unit.unitType,
           unitId: unit.id,
           startDate: checkInDate,
-          endDate: lastNightISO,
+          endDate: checkOutDate,
         }),
       ])
     : [null, null];
@@ -175,11 +175,17 @@ export async function calculateBookingPrice(
     throw new Error(KHAREEF_NO_PROMO_ERROR);
   }
 
+  // Per-night daily rate to display, floored to an integer. For the per-day
+  // pricing path it's the floor of the average across all calendar days in
+  // [checkIn, checkOut] inclusive — see the moduleAllPriced branch below.
+  let dailyAverage = 0;
+
   if (unit.rentType === "MONTHLY") {
     if (totalNights < 30) throw new Error("This unit requires a minimum stay of 30 nights.");
     const months = totalNights / 30;
     baseRent = (unit.monthlyPrice || 0) * months;
     calculationMethod = `${totalNights} nights (Monthly Rate prorated)`;
+    dailyAverage = Math.floor(baseRent / totalNights);
   } else if (usingDaily) {
     // Pricing priority: active promotion > pricing module > unit.dailyPrice.
     if (activePromo) {
@@ -197,19 +203,29 @@ export async function calculateBookingPrice(
         originalBaseRent,
         savings: Math.round((originalBaseRent - baseRent) * 100) / 100,
       };
+      dailyAverage = Math.floor(activePromo.promoPrice);
     } else if (moduleAllPriced) {
-      // Sum the per-night effective prices (override > base, resolved by SQL).
-      baseRent = modulePricing!.totals.total ?? 0;
-      calculationMethod = `${totalNights} nights (per-day pricing)`;
+      // Compute the daily rate as the average across all priced days in the
+      // inclusive [checkIn, checkOut] range, floored to an integer. Then
+      // apply that rate over the night count for the total. This matches
+      // the admin's "all dates I set prices for count toward the average,
+      // but the stay is still N nights" mental model.
+      const inclusiveDays = totalNights + 1;
+      const inclusiveSum = modulePricing!.totals.total ?? 0;
+      dailyAverage = Math.floor(inclusiveSum / inclusiveDays);
+      baseRent = dailyAverage * totalNights;
+      calculationMethod = `${totalNights} nights x ${dailyAverage} OMR (per-day avg)`;
     } else {
       baseRent = (unit.dailyPrice || 0) * totalNights;
       calculationMethod = `${totalNights} nights x ${unit.dailyPrice} OMR`;
+      dailyAverage = Math.floor(unit.dailyPrice || 0);
     }
   } else {
     // BOTH with monthly threshold met
     const months = totalNights / 30;
     baseRent = (unit.monthlyPrice || 0) * months;
     calculationMethod = `${totalNights} nights (Monthly Rate applied)`;
+    dailyAverage = Math.floor(baseRent / totalNights);
   }
 
   baseRent = Math.round(baseRent * 100) / 100;
@@ -224,6 +240,7 @@ export async function calculateBookingPrice(
     grandTotal,
     calculationMethod,
     promotion,
+    dailyAverage,
   };
 }
 

@@ -46,15 +46,10 @@ export default function BookingWidget({
         ? "OMR / night"
         : "ر.ع / ليلة";
 
-  // Resolved per-night price to display once the server returns. Promotions
-  // expose a flat promoPrice; the pricing module may vary by night, so we
-  // fall back to the average (baseRent / totalNights) which matches what the
-  // checkout will charge. Null until priceDetails arrives.
-  const resolvedDaily =
-    priceDetails && priceDetails.totalNights > 0
-      ? priceDetails.promotion?.promoPrice ??
-        priceDetails.baseRent / priceDetails.totalNights
-      : null;
+  // Per-night daily price to display — server-computed and pre-floored to
+  // an integer. For the pricing-module path it's the inclusive-range
+  // average ((sum of all priced days in checkIn..checkOut) / day count).
+  const resolvedDaily = priceDetails?.dailyAverage ?? null;
 
   const khareefMessage = isEn
     ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
@@ -193,7 +188,7 @@ export default function BookingWidget({
           <>
             <div className="flex items-end gap-1">
               <span className="text-3xl font-extrabold text-gray-900">
-                {resolvedDaily.toFixed(3)}
+                {resolvedDaily}
               </span>
               <span className="text-gray-500 font-medium pb-1">{priceLabel}</span>
             </div>
