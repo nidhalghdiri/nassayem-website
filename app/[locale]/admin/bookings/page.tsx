@@ -183,11 +183,6 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                         <span className="font-mono text-xs font-bold text-nassayem bg-nassayem/5 px-2 py-1 rounded-lg whitespace-nowrap">
                           {booking.bookingCode ?? booking.id.slice(0, 8).toUpperCase()}
                         </span>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {booking.paymentMethod === "CASH"
-                            ? isEn ? "Cash" : "نقدي"
-                            : isEn ? "Card" : "بطاقة"}
-                        </div>
                       </td>
 
                       {/* Guest */}
@@ -232,14 +227,67 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                       </td>
 
                       {/* Amount */}
-                      <td className="px-4 py-4">
-                        <span className="font-extrabold text-gray-900">{booking.totalPrice}</span>
-                        <span className="text-xs text-gray-400 ms-1">{isEn ? "OMR" : "ر.ع"}</span>
+                      <td className="px-4 py-4 min-w-[180px]">
+                        {(() => {
+                          const isCash = booking.paymentMethod === "CASH";
+                          const isAdvance =
+                            booking.paymentPlan === "ADVANCE_50" &&
+                            booking.amountDueAtCheckIn > 0;
+                          const paid = booking.amountPaid ?? 0;
+                          const due = booking.amountDueAtCheckIn;
+                          return (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-extrabold text-gray-900">
+                                  {booking.totalPrice.toFixed(3)}
+                                </span>
+                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                                  {isEn ? "Total" : "إجمالي"}
+                                </span>
+                              </div>
+                              <span
+                                className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                  isCash
+                                    ? "bg-amber-50 text-amber-700"
+                                    : isAdvance
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-blue-50 text-blue-700"
+                                }`}
+                              >
+                                {isCash
+                                  ? isEn ? "Cash" : "نقدي"
+                                  : isAdvance
+                                    ? isEn ? "50% Advance" : "دفعة 50%"
+                                    : isEn ? "Paid in Full" : "مدفوع كاملاً"}
+                              </span>
+                              {isAdvance && (
+                                <div className="text-[11px] space-y-0.5 pt-1 border-t border-gray-100">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-400">
+                                      {isEn ? "Paid" : "مدفوع"}
+                                    </span>
+                                    <span className="font-bold text-emerald-700">
+                                      {paid.toFixed(3)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-400">
+                                      {isEn ? "Due" : "متبقي"}
+                                    </span>
+                                    <span className="font-bold text-amber-700">
+                                      {due.toFixed(3)}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}
                       <td className="px-4 py-4">
-                        <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} />
+                        <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} paymentMethod={booking.paymentMethod} />
                       </td>
 
                       {/* Actions */}
@@ -298,22 +346,73 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                     </a>
                   </div>
 
-                  {/* Dates + amount */}
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>
-                      {format(new Date(booking.checkIn), "MMM d", { locale: dateLocale })}
-                      {" → "}
-                      {format(new Date(booking.checkOut), "MMM d, yyyy", { locale: dateLocale })}
-                    </span>
-                    <span className="font-bold text-gray-900">
-                      {booking.totalPrice}{" "}
-                      <span className="font-normal text-gray-400">{isEn ? "OMR" : "ر.ع"}</span>
-                    </span>
+                  {/* Dates */}
+                  <div className="text-xs text-gray-500">
+                    {format(new Date(booking.checkIn), "MMM d", { locale: dateLocale })}
+                    {" → "}
+                    {format(new Date(booking.checkOut), "MMM d, yyyy", { locale: dateLocale })}
                   </div>
+
+                  {/* Payment plan + amounts */}
+                  {(() => {
+                    const isCash = booking.paymentMethod === "CASH";
+                    const isAdvance =
+                      booking.paymentPlan === "ADVANCE_50" &&
+                      booking.amountDueAtCheckIn > 0;
+                    const paid = booking.amountPaid ?? 0;
+                    const due = booking.amountDueAtCheckIn;
+                    return (
+                      <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                              isCash
+                                ? "bg-amber-100 text-amber-700"
+                                : isAdvance
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {isCash
+                              ? isEn ? "Cash" : "نقدي"
+                              : isAdvance
+                                ? isEn ? "50% Advance" : "دفعة 50%"
+                                : isEn ? "Paid in Full" : "مدفوع كاملاً"}
+                          </span>
+                          <span className="text-sm font-extrabold text-gray-900">
+                            {booking.totalPrice.toFixed(3)}{" "}
+                            <span className="font-normal text-xs text-gray-400">
+                              {isEn ? "OMR total" : "ر.ع إجمالي"}
+                            </span>
+                          </span>
+                        </div>
+                        {isAdvance && (
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-gray-100">
+                            <div>
+                              <p className="text-gray-400 text-[10px] uppercase tracking-wider">
+                                {isEn ? "Paid" : "مدفوع"}
+                              </p>
+                              <p className="font-bold text-emerald-700">
+                                {paid.toFixed(3)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 text-[10px] uppercase tracking-wider">
+                                {isEn ? "Due at check-in" : "متبقي عند الوصول"}
+                              </p>
+                              <p className="font-bold text-amber-700">
+                                {due.toFixed(3)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Status + Actions */}
                   <div className="flex items-center justify-between pt-1">
-                    <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} />
+                    <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} paymentMethod={booking.paymentMethod} />
                     <div className="flex items-center gap-1">
                       <BookingDetailsModal booking={booking} locale={locale} />
                       <DeleteBookingButton

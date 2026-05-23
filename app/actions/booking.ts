@@ -404,12 +404,31 @@ export async function createBooking(
 
 /**
  * CORE FUNCTION 4: Update Booking Status
+ *
+ * Online (CARD) bookings are locked from manual status changes — their
+ * lifecycle is owned by the SmartPay webhook and the system marks them
+ * CONFIRMED only after the bank confirms the charge. Admins can still
+ * delete a booking, but flipping the status from the table is refused.
  */
 export async function updateBookingStatus(
   bookingId: string,
   newStatus: BookingStatus,
   locale: string,
 ) {
+  const existing = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { paymentMethod: true },
+  });
+  if (!existing) throw new Error("Booking not found.");
+
+  if (existing.paymentMethod === "CARD") {
+    throw new Error(
+      locale === "ar"
+        ? "لا يمكن تغيير حالة الحجوزات المدفوعة إلكترونياً يدوياً."
+        : "Online-paid bookings cannot be changed manually.",
+    );
+  }
+
   await prisma.booking.update({
     where: { id: bookingId },
     data: { status: newStatus },
