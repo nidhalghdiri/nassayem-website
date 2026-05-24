@@ -247,11 +247,42 @@ async function handleNetsuitePayment(args: {
     );
   }
 
-  // Failure
-  console.warn("NS PAYMENT DECLINED. Status:", orderStatus);
+  // Non-success path — distinguish customer abandonment from real failure.
+  // SmartPay (CCAvenue) status vocabulary:
+  //   Successful / Success        → paid (handled above)
+  //   Aborted / Cancel(led)       → user backed out / closed the tab
+  //   Awaited / Initiated         → still in flight
+  //   Failure / Failed / Invalid  → real decline (bad card, wrong OTP, etc.)
+  // For abandonment we keep status PENDING so the link is still usable from
+  // the customer's original URL until the 72-hour expiry runs out.
+  const ABANDON_STATUSES = new Set([
+    "Aborted",
+    "Cancel",
+    "Cancelled",
+    "Awaited",
+    "Initiated",
+  ]);
+  const isAbandonment = !!orderStatus && ABANDON_STATUSES.has(orderStatus);
+
+  if (isAbandonment) {
+    console.warn(
+      "NS PAYMENT ABANDONED — link stays PENDING for retry. Status:",
+      orderStatus,
+    );
+    return NextResponse.redirect(
+      `${baseUrl}/${locale}/pay/error?id=${payment.id}`,
+    );
+  }
+
+  // Real gateway failure — record it. Save the raw response so admin can
+  // diagnose declines from the NetSuite Payments details modal.
+  console.warn("NS PAYMENT FAILED. Status:", orderStatus);
   await prisma.netsuitePayment.update({
     where: { id: paymentId },
-    data: { status: "FAILED" },
+    data: {
+      status: "FAILED",
+      smartpayRawResponse: decryptedString,
+    },
   });
   return NextResponse.redirect(
     `${baseUrl}/${locale}/pay/error?id=${payment.id}`,

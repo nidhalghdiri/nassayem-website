@@ -25,13 +25,28 @@ export default async function NetsuitePayPage({ params }: PageProps) {
 
   if (!payment) return notFound();
 
-  // Auto-expire if past expiry but still PENDING
-  const isExpiredNow =
-    payment.status === "PENDING" && payment.expiresAt.getTime() < Date.now();
+  // The only thing that decides "expired" is the timestamp. Anything else
+  // (FAILED, PENDING with previous attempts, etc.) can still be paid until
+  // the 72-hour window closes.
+  const isPastExpiry = payment.expiresAt.getTime() < Date.now();
 
-  // Render an "unavailable" view for any non-payable state
+  // Auto-mark EXPIRED in the DB for housekeeping the first time someone
+  // visits a link past its expiry. Idempotent — only flips PENDING/FAILED.
+  if (
+    isPastExpiry &&
+    (payment.status === "PENDING" || payment.status === "FAILED")
+  ) {
+    await prisma.netsuitePayment.update({
+      where: { id: payment.id },
+      data: { status: "EXPIRED" },
+    });
+  }
+
+  // Render an "unavailable" view only for terminal states or genuine expiry.
+  // FAILED (within expiry) falls through to the form so the customer can
+  // retry — a previous decline doesn't burn the link.
   const isUnavailable =
-    payment.status !== "PENDING" || isExpiredNow;
+    isPastExpiry || payment.status === "PAID" || payment.status === "VOIDED";
 
   if (isUnavailable) {
     const reason = (() => {
@@ -55,7 +70,7 @@ export default async function NetsuitePayPage({ params }: PageProps) {
           tone: "neutral",
         };
       }
-      // EXPIRED or "PENDING but past expiry"
+      // Past expiry — genuinely expired by time.
       return {
         title: isEn ? "Payment link expired" : "انتهت صلاحية الرابط",
         message: isEn
@@ -233,6 +248,39 @@ export default async function NetsuitePayPage({ params }: PageProps) {
                 )}
               </dl>
             </div>
+
+            {/* Previous-attempt banner — only shown when revisiting a link
+                whose last attempt was a real decline (FAILED). Abandonment
+                stays as PENDING and doesn't trigger this. */}
+            {payment.status === "FAILED" && (
+              <div className="border-t border-gray-100 pt-6">
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <svg
+                    className="w-5 h-5 shrink-0 mt-0.5 text-amber-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">
+                      {isEn
+                        ? "Your last payment did not go through"
+                        : "لم تكتمل عملية الدفع السابقة"}
+                    </p>
+                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                      {isEn
+                        ? "No money was charged. Please double-check your card details and try again."
+                        : "لم يتم خصم أي مبلغ. يرجى التأكد من تفاصيل بطاقتك والمحاولة مرة أخرى."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Form */}
             <div className="border-t border-gray-100 pt-6">
