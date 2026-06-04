@@ -88,6 +88,22 @@ enum TaskStatus {
 }
 
 // ------------------------------------------------------
+// ENUMS — Recommendations
+// ------------------------------------------------------
+
+enum RecommendationCategory {
+  BEACH
+  MOUNTAIN
+  WATERFALL
+  WADI
+  CULTURAL
+  RESTAURANT
+  EVENT
+  ACTIVITY
+  OTHER
+}
+
+// ------------------------------------------------------
 // MODELS — Property rental
 // ------------------------------------------------------
 
@@ -557,4 +573,33 @@ model Post {
 
   @@index([slug])
   @@index([isPublished])
+}
+
+// ------------------------------------------------------
+// MODELS — Recommendations (Salalah Khareef guide)
+// ------------------------------------------------------
+
+model Recommendation {
+  id String @id @default(uuid())
+
+  titleEn       String
+  titleAr       String
+  descriptionEn String? @db.Text
+  descriptionAr String? @db.Text
+
+  category RecommendationCategory @default(OTHER)
+
+  imageUrl String?
+  mapUrl   String? // Google Maps share link or any geo URL
+
+  tagsEn String[] @default([]) // e.g. ["Family-friendly", "Free entry"]
+  tagsAr String[] @default([])
+
+  displayOrder Int     @default(0)
+  isPublished  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, isPublished, displayOrder])
 }
