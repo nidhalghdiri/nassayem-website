@@ -22,6 +22,27 @@ export function canCreateTasks(role: TStaffRole): boolean {
   return ["MANAGER", "SUPERVISOR", "RECEPTIONIST"].includes(role);
 }
 
+/**
+ * Can this role create tasks ONLY for themselves (cannot assign to others)?
+ * MAINTENANCE staff may self-assign work but never pick another assignee.
+ */
+export function canCreateSelfTasks(role: TStaffRole): boolean {
+  return role === "MAINTENANCE";
+}
+
+/** Can this role open the create-task form at all (self or others)? */
+export function canOpenCreateTask(role: TStaffRole): boolean {
+  return canCreateTasks(role) || canCreateSelfTasks(role);
+}
+
+/**
+ * Is this role restricted to self-assignment only? True when the role can
+ * create tasks but cannot assign them to anyone else.
+ */
+export function isSelfOnlyCreator(role: TStaffRole): boolean {
+  return canCreateSelfTasks(role) && !canCreateTasks(role);
+}
+
 /** Can HouseKeeping submit a maintenance request (kept as a simpler form). */
 export function canCreateMaintenanceRequest(role: TStaffRole): boolean {
   return role === "HOUSEKEEPING";

@@ -20,11 +20,13 @@ type Props = {
   assignableStaff: StaffUser[];
   locale: string;
   parentTask?: ParentTask;
+  /** When true, the task is always assigned to the current user (no picker). */
+  selfOnly?: boolean;
 };
 
 const initialState = { error: null };
 
-export default function CreateTaskForm({ buildings, assignableStaff, locale, parentTask }: Props) {
+export default function CreateTaskForm({ buildings, assignableStaff, locale, parentTask, selfOnly = false }: Props) {
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const [selectedType, setSelectedType] = useState("");
@@ -196,7 +198,15 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
           <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="assignedToId">
             {isEn ? "Assign To" : "تعيين إلى"} <span className="text-red-500">*</span>
           </label>
-          {assignableStaff.length === 0 ? (
+          {selfOnly ? (
+            <div className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-600">
+              {(assignableStaff[0]?.name ?? assignableStaff[0]?.email.split("@")[0]) || (isEn ? "You" : "أنت")}
+              <span className="text-gray-400 ms-1.5 text-xs">
+                ({isEn ? "yourself" : "نفسك"})
+              </span>
+              <input type="hidden" name="assignedToId" value={assignableStaff[0]?.id ?? ""} />
+            </div>
+          ) : assignableStaff.length === 0 ? (
             <p className="px-4 py-2.5 text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl">
               {isEn ? "No assignable staff found." : "لا يوجد موظفون للتعيين."}
             </p>

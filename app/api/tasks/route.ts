@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canCreateTasks, canSeeAllTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canOpenCreateTask, isSelfOnlyCreator, canSeeAllTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
 
@@ -80,9 +80,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!canCreateTasks(adminUser.role)) {
+  if (!canOpenCreateTask(adminUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const selfOnly = isSelfOnlyCreator(adminUser.role);
 
   let body: Record<string, unknown>;
   try {
@@ -91,7 +92,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { type, title, buildingId, assignedToId, dueDate } = body;
+  const { type, title, buildingId, dueDate } = body;
+  // Self-only creators always assign to themselves — ignore any submitted value.
+  const assignedToId = selfOnly ? adminUser.id : (body.assignedToId as string);
   if (!type || !title || !buildingId || !assignedToId || !dueDate) {
     return NextResponse.json(
       { error: "type, title, buildingId, assignedToId, and dueDate are required" },
@@ -101,17 +104,20 @@ export async function POST(request: Request) {
 
   // Verify the assignee exists and the caller is allowed to assign to their role
   const assignee = await prisma.adminUser.findUnique({
-    where: { id: assignedToId as string },
+    where: { id: assignedToId },
   });
   if (!assignee) {
     return NextResponse.json({ error: "Assignee not found" }, { status: 404 });
   }
-  const allowedRoles: StaffRole[] = ASSIGNABLE_ROLES[adminUser.role];
-  if (!allowedRoles.includes(assignee.role)) {
-    return NextResponse.json(
-      { error: `Your role cannot assign tasks to ${assignee.role}` },
-      { status: 403 },
-    );
+  // Self-only creators bypass the role matrix (they can only target themselves).
+  if (!selfOnly) {
+    const allowedRoles: StaffRole[] = ASSIGNABLE_ROLES[adminUser.role];
+    if (!allowedRoles.includes(assignee.role)) {
+      return NextResponse.json(
+        { error: `Your role cannot assign tasks to ${assignee.role}` },
+        { status: 403 },
+      );
+    }
   }
 
   const task = await prisma.task.create({
@@ -124,7 +130,7 @@ export async function POST(request: Request) {
       priority:     (body.priority as TaskPriority) ?? "MEDIUM",
       status:       getInitialStatus(type as TaskType),
       createdById:  adminUser.id,
-      assignedToId: assignedToId as string,
+      assignedToId,
       dueDate:      new Date(dueDate as string),
       parentTaskId: (body.parentTaskId as string) ?? null,
     },

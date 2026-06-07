@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canCreateTasks, canCreateMaintenanceRequest, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canCreateTasks, canCreateMaintenanceRequest, canOpenCreateTask, isSelfOnlyCreator, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
@@ -18,9 +18,11 @@ export async function createTask(
 ): Promise<{ error: string | null }> {
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) return { error: "Unauthorized." };
-  if (!canCreateTasks(adminUser.role as TStaffRole)) {
+  const role = adminUser.role as TStaffRole;
+  if (!canOpenCreateTask(role)) {
     return { error: "You do not have permission to create tasks." };
   }
+  const selfOnly = isSelfOnlyCreator(role);
 
   const locale = (formData.get("locale") as string) || "en";
   const type = formData.get("type") as TaskType;
@@ -29,7 +31,8 @@ export async function createTask(
   const buildingId = formData.get("buildingId") as string;
   const unitNumber = (formData.get("unitNumber") as string)?.trim() || null;
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
-  const assignedToId = formData.get("assignedToId") as string;
+  // Self-only creators always assign to themselves — ignore any submitted value.
+  const assignedToId = selfOnly ? adminUser.id : (formData.get("assignedToId") as string);
   const dueDate = formData.get("dueDate") as string;
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
@@ -40,9 +43,12 @@ export async function createTask(
   const assignee = await prisma.adminUser.findUnique({ where: { id: assignedToId } });
   if (!assignee) return { error: "Assignee not found." };
 
-  const allowedRoles = ASSIGNABLE_ROLES[adminUser.role as TStaffRole] as StaffRole[];
-  if (!allowedRoles.includes(assignee.role)) {
-    return { error: `Your role cannot assign tasks to ${assignee.role}.` };
+  // Self-only creators bypass the role matrix (they can only target themselves).
+  if (!selfOnly) {
+    const allowedRoles = ASSIGNABLE_ROLES[role] as StaffRole[];
+    if (!allowedRoles.includes(assignee.role)) {
+      return { error: `Your role cannot assign tasks to ${assignee.role}.` };
+    }
   }
 
   const task = await prisma.task.create({

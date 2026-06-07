@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canCreateTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canOpenCreateTask, isSelfOnlyCreator, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import prisma from "@/lib/prisma";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import type { TStaffRole } from "@/lib/tasks/constants";
@@ -18,9 +18,11 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
   const adminUser = await getCurrentAdminUser();
 
   if (!adminUser) redirect(`/${locale}/admin/login`);
-  if (!canCreateTasks(adminUser.role as TStaffRole)) redirect(`/${locale}/admin/tasks`);
+  const role = adminUser.role as TStaffRole;
+  if (!canOpenCreateTask(role)) redirect(`/${locale}/admin/tasks`);
 
-  const allowedRoles = ASSIGNABLE_ROLES[adminUser.role as TStaffRole] as StaffRole[];
+  const selfOnly = isSelfOnlyCreator(role);
+  const allowedRoles = ASSIGNABLE_ROLES[role] as StaffRole[];
   const isEn = locale === "en";
 
   const [buildings, assignableStaff, parentTask] = await Promise.all([
@@ -28,11 +30,17 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
       select: { id: true, nameEn: true, nameAr: true },
       orderBy: { nameEn: "asc" },
     }),
-    prisma.adminUser.findMany({
-      where: { role: { in: allowedRoles } },
-      select: { id: true, name: true, email: true, role: true },
-      orderBy: { name: "asc" },
-    }),
+    // Self-only creators can only assign to themselves.
+    selfOnly
+      ? prisma.adminUser.findMany({
+          where: { id: adminUser.id },
+          select: { id: true, name: true, email: true, role: true },
+        })
+      : prisma.adminUser.findMany({
+          where: { role: { in: allowedRoles } },
+          select: { id: true, name: true, email: true, role: true },
+          orderBy: { name: "asc" },
+        }),
     parentTaskId
       ? prisma.task.findUnique({
           where: { id: parentTaskId },
@@ -71,6 +79,7 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
         assignableStaff={assignableStaff}
         locale={locale}
         parentTask={parentTask ?? null}
+        selfOnly={selfOnly}
       />
     </div>
   );
