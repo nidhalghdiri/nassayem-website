@@ -2,16 +2,36 @@ import prisma from "@/lib/prisma";
 import BookingStatusSelect from "@/components/admin/BookingStatusSelect";
 import BookingDetailsModal from "@/components/admin/BookingDetailsModal";
 import DeleteBookingButton from "@/components/admin/DeleteBookingButton";
-import BookingSearchBar from "@/components/admin/BookingSearchBar";
+import ListFilterBar from "@/components/admin/ListFilterBar";
+import { buildBookingWhere } from "@/lib/adminPaymentFilters";
+import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
 import Link from "next/link";
-import type { BookingStatus } from "@prisma/client";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+  }>;
 };
+
+/** Compact labeled line used inside the "Bank details" cell. */
+function BankLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 w-14">
+        {label}
+      </span>
+      <span className="font-mono text-[11px] text-gray-700 break-all">
+        {value}
+      </span>
+    </div>
+  );
+}
 
 const statusStyles: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-700",
@@ -39,22 +59,24 @@ const filterTabs = [
 
 export default async function AdminBookingsPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  const { status: rawStatus, q: searchQuery } = await searchParams;
+  const {
+    status: rawStatus,
+    q: searchQuery,
+    from,
+    to,
+  } = await searchParams;
   const isEn = locale === "en";
   const dateLocale = isEn ? enUS : ar;
 
   const activeFilter = rawStatus?.toUpperCase() ?? "ALL";
 
-  // Build Prisma where clause combining status filter + text search
-  const whereClause: Record<string, unknown> = {};
-  if (activeFilter !== "ALL") whereClause.status = activeFilter as BookingStatus;
-  if (searchQuery?.trim()) {
-    whereClause.OR = [
-      { guestName: { contains: searchQuery.trim(), mode: "insensitive" } },
-      { guestPhone: { contains: searchQuery.trim() } },
-      { bookingCode: { contains: searchQuery.trim(), mode: "insensitive" } },
-    ];
-  }
+  // Build Prisma where clause combining status + text search + payment-date range
+  const whereClause = buildBookingWhere({
+    status: rawStatus,
+    q: searchQuery,
+    from,
+    to,
+  });
 
   const bookings = await prisma.booking.findMany({
     where: whereClause,
@@ -94,17 +116,22 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
         </p>
       </div>
 
-      {/* Filter tabs + Search bar */}
+      {/* Filter tabs + Search / date / export bar */}
       <div className="flex flex-col gap-3">
         {/* Status tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {filterTabs.map((tab) => {
             const isActive = tab.key === "all" ? activeFilter === "ALL" : activeFilter === tab.key;
             const count = countMap[tab.key === "all" ? "ALL" : tab.key] ?? 0;
-            // Preserve search query when switching tabs
+            // Preserve search + date filters when switching tabs
+            const tabParams = new URLSearchParams();
+            if (tab.key !== "all") tabParams.set("status", tab.key);
+            if (searchQuery?.trim()) tabParams.set("q", searchQuery.trim());
+            if (from) tabParams.set("from", from);
+            if (to) tabParams.set("to", to);
             const href = `/${locale}/admin/bookings${
-              tab.key === "all" ? "" : `?status=${tab.key}`
-            }${searchQuery ? `${tab.key === "all" ? "?" : "&"}q=${encodeURIComponent(searchQuery)}` : ""}`;
+              tabParams.toString() ? `?${tabParams}` : ""
+            }`;
             return (
               <Link
                 key={tab.key}
@@ -128,11 +155,21 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
           })}
         </div>
 
-        {/* Search bar */}
-        <BookingSearchBar
+        {/* Search + payment-date range + Excel export */}
+        <ListFilterBar
           isEn={isEn}
-          currentQ={searchQuery ?? ""}
-          currentStatus={activeFilter}
+          placeholder={
+            isEn
+              ? "Search by name, email, phone, or booking #..."
+              : "بحث بالاسم أو البريد أو الهاتف أو رقم الحجز..."
+          }
+          current={{
+            q: searchQuery ?? "",
+            from: from ?? "",
+            to: to ?? "",
+            status: activeFilter,
+          }}
+          exportPath="/api/admin/bookings/export"
         />
       </div>
 
@@ -171,12 +208,16 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                     <th className="px-4 py-4 font-semibold text-start">{isEn ? "Property" : "العقار"}</th>
                     <th className="px-4 py-4 font-semibold text-start">{isEn ? "Dates" : "التواريخ"}</th>
                     <th className="px-4 py-4 font-semibold text-start">{isEn ? "Amount" : "المبلغ"}</th>
+                    <th className="px-4 py-4 font-semibold text-start">{isEn ? "Payment Date" : "تاريخ الدفع"}</th>
+                    <th className="px-4 py-4 font-semibold text-start">{isEn ? "Bank Details" : "تفاصيل البنك"}</th>
                     <th className="px-4 py-4 font-semibold text-start">{isEn ? "Status" : "الحالة"}</th>
                     <th className="px-4 py-4 font-semibold text-end">{isEn ? "Actions" : "إجراءات"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {bookings.map((booking) => (
+                  {bookings.map((booking) => {
+                    const bank = extractSmartpayFields(booking.smartpayRawResponse);
+                    return (
                     <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors">
                       {/* Booking code */}
                       <td className="px-4 py-4">
@@ -285,6 +326,41 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                         })()}
                       </td>
 
+                      {/* Payment Date */}
+                      <td className="px-4 py-4 text-sm">
+                        {booking.paidAt ? (
+                          <>
+                            <div className="font-medium text-gray-800 whitespace-nowrap">
+                              {format(new Date(booking.paidAt), "MMM d, yyyy", { locale: dateLocale })}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {format(new Date(booking.paidAt), "HH:mm:ss", { locale: dateLocale })}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Bank Details */}
+                      <td className="px-4 py-4 min-w-[200px]">
+                        {bank.orderId || bank.trackingId || bank.bankRefNo || bank.cardNumber ? (
+                          <div className="space-y-1">
+                            {bank.orderId && <BankLine label={isEn ? "Order" : "طلب"} value={bank.orderId} />}
+                            {bank.trackingId && <BankLine label={isEn ? "Track" : "تتبع"} value={bank.trackingId} />}
+                            {bank.bankRefNo && <BankLine label={isEn ? "Ref" : "مرجع"} value={bank.bankRefNo} />}
+                            {bank.cardNumber && (
+                              <BankLine
+                                label={isEn ? "Card" : "بطاقة"}
+                                value={`${bank.cardNumber}${bank.cardExpiry ? ` (${bank.cardExpiry})` : ""}`}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+
                       {/* Status */}
                       <td className="px-4 py-4">
                         <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} paymentMethod={booking.paymentMethod} />
@@ -303,14 +379,17 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile + tablet cards */}
             <div className="divide-y divide-gray-100 lg:hidden">
-              {bookings.map((booking) => (
+              {bookings.map((booking) => {
+                const bank = extractSmartpayFields(booking.smartpayRawResponse);
+                return (
                 <div key={booking.id} className="p-4 space-y-3">
                   {/* Booking code + status */}
                   <div className="flex items-start justify-between gap-3">
@@ -410,6 +489,31 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                     );
                   })()}
 
+                  {/* Payment date + bank details */}
+                  {(booking.paidAt || bank.orderId || bank.cardNumber) && (
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 space-y-1.5">
+                      {booking.paidAt && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400 uppercase tracking-wider text-[10px]">
+                            {isEn ? "Paid on" : "تاريخ الدفع"}
+                          </span>
+                          <span className="font-semibold text-gray-700">
+                            {format(new Date(booking.paidAt), "d MMM yyyy, HH:mm:ss", { locale: dateLocale })}
+                          </span>
+                        </div>
+                      )}
+                      {bank.orderId && <BankLine label={isEn ? "Order" : "طلب"} value={bank.orderId} />}
+                      {bank.trackingId && <BankLine label={isEn ? "Track" : "تتبع"} value={bank.trackingId} />}
+                      {bank.bankRefNo && <BankLine label={isEn ? "Ref" : "مرجع"} value={bank.bankRefNo} />}
+                      {bank.cardNumber && (
+                        <BankLine
+                          label={isEn ? "Card" : "بطاقة"}
+                          value={`${bank.cardNumber}${bank.cardExpiry ? ` (${bank.cardExpiry})` : ""}`}
+                        />
+                      )}
+                    </div>
+                  )}
+
                   {/* Status + Actions */}
                   <div className="flex items-center justify-between pt-1">
                     <BookingStatusSelect bookingId={booking.id} currentStatus={booking.status} locale={locale} paymentMethod={booking.paymentMethod} />
@@ -424,7 +528,8 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

@@ -214,10 +214,22 @@ model Booking {
   totalPrice Float
   status     BookingStatus @default(PENDING)
 
+  // SmartPay transaction traces — populated by the webhook on a successful
+  // CARD payment. `paidAt` is the exact transaction time (indexed so the
+  // admin list can filter/sort by payment date). `smartpayRawResponse` holds
+  // the full decrypted gateway response; all bank fields shown in the admin
+  // UI (order_id, tracking_id, bank_ref_no, card number…) are extracted from
+  // it at read time via lib/smartpayFields. Both are null for cash bookings
+  // and for card bookings paid before these fields existed.
+  paidAt              DateTime?
+  smartpayRawResponse Json?
+
   unit Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([paidAt])
 }
 
 // ------------------------------------------------------
@@ -338,7 +350,9 @@ model NetsuitePayment {
   // Soft-delete flag — false = hidden from the default list, manager only.
   isActive Boolean @default(true)
 
-  // SmartPay traces
+  // SmartPay traces. The full decrypted gateway response is kept in
+  // smartpayRawResponse; tracking_id, card number, payment mode, etc. are
+  // extracted from it at read time via lib/smartpayFields.
   smartpayOrderId     String? @unique
   smartpayBankRefNo   String?
   smartpayRawResponse Json?

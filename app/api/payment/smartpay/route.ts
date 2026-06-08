@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decryptSmartPayResponse } from "@/lib/smartpay";
+import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { sendNetsuitePaymentReceipt } from "@/lib/email/sendNetsuitePaymentReceipt";
 import { notifyNetsuitePaymentSucceeded } from "@/lib/netsuite";
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
       bankAmount,
       bankCurrency,
       locale,
+      decryptedString,
     });
   } catch (error) {
     console.error("WEBHOOK CRASHED:", error);
@@ -82,9 +84,17 @@ async function handleBookingPayment(args: {
   bankAmount: string | null;
   bankCurrency: string | null;
   locale: string;
+  decryptedString: string;
 }) {
-  const { baseUrl, bookingId, orderStatus, bankAmount, bankCurrency, locale } =
-    args;
+  const {
+    baseUrl,
+    bookingId,
+    orderStatus,
+    bankAmount,
+    bankCurrency,
+    locale,
+    decryptedString,
+  } = args;
 
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) {
@@ -119,9 +129,18 @@ async function handleBookingPayment(args: {
       return NextResponse.redirect(`${baseUrl}/${locale}/checkout/error`);
     }
 
+    // Capture the bank/accounting traces. The full response is kept verbatim;
+    // individual bank fields are extracted from it at read time. paidAt uses
+    // the bank's transaction time, falling back to the webhook receipt time.
+    const fields = extractSmartpayFields(decryptedString);
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "CONFIRMED", amountPaid: expectedChargeNow },
+      data: {
+        status: "CONFIRMED",
+        amountPaid: expectedChargeNow,
+        paidAt: fields.transDate ?? new Date(),
+        smartpayRawResponse: decryptedString,
+      },
     });
     console.log("SUCCESS: Booking Confirmed & Securely Validated!");
 
@@ -200,13 +219,16 @@ async function handleNetsuitePayment(args: {
       return NextResponse.redirect(`${baseUrl}/${locale}/pay/error`);
     }
 
-    // Persist payment success
+    // Persist payment success. The full response is kept verbatim; individual
+    // bank fields are extracted from it at read time. paidAt uses the bank's
+    // transaction time, falling back to the webhook receipt time.
+    const fields = extractSmartpayFields(decryptedString);
     const updated = await prisma.netsuitePayment.update({
       where: { id: paymentId },
       data: {
         status: "PAID",
-        paidAt: new Date(),
-        smartpayBankRefNo: bankRefNo,
+        paidAt: fields.transDate ?? new Date(),
+        smartpayBankRefNo: bankRefNo ?? fields.bankRefNo,
         smartpayRawResponse: decryptedString,
       },
     });

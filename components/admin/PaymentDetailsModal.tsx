@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
 import type { NetsuitePayment } from "@prisma/client";
+import { extractSmartpayFields } from "@/lib/smartpayFields";
 
 type Props = {
   payment: NetsuitePayment | null;
@@ -176,6 +177,7 @@ export default function PaymentDetailsModal({ payment, isEn, onClose }: Props) {
   if (!payment) return null;
 
   const rawPairs = parseSmartpayRaw(payment.smartpayRawResponse);
+  const bank = extractSmartpayFields(payment.smartpayRawResponse);
   const fmt = (d: Date | null | undefined) =>
     d ? format(d, "d MMM yyyy, HH:mm", { locale: dateLocale }) : null;
 
@@ -471,14 +473,46 @@ export default function PaymentDetailsModal({ payment, isEn, onClose }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-3 mb-4">
               <Field
                 label={isEn ? "Order ID" : "رقم الطلب"}
-                value={payment.smartpayOrderId}
+                value={bank.orderId ?? payment.smartpayOrderId}
+                mono
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Tracking ID" : "رقم التتبع"}
+                value={bank.trackingId}
                 mono
                 isEn={isEn}
               />
               <Field
                 label={isEn ? "Bank Ref No" : "مرجع البنك"}
-                value={payment.smartpayBankRefNo}
+                value={bank.bankRefNo ?? payment.smartpayBankRefNo}
                 mono
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Payment Date" : "تاريخ الدفع"}
+                value={fmt(payment.paidAt) ?? bank.transDateRaw}
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Card Number" : "رقم البطاقة"}
+                value={bank.cardNumber}
+                mono
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Card Expiry" : "انتهاء البطاقة"}
+                value={bank.cardExpiry}
+                mono
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Payment Mode" : "طريقة الدفع"}
+                value={
+                  [bank.cardName, bank.paymentMode]
+                    .filter(Boolean)
+                    .join(" · ") || null
+                }
                 isEn={isEn}
               />
             </div>

@@ -1,12 +1,18 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import NetsuitePaymentsList from "@/components/admin/NetsuitePaymentsList";
+import ListFilterBar from "@/components/admin/ListFilterBar";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import type { NetsuitePaymentStatus, Prisma } from "@prisma/client";
+import { buildNetsuiteWhere } from "@/lib/adminPaymentFilters";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+  }>;
 };
 
 const filterTabs = [
@@ -24,7 +30,7 @@ export default async function NetsuitePaymentsAdminPage({
   searchParams,
 }: PageProps) {
   const { locale } = await params;
-  const { status: rawStatus } = await searchParams;
+  const { status: rawStatus, q: searchQuery, from, to } = await searchParams;
   const isEn = locale === "en";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
@@ -33,14 +39,14 @@ export default async function NetsuitePaymentsAdminPage({
 
   const activeFilter = rawStatus?.toUpperCase() ?? "ALL";
 
-  // Default view hides soft-deleted records. The dedicated "Inactive" tab is
-  // the only way to see them.
-  const whereClause: Prisma.NetsuitePaymentWhereInput =
-    activeFilter === "INACTIVE"
-      ? { isActive: false }
-      : activeFilter === "ALL"
-        ? { isActive: true }
-        : { isActive: true, status: activeFilter as NetsuitePaymentStatus };
+  // Combine status + text search + payment-date range. The "Inactive" tab is
+  // the only way to see soft-deleted records.
+  const whereClause = buildNetsuiteWhere({
+    status: rawStatus,
+    q: searchQuery,
+    from,
+    to,
+  });
 
   const payments = await prisma.netsuitePayment.findMany({
     where: whereClause,
@@ -84,8 +90,14 @@ export default async function NetsuitePaymentsAdminPage({
               ? activeFilter === "ALL"
               : activeFilter === tab.key;
           const count = countMap[tab.key === "all" ? "ALL" : tab.key] ?? 0;
+          // Preserve search + date filters when switching tabs
+          const tabParams = new URLSearchParams();
+          if (tab.key !== "all") tabParams.set("status", tab.key);
+          if (searchQuery?.trim()) tabParams.set("q", searchQuery.trim());
+          if (from) tabParams.set("from", from);
+          if (to) tabParams.set("to", to);
           const href = `/${locale}/admin/netsuite-payments${
-            tab.key === "all" ? "" : `?status=${tab.key}`
+            tabParams.toString() ? `?${tabParams}` : ""
           }`;
           const isInactiveTab = tab.key === "INACTIVE";
           return (
@@ -116,6 +128,23 @@ export default async function NetsuitePaymentsAdminPage({
           );
         })}
       </div>
+
+      {/* Search + payment-date range + Excel export */}
+      <ListFilterBar
+        isEn={isEn}
+        placeholder={
+          isEn
+            ? "Search by name, email, reservation, unit, order #..."
+            : "بحث بالاسم أو البريد أو الحجز أو الوحدة أو رقم الطلب..."
+        }
+        current={{
+          q: searchQuery ?? "",
+          from: from ?? "",
+          to: to ?? "",
+          status: activeFilter,
+        }}
+        exportPath="/api/admin/netsuite-payments/export"
+      />
 
       <NetsuitePaymentsList
         payments={payments}

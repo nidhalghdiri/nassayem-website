@@ -8,10 +8,25 @@ import type { NetsuitePayment } from "@prisma/client";
 import VoidNetsuitePaymentButton from "@/components/admin/VoidNetsuitePaymentButton";
 import CopyLinkButton from "@/components/admin/CopyLinkButton";
 import PaymentDetailsModal from "@/components/admin/PaymentDetailsModal";
+import { extractSmartpayFields } from "@/lib/smartpayFields";
 import {
   deactivateNetsuitePayment,
   reactivateNetsuitePayment,
 } from "@/app/actions/netsuitePayment";
+
+/** Compact labeled line used inside the "Bank details" cell. */
+function BankLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 w-12">
+        {label}
+      </span>
+      <span className="font-mono text-[11px] text-gray-700 break-all">
+        {value}
+      </span>
+    </div>
+  );
+}
 
 type Props = {
   payments: NetsuitePayment[];
@@ -196,6 +211,12 @@ export default function NetsuitePaymentsList({
                   {isEn ? "Created" : "تاريخ الإنشاء"}
                 </th>
                 <th className="px-4 py-4 font-semibold text-start">
+                  {isEn ? "Payment Date" : "تاريخ الدفع"}
+                </th>
+                <th className="px-4 py-4 font-semibold text-start">
+                  {isEn ? "Bank Details" : "تفاصيل البنك"}
+                </th>
+                <th className="px-4 py-4 font-semibold text-start">
                   {isEn ? "Status" : "الحالة"}
                 </th>
                 <th className="px-4 py-4 font-semibold text-end">
@@ -206,6 +227,9 @@ export default function NetsuitePaymentsList({
             <tbody className="divide-y divide-gray-100">
               {payments.map((p) => {
                 const url = `${baseUrl}/${isEn ? "en" : "ar"}/pay/${p.token}`;
+                const bank = extractSmartpayFields(p.smartpayRawResponse);
+                const orderId = bank.orderId ?? p.smartpayOrderId;
+                const bankRefNo = bank.bankRefNo ?? p.smartpayBankRefNo;
                 return (
                   <tr
                     key={p.id}
@@ -244,11 +268,6 @@ export default function NetsuitePaymentsList({
                       <span className="text-xs text-gray-400 ms-1">
                         {p.currency}
                       </span>
-                      {p.smartpayBankRefNo && (
-                        <div className="text-xs text-gray-400 font-mono mt-1">
-                          {p.smartpayBankRefNo}
-                        </div>
-                      )}
                     </td>
                     <td className="px-4 py-4 text-sm">
                       <div className="text-gray-700 whitespace-nowrap">
@@ -261,6 +280,39 @@ export default function NetsuitePaymentsList({
                           locale: dateLocale,
                         })}
                       </div>
+                    </td>
+                    {/* Payment Date */}
+                    <td className="px-4 py-4 text-sm">
+                      {p.paidAt ? (
+                        <>
+                          <div className="text-gray-700 whitespace-nowrap">
+                            {format(p.paidAt, "d MMM yyyy", { locale: dateLocale })}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {format(p.paidAt, "HH:mm:ss", { locale: dateLocale })}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+                    {/* Bank Details */}
+                    <td className="px-4 py-4 min-w-[200px]">
+                      {orderId || bank.trackingId || bankRefNo || bank.cardNumber ? (
+                        <div className="space-y-1">
+                          {orderId && <BankLine label={isEn ? "Order" : "طلب"} value={orderId} />}
+                          {bank.trackingId && <BankLine label={isEn ? "Track" : "تتبع"} value={bank.trackingId} />}
+                          {bankRefNo && <BankLine label={isEn ? "Ref" : "مرجع"} value={bankRefNo} />}
+                          {bank.cardNumber && (
+                            <BankLine
+                              label={isEn ? "Card" : "بطاقة"}
+                              value={`${bank.cardNumber}${bank.cardExpiry ? ` (${bank.cardExpiry})` : ""}`}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col items-start gap-1">
@@ -316,6 +368,9 @@ export default function NetsuitePaymentsList({
         <div className="divide-y divide-gray-100 lg:hidden">
           {payments.map((p) => {
             const url = `${baseUrl}/${isEn ? "en" : "ar"}/pay/${p.token}`;
+            const bank = extractSmartpayFields(p.smartpayRawResponse);
+            const orderId = bank.orderId ?? p.smartpayOrderId;
+            const bankRefNo = bank.bankRefNo ?? p.smartpayBankRefNo;
             return (
               <div
                 key={p.id}
@@ -365,6 +420,31 @@ export default function NetsuitePaymentsList({
                     </span>
                   </span>
                 </div>
+
+                {/* Payment date + bank details */}
+                {(p.paidAt || orderId || bank.cardNumber) && (
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 space-y-1.5">
+                    {p.paidAt && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400 uppercase tracking-wider text-[10px]">
+                          {isEn ? "Paid on" : "تاريخ الدفع"}
+                        </span>
+                        <span className="font-semibold text-gray-700">
+                          {format(p.paidAt, "d MMM yyyy, HH:mm:ss", { locale: dateLocale })}
+                        </span>
+                      </div>
+                    )}
+                    {orderId && <BankLine label={isEn ? "Order" : "طلب"} value={orderId} />}
+                    {bank.trackingId && <BankLine label={isEn ? "Track" : "تتبع"} value={bank.trackingId} />}
+                    {bankRefNo && <BankLine label={isEn ? "Ref" : "مرجع"} value={bankRefNo} />}
+                    {bank.cardNumber && (
+                      <BankLine
+                        label={isEn ? "Card" : "بطاقة"}
+                        value={`${bank.cardNumber}${bank.cardExpiry ? ` (${bank.cardExpiry})` : ""}`}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 flex-wrap pt-1">
                   <ViewButton onClick={() => setSelected(p)} isEn={isEn} />
