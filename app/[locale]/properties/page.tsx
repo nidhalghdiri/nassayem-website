@@ -1,8 +1,18 @@
-import Link from "next/link";
 import { Metadata } from "next";
 import FilterSidebar from "@/components/properties/FilterSidebar";
 import PropertyCard from "@/components/properties/PropertyCard";
 import prisma from "@/lib/prisma";
+import { calculateBookingPrice } from "@/app/actions/booking";
+
+// Price computed for a single unit against the selected stay. `null` when the
+// dates can't be priced for that unit (e.g. Khareef without a promo, or a
+// monthly-only unit with a short range) — the card falls back to "Show Price".
+type CardPrice = {
+  dailyAverage: number;
+  grandTotal: number;
+  totalNights: number;
+  hasPromotion: boolean;
+};
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -62,6 +72,37 @@ export default async function PropertiesPage({
     ? unitTypeMap[resolvedSearchParams.unitType]
     : undefined;
 
+  // Stay dates carried over from the home-page search (or the sidebar). Both
+  // must be present and valid (YYYY-MM-DD, check-out after check-in) before we
+  // attempt to price each card.
+  const checkIn = resolvedSearchParams.checkIn || "";
+  const checkOut = resolvedSearchParams.checkOut || "";
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const hasValidDates =
+    datePattern.test(checkIn) &&
+    datePattern.test(checkOut) &&
+    checkOut > checkIn;
+
+  // Sidebar price-range filter. Applied against the unit's base rate for the
+  // active rental mode (monthlyPrice when browsing monthly, dailyPrice otherwise).
+  const minPrice = resolvedSearchParams.min
+    ? parseFloat(resolvedSearchParams.min)
+    : undefined;
+  const maxPrice = resolvedSearchParams.max
+    ? parseFloat(resolvedSearchParams.max)
+    : undefined;
+  const priceField = rentTypeFilter === "MONTHLY" ? "monthlyPrice" : "dailyPrice";
+  const priceRangeFilter =
+    (minPrice !== undefined && !isNaN(minPrice)) ||
+    (maxPrice !== undefined && !isNaN(maxPrice))
+      ? {
+          [priceField]: {
+            ...(minPrice !== undefined && !isNaN(minPrice) && { gte: minPrice }),
+            ...(maxPrice !== undefined && !isNaN(maxPrice) && { lte: maxPrice }),
+          },
+        }
+      : undefined;
+
   // Fetch properties dynamically based on filters
   const units = await prisma.unit.findMany({
     where: {
@@ -70,6 +111,7 @@ export default async function PropertiesPage({
         OR: [{ rentType: rentTypeFilter }, { rentType: "BOTH" }],
       }),
       ...(unitTypeFilter && { unitType: unitTypeFilter }),
+      ...priceRangeFilter,
     },
     include: {
       images: { orderBy: { displayOrder: "asc" } },
@@ -77,6 +119,37 @@ export default async function PropertiesPage({
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // When the visitor picked dates, price every unit for that exact stay so the
+  // card shows a real number instead of a generic "Show Price". Pricing runs
+  // through the same engine used on the details page (promo > per-day module >
+  // base rate), so the listing and the booking widget always agree. Units that
+  // can't be priced for the range (Khareef-without-promo, monthly-only units on
+  // a short range, etc.) resolve to null and keep the "Show Price" button.
+  const priceMap: Record<string, CardPrice> = {};
+  if (hasValidDates) {
+    const priced = await Promise.all(
+      units.map(async (unit) => {
+        try {
+          const p = await calculateBookingPrice(unit.id, checkIn, checkOut);
+          return [
+            unit.id,
+            {
+              dailyAverage: p.dailyAverage,
+              grandTotal: p.grandTotal,
+              totalNights: p.totalNights,
+              hasPromotion: !!p.promotion,
+            } as CardPrice,
+          ] as const;
+        } catch {
+          return [unit.id, null] as const;
+        }
+      }),
+    );
+    for (const [id, price] of priced) {
+      if (price) priceMap[id] = price;
+    }
+  }
 
   const locationQuery =
     resolvedSearchParams.location || (isEn ? "Salalah" : "صلالة");
@@ -106,7 +179,14 @@ export default async function PropertiesPage({
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {units.length > 0 ? (
                 units.map((unit) => (
-                  <PropertyCard key={unit.id} unit={unit} locale={locale} />
+                  <PropertyCard
+                    key={unit.id}
+                    unit={unit}
+                    locale={locale}
+                    checkIn={hasValidDates ? checkIn : undefined}
+                    checkOut={hasValidDates ? checkOut : undefined}
+                    price={priceMap[unit.id] ?? null}
+                  />
                 ))
               ) : (
                 <div className="col-span-full py-20 text-center bg-white rounded-2xl border border-gray-100">

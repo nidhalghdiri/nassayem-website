@@ -7,6 +7,7 @@ import GaViewItem from "@/components/analytics/GaViewItem";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 };
 
 // This function runs on the server BEFORE the page renders
@@ -58,9 +59,23 @@ export async function generateMetadata({
   };
 }
 
-export default async function PropertyDetailsPage({ params }: PageProps) {
+export default async function PropertyDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { locale, id } = await params;
+  const resolvedSearchParams = await searchParams;
   const isEn = locale === "en";
+
+  // Stay dates carried over from the listing / home-page search. Validated to
+  // YYYY-MM-DD with check-out after check-in before pre-filling the widget.
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const initialCheckIn = resolvedSearchParams.checkIn || "";
+  const initialCheckOut = resolvedSearchParams.checkOut || "";
+  const hasValidDates =
+    datePattern.test(initialCheckIn) &&
+    datePattern.test(initialCheckOut) &&
+    initialCheckOut > initialCheckIn;
 
   // Fetch exact unit
   const unit = await prisma.unit.findUnique({
@@ -345,6 +360,9 @@ export default async function PropertyDetailsPage({ params }: PageProps) {
               priceDaily={unit.dailyPrice}
               priceMonthly={unit.monthlyPrice}
               rentType={unit.rentType}
+              maxGuests={unit.guests}
+              initialCheckIn={hasValidDates ? initialCheckIn : ""}
+              initialCheckOut={hasValidDates ? initialCheckOut : ""}
               locale={locale}
             />
           </div>

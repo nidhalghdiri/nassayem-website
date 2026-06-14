@@ -15,6 +15,7 @@ export default function FilterSidebar({ locale }: { locale: string }) {
     max: searchParams.get("max") || "",
   });
   const [rentType, setRentType] = useState(searchParams.get("type") || "daily");
+  const [unitType, setUnitType] = useState(searchParams.get("unitType") || "");
 
   // Amenities as an array
   const currentAmenities = searchParams.get("amenities")?.split(",") || [];
@@ -34,6 +35,21 @@ export default function FilterSidebar({ locale }: { locale: string }) {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  // Reset the filter fields but keep the selected stay dates so card prices
+  // stay visible after clearing.
+  const clearAll = () => {
+    setUnitType("");
+    setRentType("daily");
+    setPriceRange({ min: "", max: "" });
+    const params = new URLSearchParams();
+    const checkIn = searchParams.get("checkIn");
+    const checkOut = searchParams.get("checkOut");
+    if (checkIn) params.set("checkIn", checkIn);
+    if (checkOut) params.set("checkOut", checkOut);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const toggleAmenity = (amenity: string) => {
     let updated;
     if (currentAmenities.includes(amenity)) {
@@ -44,6 +60,14 @@ export default function FilterSidebar({ locale }: { locale: string }) {
     applyFilters({ amenities: updated.length > 0 ? updated.join(",") : null });
   };
 
+  const unitTypeOptions = [
+    { value: "studio", labelEn: "Studio", labelAr: "استوديو" },
+    { value: "1br", labelEn: "1 Bedroom", labelAr: "غرفة وصالة" },
+    { value: "2br", labelEn: "2 Bedrooms", labelAr: "غرفتين وصالة" },
+    { value: "3br", labelEn: "3 Bedrooms", labelAr: "ثلاث غرف وصالة" },
+    { value: "villa", labelEn: "Villa", labelAr: "فيلا" },
+  ];
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm sticky top-24">
       <div className="flex justify-between items-center mb-6">
@@ -51,11 +75,33 @@ export default function FilterSidebar({ locale }: { locale: string }) {
           {isEn ? "Filters" : "عوامل التصفية"}
         </h2>
         <button
-          onClick={() => router.push(pathname)}
+          onClick={clearAll}
           className="text-sm text-gray-500 hover:text-nassayem underline"
         >
           {isEn ? "Clear all" : "مسح الكل"}
         </button>
+      </div>
+
+      {/* Unit Type */}
+      <div className="mb-8">
+        <h3 className="font-semibold text-gray-900 mb-4">
+          {isEn ? "Unit Type" : "نوع الوحدة"}
+        </h3>
+        <select
+          value={unitType}
+          onChange={(e) => {
+            setUnitType(e.target.value);
+            applyFilters({ unitType: e.target.value || null });
+          }}
+          className="w-full border border-gray-200 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:border-nassayem focus:ring-1 focus:ring-nassayem transition-all cursor-pointer"
+        >
+          <option value="">{isEn ? "Any Type" : "أي نوع"}</option>
+          {unitTypeOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {isEn ? opt.labelEn : opt.labelAr}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Rental Type */}

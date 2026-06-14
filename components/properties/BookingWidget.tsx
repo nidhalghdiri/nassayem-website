@@ -15,6 +15,9 @@ type BookingWidgetProps = {
   priceMonthly: number | null;
   rentType: string;
   locale: string;
+  maxGuests?: number;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
 };
 
 export default function BookingWidget({
@@ -24,13 +27,22 @@ export default function BookingWidget({
   priceMonthly,
   rentType,
   locale,
+  maxGuests,
+  initialCheckIn = "",
+  initialCheckOut = "",
 }: BookingWidgetProps) {
   const router = useRouter();
   const isEn = locale === "en";
 
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+  // Pre-fill with the dates the visitor picked on the home page / listing so
+  // the price calculates immediately on load. The effect below fires on mount
+  // because checkIn/checkOut are already set.
+  const [checkIn, setCheckIn] = useState(initialCheckIn);
+  const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [guests, setGuests] = useState("1");
+
+  // Guest selector goes up to 10 (or the unit's capacity if it's higher).
+  const guestOptions = Math.max(10, maxGuests ?? 1);
 
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,10 +260,11 @@ export default function BookingWidget({
             onChange={(e) => setGuests(e.target.value)}
             className="w-full mt-1 text-sm text-gray-900 focus:outline-none appearance-none bg-transparent cursor-pointer font-medium"
           >
-            <option value="1">1 {isEn ? "guest" : "ضيف"}</option>
-            <option value="2">2 {isEn ? "guests" : "ضيوف"}</option>
-            <option value="3">3 {isEn ? "guests" : "ضيوف"}</option>
-            <option value="4">4 {isEn ? "guests" : "ضيوف"}</option>
+            {Array.from({ length: guestOptions }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={String(n)}>
+                {n} {isEn ? (n === 1 ? "guest" : "guests") : n === 1 ? "ضيف" : "ضيوف"}
+              </option>
+            ))}
           </select>
         </div>
       </div>

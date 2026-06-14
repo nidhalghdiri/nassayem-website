@@ -10,15 +10,44 @@ type UnitWithRelations = Prisma.UnitGetPayload<{
   include: { images: true; building: true };
 }>;
 
+type CardPrice = {
+  dailyAverage: number;
+  grandTotal: number;
+  totalNights: number;
+  hasPromotion: boolean;
+};
+
 export default function PropertyCard({
   unit,
   locale,
+  checkIn,
+  checkOut,
+  price,
 }: {
   unit: UnitWithRelations;
   locale: string;
+  checkIn?: string;
+  checkOut?: string;
+  price?: CardPrice | null;
 }) {
   const isEn = locale === "en";
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Carry the selected stay dates into the details page so its booking widget
+  // opens pre-filled (and immediately shows the price) instead of blank.
+  const detailsHref =
+    checkIn && checkOut
+      ? `/${locale}/properties/${unit.id}?checkIn=${checkIn}&checkOut=${checkOut}`
+      : `/${locale}/properties/${unit.id}`;
+
+  const isMonthly = unit.rentType === "MONTHLY";
+  const perLabel = isMonthly
+    ? isEn
+      ? "/ month"
+      : "/ شهر"
+    : isEn
+      ? "/ night"
+      : "/ ليلة";
 
   // Use uploaded images, or fallback to a placeholder if none exist
   const images =
@@ -39,7 +68,7 @@ export default function PropertyCard({
   };
 
   return (
-    <Link href={`/${locale}/properties/${unit.id}`} className="group block">
+    <Link href={detailsHref} className="group block">
       {/* Slider Container */}
       <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4 relative shadow-sm">
         <Image
@@ -164,12 +193,37 @@ export default function PropertyCard({
       </div>
 
       <div className="mt-3 border-t border-gray-100 pt-3">
-        <span className="inline-flex items-center gap-1.5 bg-nassayem/10 text-nassayem font-bold text-sm px-4 py-2 rounded-xl group-hover:bg-nassayem group-hover:text-white transition-colors">
-          {isEn ? "Show Price" : "عرض السعر"}
-          <svg className="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </span>
+        {price ? (
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-extrabold text-gray-900">
+                  {price.dailyAverage}
+                </span>
+                <span className="text-sm font-medium text-gray-500">
+                  {isEn ? "OMR" : "ر.ع"} {perLabel}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isEn
+                  ? `Total ${price.grandTotal} OMR · ${price.totalNights} night${price.totalNights === 1 ? "" : "s"}`
+                  : `الإجمالي ${price.grandTotal} ر.ع · ${price.totalNights} ${price.totalNights === 1 ? "ليلة" : "ليالٍ"}`}
+              </p>
+            </div>
+            {price.hasPromotion && (
+              <span className="shrink-0 inline-flex items-center bg-nassayem/10 text-nassayem font-bold text-[10px] uppercase tracking-wide px-2 py-1 rounded-full">
+                {isEn ? "Promo" : "عرض"}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 bg-nassayem/10 text-nassayem font-bold text-sm px-4 py-2 rounded-xl group-hover:bg-nassayem group-hover:text-white transition-colors">
+            {isEn ? "Show Price" : "عرض السعر"}
+            <svg className="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
+        )}
       </div>
     </Link>
   );
