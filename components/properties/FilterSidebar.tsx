@@ -16,6 +16,12 @@ export default function FilterSidebar({ locale }: { locale: string }) {
   });
   const [rentType, setRentType] = useState(searchParams.get("type") || "daily");
   const [unitType, setUnitType] = useState(searchParams.get("unitType") || "");
+  const [dates, setDates] = useState({
+    checkIn: searchParams.get("checkIn") || "",
+    checkOut: searchParams.get("checkOut") || "",
+  });
+
+  const today = new Date().toISOString().split("T")[0];
 
   // Amenities as an array
   const currentAmenities = searchParams.get("amenities")?.split(",") || [];
@@ -35,19 +41,27 @@ export default function FilterSidebar({ locale }: { locale: string }) {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // Reset the filter fields but keep the selected stay dates so card prices
-  // stay visible after clearing.
+  // Update a stay date. Changing check-in clears a now-invalid check-out so
+  // pricing never runs on an out-of-order range.
+  const handleDateChange = (field: "checkIn" | "checkOut", value: string) => {
+    const next = { ...dates, [field]: value };
+    if (field === "checkIn" && next.checkOut && next.checkOut <= value) {
+      next.checkOut = "";
+    }
+    setDates(next);
+    applyFilters({
+      checkIn: next.checkIn || null,
+      checkOut: next.checkOut || null,
+    });
+  };
+
+  // Reset every filter field, including the stay dates.
   const clearAll = () => {
     setUnitType("");
     setRentType("daily");
     setPriceRange({ min: "", max: "" });
-    const params = new URLSearchParams();
-    const checkIn = searchParams.get("checkIn");
-    const checkOut = searchParams.get("checkOut");
-    if (checkIn) params.set("checkIn", checkIn);
-    if (checkOut) params.set("checkOut", checkOut);
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    setDates({ checkIn: "", checkOut: "" });
+    router.push(pathname, { scroll: false });
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -80,6 +94,39 @@ export default function FilterSidebar({ locale }: { locale: string }) {
         >
           {isEn ? "Clear all" : "مسح الكل"}
         </button>
+      </div>
+
+      {/* Stay Dates */}
+      <div className="mb-8">
+        <h3 className="font-semibold text-gray-900 mb-4">
+          {isEn ? "Stay Dates" : "تواريخ الإقامة"}
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">
+              {isEn ? "Check-in" : "تاريخ الدخول"}
+            </label>
+            <input
+              type="date"
+              value={dates.checkIn}
+              min={today}
+              onChange={(e) => handleDateChange("checkIn", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:border-nassayem focus:ring-1 focus:ring-nassayem transition-all cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">
+              {isEn ? "Check-out" : "تاريخ الخروج"}
+            </label>
+            <input
+              type="date"
+              value={dates.checkOut}
+              min={dates.checkIn || today}
+              onChange={(e) => handleDateChange("checkOut", e.target.value)}
+              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:border-nassayem focus:ring-1 focus:ring-nassayem transition-all cursor-pointer"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Unit Type */}
