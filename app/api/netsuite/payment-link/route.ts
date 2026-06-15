@@ -40,7 +40,13 @@ export async function OPTIONS() {
 type CreatePaymentLinkBody = {
   netsuiteReservationId: string;
   netsuiteReservationRef?: string;
-  netsuiteBuildingId?: string;
+  // NetSuite building. The live SuiteScript sends `buildingId` (the NetSuite
+  // internal id, e.g. "77") plus `buildingName`. `netsuiteBuildingId` is
+  // accepted as an alias. We match this against Building.netsuiteId to resolve
+  // the website building — it is NOT the website building id itself.
+  buildingId?: string | number | null;
+  buildingName?: string | null;
+  netsuiteBuildingId?: string | number | null;
   unitCode?: string;
   checkIn?: string;  // ISO date
   checkOut?: string; // ISO date
@@ -93,6 +99,7 @@ export async function POST(req: NextRequest) {
   const {
     netsuiteReservationId,
     netsuiteReservationRef,
+    buildingId: rawBuildingId,
     netsuiteBuildingId,
     unitCode,
     checkIn,
@@ -156,17 +163,22 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Resolve the website building from the NetSuite building id ──────────
-  // We match the raw NetSuite building id against Building.netsuiteId (set in
-  // the admin Buildings form). buildingId is what receptionist views filter
-  // on; null when NetSuite sends no id or no building is mapped to it yet.
-  const nsBuildingId = netsuiteBuildingId?.trim() || null;
-  let buildingId: string | null = null;
+  // The live script sends `buildingId`; `netsuiteBuildingId` is an alias. We
+  // match the raw NetSuite id against Building.netsuiteId (set in the admin
+  // Buildings form). The resolved websiteBuildingId is what receptionist views
+  // filter on; null when NetSuite sends no id or no building is mapped to it yet.
+  const rawNsBuilding = netsuiteBuildingId ?? rawBuildingId;
+  const nsBuildingId =
+    rawNsBuilding != null && String(rawNsBuilding).trim() !== ""
+      ? String(rawNsBuilding).trim()
+      : null;
+  let websiteBuildingId: string | null = null;
   if (nsBuildingId) {
     const building = await prisma.building.findUnique({
       where: { netsuiteId: nsBuildingId },
       select: { id: true },
     });
-    buildingId = building?.id ?? null;
+    websiteBuildingId = building?.id ?? null;
   }
 
   // 5. Create new link ─────────────────────────────────────────────────────
@@ -178,7 +190,7 @@ export async function POST(req: NextRequest) {
       netsuiteReservationId,
       netsuiteReservationRef: netsuiteReservationRef ?? null,
       netsuiteBuildingId: nsBuildingId,
-      buildingId,
+      buildingId: websiteBuildingId,
       unitCode: unitCode ?? null,
       checkIn: checkIn ? new Date(checkIn) : null,
       checkOut: checkOut ? new Date(checkOut) : null,

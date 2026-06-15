@@ -144,6 +144,7 @@ define(["N/record", "N/https", "N/runtime", "N/format", "N/log", "N/search"],
       var checkOut = isoDate(safeGetValue(rec, FIELD_IDS.checkOut));
       var unitCode = safeGetValue(rec, FIELD_IDS.unitCode);
       var buildingId = safeGetValue(rec, FIELD_IDS.buildingId);
+      var buildingName = safeGetText(rec, FIELD_IDS.buildingId);
       var recordDescription = safeGetValue(rec, FIELD_IDS.description);
 
       // ── Receptionist (current user) ─────────────────────────────────────────
@@ -164,7 +165,10 @@ define(["N/record", "N/https", "N/runtime", "N/format", "N/log", "N/search"],
       var payload = {
         netsuiteReservationId: String(recordId),
         netsuiteReservationRef: reservationRef,
-        netsuiteBuildingId: buildingId ? String(buildingId) : null,
+        // NetSuite building internal id (matched against Building.netsuiteId on
+        // the website) + its display name. buildingName is informational only.
+        buildingId: buildingId ? String(buildingId) : null,
+        buildingName: buildingName || null,
         unitCode: unitCode || null,
         checkIn: checkIn,
         checkOut: checkOut,
