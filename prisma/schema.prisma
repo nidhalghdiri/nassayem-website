@@ -119,12 +119,18 @@ model Building {
   descriptionAr String?
   imageUrl      String?
 
+  // Links this website building to its counterpart in NetSuite. Set in the
+  // admin Buildings form; matched against the building id NetSuite sends with
+  // each payment link so receptionists can be scoped to their building(s).
+  netsuiteId String? @unique
+
   // Relations
   units               Unit[]
   tasks               Task[]
   assignedStaff       AdminUserBuilding[]
   promotionRows       PromotionRow[]
   unitTypeDailyPrices UnitTypeDailyPrice[]
+  netsuitePayments    NetsuitePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -328,6 +334,13 @@ model NetsuitePayment {
   checkIn                DateTime?
   checkOut               DateTime?
 
+  // Building scope. netsuiteBuildingId is the raw building id NetSuite sends;
+  // buildingId is the resolved website Building (matched via Building.netsuiteId)
+  // and is what receptionist views filter on. Null when no match is found.
+  netsuiteBuildingId String?
+  buildingId         String?
+  building           Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+
   // Customer details (provided by NetSuite, may be confirmed/edited on the public page)
   customerName  String
   customerPhone String?
@@ -367,6 +380,7 @@ model NetsuitePayment {
   @@index([status])
   @@index([netsuiteReservationId])
   @@index([createdAt])
+  @@index([buildingId])
 }
 
 // ------------------------------------------------------

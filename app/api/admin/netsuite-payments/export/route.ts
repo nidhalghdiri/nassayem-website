@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
 import prisma from "@/lib/prisma";
-import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { buildNetsuiteWhere } from "@/lib/adminPaymentFilters";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { buildExcel, excelHeaders, type ExcelColumn } from "@/lib/excel";
@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const COLUMNS: ExcelColumn[] = [
   { header: "Reservation Ref", key: "ref", width: 18 },
   { header: "Reservation ID", key: "resId", width: 18 },
+  { header: "Building", key: "building", width: 22 },
   { header: "Unit Code", key: "unitCode", width: 12 },
   { header: "Customer Name", key: "customerName", width: 24 },
   { header: "Email", key: "customerEmail", width: 26 },
@@ -43,18 +44,28 @@ export async function GET(req: NextRequest) {
   if (!adminUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (adminUser.role !== "MANAGER" && adminUser.role !== "RECEPTIONIST") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Receptionists may only export rows for their assigned buildings.
+  const scope = await getBuildingScopeFilter(adminUser);
 
   const sp = req.nextUrl.searchParams;
-  const where = buildNetsuiteWhere({
-    status: sp.get("status") ?? undefined,
-    q: sp.get("q") ?? undefined,
-    from: sp.get("from") ?? undefined,
-    to: sp.get("to") ?? undefined,
-  });
+  const where = {
+    ...buildNetsuiteWhere({
+      status: sp.get("status") ?? undefined,
+      q: sp.get("q") ?? undefined,
+      from: sp.get("from") ?? undefined,
+      to: sp.get("to") ?? undefined,
+    }),
+    ...(scope ?? {}),
+  };
 
   const payments = await prisma.netsuitePayment.findMany({
     where,
     orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+    include: { building: { select: { nameEn: true } } },
   });
 
   const rows = payments.map((p) => {
@@ -62,6 +73,7 @@ export async function GET(req: NextRequest) {
     return {
       ref: p.netsuiteReservationRef ?? "",
       resId: p.netsuiteReservationId,
+      building: p.building?.nameEn ?? "",
       unitCode: p.unitCode ?? "",
       customerName: p.customerName,
       customerEmail: p.customerEmail ?? "",

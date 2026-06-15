@@ -194,7 +194,31 @@ export default function BuildingForm({
           </div>
         </div>
       </div>
-      {/* 3. Building Cover Image (NEW SECTION) */}
+      {/* 3. NetSuite Link */}
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+        <h2 className="text-xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">
+          {isEn ? "NetSuite Link (Optional)" : "ربط NetSuite (اختياري)"}
+        </h2>
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            {isEn ? "NetSuite Building ID" : "معرّف المبنى في NetSuite"}
+            <span className="text-gray-400 font-normal ms-2 text-xs">
+              {isEn
+                ? "links NetSuite payment links to this building so assigned receptionists can see them"
+                : "يربط روابط الدفع من NetSuite بهذا المبنى ليراها موظفو الاستقبال المعنيون"}
+            </span>
+          </label>
+          <input
+            type="text"
+            name="netsuiteId"
+            defaultValue={initialData?.netsuiteId ?? ""}
+            placeholder="e.g. 1024"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all dir-ltr"
+          />
+        </div>
+      </div>
+
+      {/* 4. Building Cover Image (NEW SECTION) */}
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
         <h2 className="text-xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">
           {isEn ? "Building Cover Image" : "صورة غلاف المبنى"}
@@ -219,7 +243,7 @@ export default function BuildingForm({
         </div>
       </div>
 
-      {/* 4. Action Buttons */}
+      {/* 5. Action Buttons */}
       <div className="flex justify-end gap-4 pt-4">
         <Link
           href={`/${locale}/admin/buildings`}

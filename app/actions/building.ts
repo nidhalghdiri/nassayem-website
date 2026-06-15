@@ -14,6 +14,7 @@ export async function createBuilding(formData: FormData, locale: string) {
   const longitude = formData.get("longitude") as string;
   const descriptionEn = formData.get("descriptionEn") as string;
   const descriptionAr = formData.get("descriptionAr") as string;
+  const netsuiteId = (formData.get("netsuiteId") as string)?.trim() || null;
 
   // Extract the image file
   const imageFile = formData.get("image") as File;
@@ -55,6 +56,7 @@ export async function createBuilding(formData: FormData, locale: string) {
       longitude: longitude ? parseFloat(longitude) : null,
       descriptionEn,
       descriptionAr,
+      netsuiteId,
       imageUrl, // Save the URL to the database
     },
   });
@@ -77,6 +79,7 @@ export async function updateBuilding(
   const longitude = formData.get("longitude") as string;
   const descriptionEn = formData.get("descriptionEn") as string;
   const descriptionAr = formData.get("descriptionAr") as string;
+  const netsuiteId = (formData.get("netsuiteId") as string)?.trim() || null;
 
   // Handle optional image upload logic here if you want to replace it
   // (Assuming image upload logic is similar to createBuilding)
@@ -92,6 +95,7 @@ export async function updateBuilding(
       longitude: longitude ? parseFloat(longitude) : null,
       descriptionEn,
       descriptionAr,
+      netsuiteId,
       // imageUrl: imageUrl || undefined, // Only update if new image provided
     },
   });

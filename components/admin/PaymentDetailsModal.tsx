@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
-import type { NetsuitePayment } from "@prisma/client";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
+import type { NetsuitePaymentWithBuilding } from "@/components/admin/NetsuitePaymentsList";
 
 type Props = {
-  payment: NetsuitePayment | null;
+  payment: NetsuitePaymentWithBuilding | null;
   isEn: boolean;
   onClose: () => void;
 };
@@ -390,6 +390,17 @@ export default function PaymentDetailsModal({ payment, isEn, onClose }: Props) {
                 label={isEn ? "Reservation ID" : "معرّف الحجز"}
                 value={payment.netsuiteReservationId}
                 mono
+                isEn={isEn}
+              />
+              <Field
+                label={isEn ? "Building" : "المبنى"}
+                value={
+                  payment.building
+                    ? isEn
+                      ? payment.building.nameEn
+                      : payment.building.nameAr
+                    : null
+                }
                 isEn={isEn}
               />
               <Field

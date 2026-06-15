@@ -33,3 +33,30 @@ export async function requireManager(): Promise<AdminUser> {
   }
   return user;
 }
+
+/**
+ * Returns a Prisma `where` fragment that scopes building-owned records to the
+ * buildings a user is allowed to see, or `null` when the user may see all rows.
+ *
+ *   - MANAGER / SUPERVISOR → `null` (no restriction).
+ *   - RECEPTIONIST         → `{ buildingId: { in: [...assigned building ids] } }`.
+ *                            An empty array means "sees nothing".
+ *   - any other role       → `{ buildingId: { in: [] } }` (sees nothing).
+ *
+ * This is strict: records with a null `buildingId` are excluded for
+ * receptionists, since they cannot be attributed to an assigned building.
+ * Mirrors the visibility logic already used by the Tasks board.
+ */
+export async function getBuildingScopeFilter(
+  user: AdminUser,
+): Promise<{ buildingId: { in: string[] } } | null> {
+  if (user.role === "MANAGER" || user.role === "SUPERVISOR") return null;
+  if (user.role === "RECEPTIONIST") {
+    const assigned = await prisma.adminUserBuilding.findMany({
+      where: { adminUserId: user.id },
+      select: { buildingId: true },
+    });
+    return { buildingId: { in: assigned.map((b) => b.buildingId) } };
+  }
+  return { buildingId: { in: [] } };
+}

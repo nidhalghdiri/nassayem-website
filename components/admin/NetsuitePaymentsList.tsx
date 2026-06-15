@@ -6,6 +6,11 @@ import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
 import type { NetsuitePayment } from "@prisma/client";
 import VoidNetsuitePaymentButton from "@/components/admin/VoidNetsuitePaymentButton";
+
+/** NetsuitePayment plus the resolved website building (name only). */
+export type NetsuitePaymentWithBuilding = NetsuitePayment & {
+  building: { id: string; nameEn: string; nameAr: string } | null;
+};
 import CopyLinkButton from "@/components/admin/CopyLinkButton";
 import PaymentDetailsModal from "@/components/admin/PaymentDetailsModal";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
@@ -29,7 +34,7 @@ function BankLine({ label, value }: { label: string; value: string }) {
 }
 
 type Props = {
-  payments: NetsuitePayment[];
+  payments: NetsuitePaymentWithBuilding[];
   baseUrl: string;
   isEn: boolean;
   isManager: boolean;
@@ -156,7 +161,8 @@ export default function NetsuitePaymentsList({
   isManager,
 }: Props) {
   const dateLocale = isEn ? enUS : ar;
-  const [selected, setSelected] = useState<NetsuitePayment | null>(null);
+  const [selected, setSelected] =
+    useState<NetsuitePaymentWithBuilding | null>(null);
 
   if (payments.length === 0) {
     return (
@@ -202,6 +208,9 @@ export default function NetsuitePaymentsList({
                   {isEn ? "Reservation" : "الحجز"}
                 </th>
                 <th className="px-4 py-4 font-semibold text-start">
+                  {isEn ? "Building" : "المبنى"}
+                </th>
+                <th className="px-4 py-4 font-semibold text-start">
                   {isEn ? "Customer" : "العميل"}
                 </th>
                 <th className="px-4 py-4 font-semibold text-start">
@@ -244,6 +253,15 @@ export default function NetsuitePaymentsList({
                         <div className="text-xs text-gray-400 mt-1">
                           {p.unitCode}
                         </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      {p.building ? (
+                        <div className="text-sm font-semibold text-gray-700">
+                          {isEn ? p.building.nameEn : p.building.nameAr}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -385,6 +403,11 @@ export default function NetsuitePaymentsList({
                     <p className="font-bold text-gray-900 text-sm mt-1.5">
                       {p.customerName}
                     </p>
+                    {p.building && (
+                      <p className="text-xs font-semibold text-gray-600 mt-0.5">
+                        {isEn ? p.building.nameEn : p.building.nameAr}
+                      </p>
+                    )}
                     {p.unitCode && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {p.unitCode}

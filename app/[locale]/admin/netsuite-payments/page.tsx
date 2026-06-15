@@ -1,9 +1,13 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import NetsuitePaymentsList from "@/components/admin/NetsuitePaymentsList";
 import ListFilterBar from "@/components/admin/ListFilterBar";
-import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { buildNetsuiteWhere } from "@/lib/adminPaymentFilters";
+
+// Roles allowed to view the NetSuite Payments module (mirrors the sidebar nav).
+const ALLOWED_ROLES = ["MANAGER", "RECEPTIONIST"] as const;
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -35,33 +39,48 @@ export default async function NetsuitePaymentsAdminPage({
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
   const adminUser = await getCurrentAdminUser();
-  const isManager = adminUser?.role === "MANAGER";
+  // Server-side role guard: the sidebar only hides the link, so enforce here
+  // too in case the URL is hit directly.
+  if (!adminUser || !ALLOWED_ROLES.includes(adminUser.role as never)) {
+    redirect(`/${locale}/admin`);
+  }
+  const isManager = adminUser.role === "MANAGER";
+
+  // Receptionists are scoped to their assigned buildings; managers see all.
+  const scope = await getBuildingScopeFilter(adminUser);
 
   const activeFilter = rawStatus?.toUpperCase() ?? "ALL";
 
   // Combine status + text search + payment-date range. The "Inactive" tab is
   // the only way to see soft-deleted records.
-  const whereClause = buildNetsuiteWhere({
-    status: rawStatus,
-    q: searchQuery,
-    from,
-    to,
-  });
+  const whereClause = {
+    ...buildNetsuiteWhere({
+      status: rawStatus,
+      q: searchQuery,
+      from,
+      to,
+    }),
+    ...(scope ?? {}),
+  };
 
   const payments = await prisma.netsuitePayment.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
     take: 200,
+    include: {
+      building: { select: { id: true, nameEn: true, nameAr: true } },
+    },
   });
 
   // Counts: status counts are over active rows; INACTIVE is its own count.
+  // Both respect the building scope so receptionist tab badges stay accurate.
   const [statusCounts, inactiveCount] = await Promise.all([
     prisma.netsuitePayment.groupBy({
       by: ["status"],
-      where: { isActive: true },
+      where: { isActive: true, ...(scope ?? {}) },
       _count: { status: true },
     }),
-    prisma.netsuitePayment.count({ where: { isActive: false } }),
+    prisma.netsuitePayment.count({ where: { isActive: false, ...(scope ?? {}) } }),
   ]);
   const countMap: Record<string, number> = { ALL: 0, INACTIVE: inactiveCount };
   statusCounts.forEach((c) => {

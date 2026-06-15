@@ -40,6 +40,7 @@ export async function OPTIONS() {
 type CreatePaymentLinkBody = {
   netsuiteReservationId: string;
   netsuiteReservationRef?: string;
+  netsuiteBuildingId?: string;
   unitCode?: string;
   checkIn?: string;  // ISO date
   checkOut?: string; // ISO date
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
   const {
     netsuiteReservationId,
     netsuiteReservationRef,
+    netsuiteBuildingId,
     unitCode,
     checkIn,
     checkOut,
@@ -153,7 +155,21 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 4. Create new link ─────────────────────────────────────────────────────
+  // 4. Resolve the website building from the NetSuite building id ──────────
+  // We match the raw NetSuite building id against Building.netsuiteId (set in
+  // the admin Buildings form). buildingId is what receptionist views filter
+  // on; null when NetSuite sends no id or no building is mapped to it yet.
+  const nsBuildingId = netsuiteBuildingId?.trim() || null;
+  let buildingId: string | null = null;
+  if (nsBuildingId) {
+    const building = await prisma.building.findUnique({
+      where: { netsuiteId: nsBuildingId },
+      select: { id: true },
+    });
+    buildingId = building?.id ?? null;
+  }
+
+  // 5. Create new link ─────────────────────────────────────────────────────
   const token = generateToken();
 
   const record = await prisma.netsuitePayment.create({
@@ -161,6 +177,8 @@ export async function POST(req: NextRequest) {
       token,
       netsuiteReservationId,
       netsuiteReservationRef: netsuiteReservationRef ?? null,
+      netsuiteBuildingId: nsBuildingId,
+      buildingId,
       unitCode: unitCode ?? null,
       checkIn: checkIn ? new Date(checkIn) : null,
       checkOut: checkOut ? new Date(checkOut) : null,
