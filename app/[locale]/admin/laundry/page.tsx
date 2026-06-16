@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
+import { canSeeAllLaundry } from "@/lib/laundry/permissions";
 import { serializeLaundryOrder } from "@/lib/laundry/serialize";
 import LaundryBoard from "@/components/admin/laundry/LaundryBoard";
 import type { TStaffRole } from "@/lib/tasks/constants";
@@ -38,8 +39,12 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
   const buildingId = sp.buildingId as string | undefined;
   const search = sp.search as string | undefined;
 
-  // Receptionists are scoped to their assigned buildings; everyone else sees all.
-  const scope = await getBuildingScopeFilter(adminUser);
+  // Manager/Supervisor/Laundry see all; receptionists are scoped to their
+  // assigned buildings. (getBuildingScopeFilter alone would hide everything
+  // from the LAUNDRY role, which it doesn't know about.)
+  const scope = canSeeAllLaundry(role)
+    ? null
+    : await getBuildingScopeFilter(adminUser);
 
   const [orders, buildings] = await Promise.all([
     prisma.laundryOrder.findMany({

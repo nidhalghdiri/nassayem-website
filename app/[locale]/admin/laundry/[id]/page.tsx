@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
+import { canSeeAllLaundry } from "@/lib/laundry/permissions";
 import { serializeLaundryOrder } from "@/lib/laundry/serialize";
 import LaundryDetail from "@/components/admin/laundry/LaundryDetail";
 import type { LaundryEventItem } from "@/components/admin/laundry/types";
@@ -42,8 +43,11 @@ export default async function LaundryOrderDetailPage({ params }: PageProps) {
 
   if (!order) notFound();
 
-  // Receptionists may only open orders for their assigned buildings.
-  const scope = await getBuildingScopeFilter(adminUser);
+  // Manager/Supervisor/Laundry may open any order; receptionists only their
+  // assigned buildings.
+  const scope = canSeeAllLaundry(role)
+    ? null
+    : await getBuildingScopeFilter(adminUser);
   if (scope && !scope.buildingId.in.includes(order.buildingId)) {
     redirect(`/${locale}/admin/laundry`);
   }
