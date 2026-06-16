@@ -14,16 +14,18 @@ type Props = {
 
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions)
-// SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks
-// RECEPTIONIST : Dashboard, Tasks
+// SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks, Laundry
+// RECEPTIONIST : Dashboard, Tasks, Laundry
 // HOUSEKEEPING : Dashboard, Tasks
 // MAINTENANCE  : Dashboard, Tasks
+// LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "blog", "recommendations", "users", "settings"],
-  SUPERVISOR:   ["dashboard", "buildings", "units", "tasks"],
-  RECEPTIONIST: ["dashboard", "netsuitePayments", "tasks"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "blog", "recommendations", "users", "settings"],
+  SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry"],
+  RECEPTIONIST: ["dashboard", "netsuitePayments", "tasks", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks"],
   MAINTENANCE:  ["dashboard", "tasks"],
+  LAUNDRY:      ["dashboard", "laundry"],
 };
 
 export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }: Props) {
@@ -97,6 +99,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/tasks`,
       exact: false,
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    },
+    {
+      key: "laundry",
+      nameEn: "Laundry",
+      nameAr: "المغسلة",
+      href: `/${locale}/admin/laundry`,
+      exact: false,
+      icon: "M12 6a6 6 0 016 6c0 3.314-2.686 6-6 6s-6-2.686-6-6a6 6 0 016-6zm0 0V4m-4.5.5l1.5 1.5M5 9H3m18 0h-2M9.5 12a2.5 2.5 0 015 0",
     },
     {
       key: "blog",

@@ -258,3 +258,54 @@ export async function notifyTaskCompleted({
     ], taskId).catch(console.error);
   }
 }
+
+/**
+ * Notify one or more users about a laundry order status change. A single
+ * template pair covers every stage — the localized status label carries the
+ * meaning (e.g. "Ready for collection", "Out for delivery").
+ *
+ * Template: nassayem_laundry_update (EN) / nassayem_laundry_update_ar (AR)
+ * Params: [1] name, [2] orderCode, [3] building, [4] status, [5] neededDate
+ * Button URL suffix: orderId  →  /{locale}/admin/laundry?orderId={{1}}
+ *
+ * Fire-and-forget and self-disabling: if the WhatsApp credentials or template
+ * are not configured, sendTemplate simply logs and returns.
+ */
+export async function notifyLaundryUpdate({
+  recipients,
+  orderCode,
+  buildingName,
+  orderId,
+  statusLabelEn,
+  statusLabelAr,
+  neededDate,
+}: {
+  recipients: NotifyUser[];
+  orderCode: string;
+  buildingName: string;
+  orderId: string;
+  statusLabelEn: string;
+  statusLabelAr: string;
+  neededDate: Date;
+}): Promise<void> {
+  for (const user of recipients) {
+    if (!user.whatsappNumber) continue;
+    const isAr = user.preferredLanguage === "ar";
+    const langCode = isAr ? "ar" : "en_US";
+    const name = user.name ?? "Team Member";
+    const templateName = isAr
+      ? "nassayem_laundry_update_ar"
+      : "nassayem_laundry_update";
+    const neededStr = neededDate.toLocaleDateString(isAr ? "ar-OM" : "en-GB", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+
+    sendTemplate(
+      user.whatsappNumber,
+      templateName,
+      langCode,
+      [name, orderCode, buildingName, isAr ? statusLabelAr : statusLabelEn, neededStr],
+      orderId,
+    ).catch(console.error);
+  }
+}

@@ -55,6 +55,26 @@ enum StaffRole {
   RECEPTIONIST
   HOUSEKEEPING
   MAINTENANCE
+  LAUNDRY // Laundry-place operator — receives, processes and marks laundry ready
+}
+
+// ------------------------------------------------------
+// ENUMS — Laundry management
+// ------------------------------------------------------
+
+// Lifecycle of a laundry order as it moves through the custody chain:
+// Receptionist → Supervisor → Laundry man → Supervisor → Receptionist.
+// A counted quantity is captured at each handoff so a missing piece can be
+// pinned to the exact leg where it disappeared.
+enum LaundryStatus {
+  REQUESTED // Receptionist submitted; waiting for a supervisor to collect
+  PICKED_UP // Supervisor collected from the building, en route to laundry
+  AT_LAUNDRY // Laundry man confirmed receipt, pending process
+  PROCESSING // Laundry man is washing
+  READY // Finished, ready for the supervisor to collect
+  OUT_FOR_DELIVERY // Supervisor collected ready laundry, en route to building
+  DELIVERED // Receptionist received & verified counts — order done
+  CANCELLED
 }
 
 enum TaskType {
@@ -131,6 +151,7 @@ model Building {
   promotionRows       PromotionRow[]
   unitTypeDailyPrices UnitTypeDailyPrice[]
   netsuitePayments    NetsuitePayment[]
+  laundryOrders       LaundryOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -404,6 +425,12 @@ model AdminUser {
   taskActivities TaskActivity[]
   posts          Post[]
 
+  // Laundry relations
+  laundryRequested  LaundryOrder[] @relation("LaundryRequestedBy")
+  laundrySupervised LaundryOrder[] @relation("LaundrySupervisor")
+  laundryProcessed  LaundryOrder[] @relation("LaundryUser")
+  laundryEvents     LaundryEvent[]
+
   // Receptionist building scope
   assignedBuildings AdminUserBuilding[]
 
@@ -446,12 +473,12 @@ model Task {
   parentTaskId String?
 
   // Relations
-  building   Building   @relation(fields: [buildingId], references: [id])
+  building   Building  @relation(fields: [buildingId], references: [id])
   // (no Unit relation — unitNumber is free text)
-  createdBy  AdminUser  @relation("TaskCreatedBy", fields: [createdById], references: [id])
-  assignedTo AdminUser  @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  parentTask Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks   Task[]     @relation("SubTasks")
+  createdBy  AdminUser @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignedTo AdminUser @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  parentTask Task?     @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks   Task[]    @relation("SubTasks")
 
   notes               TaskNote[]
   photos              TaskPhoto[]
@@ -572,6 +599,112 @@ model InspectionItem {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------
+// MODELS — Laundry management
+// ------------------------------------------------------
+
+// Catalog of launderable items (Bed sheet, Pillow case, Carpet, Towel…).
+// Bilingual, manager-managed. Receptionists pick from this list when
+// requesting laundry instead of typing free text.
+model LaundryItemType {
+  id           String  @id @default(uuid())
+  nameEn       String
+  nameAr       String
+  iconSvg      String? // optional SVG path for the item icon
+  displayOrder Int     @default(0)
+  isActive     Boolean @default(true) // false = retired, hidden from new requests
+
+  orderItems LaundryOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+}
+
+model LaundryOrder {
+  id        String @id @default(uuid())
+  orderCode String @unique // Short human-readable id, e.g. LDY-K4X7Q2
+
+  // Location
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+
+  // People. Pull model — supervisorId / laundryUserId are filled in when a
+  // supervisor collects the laundry and when the laundry man receives it.
+  requestedById String
+  requestedBy   AdminUser  @relation("LaundryRequestedBy", fields: [requestedById], references: [id])
+  supervisorId  String?
+  supervisor    AdminUser? @relation("LaundrySupervisor", fields: [supervisorId], references: [id])
+  laundryUserId String?
+  laundryUser   AdminUser? @relation("LaundryUser", fields: [laundryUserId], references: [id])
+
+  priority   TaskPriority  @default(MEDIUM)
+  status     LaundryStatus @default(REQUESTED)
+  neededDate DateTime // when the receptionist needs the laundry back
+  notes      String?       @db.Text
+
+  // Per-stage custody timestamps (null until that handoff occurs)
+  pickedUpAt       DateTime?
+  atLaundryAt      DateTime?
+  processingAt     DateTime?
+  readyAt          DateTime?
+  outForDeliveryAt DateTime?
+  deliveredAt      DateTime?
+
+  // Relations
+  items  LaundryOrderItem[]
+  events LaundryEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([buildingId])
+  @@index([requestedById])
+  @@index([neededDate])
+}
+
+// One line per item type on an order. The count columns are the discrepancy
+// engine: each is filled by the custodian at that handoff, so a missing piece
+// can be traced to the exact leg where the count dropped.
+model LaundryOrderItem {
+  id      String       @id @default(uuid())
+  orderId String
+  order   LaundryOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemTypeId String
+  itemType   LaundryItemType @relation(fields: [itemTypeId], references: [id])
+
+  requestedQty Int // declared by the receptionist
+  pickedUpQty  Int? // counted by the supervisor at the building
+  atLaundryQty Int? // counted by the laundry man on receipt
+  returnedQty  Int? // counted by the supervisor when collecting ready laundry
+  deliveredQty Int? // counted by the receptionist on final return
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+// Auto-generated audit log — one record per meaningful action on an order.
+model LaundryEvent {
+  id      String @id @default(uuid())
+  orderId String
+  userId  String
+  // action: "order_created" | "status_changed" | "note_added" | "cancelled"
+  action  String
+  details String @db.Text
+
+  order LaundryOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  AdminUser    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
 }
 
 // ------------------------------------------------------

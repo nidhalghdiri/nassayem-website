@@ -10,7 +10,8 @@ export type TStaffRole =
   | "SUPERVISOR"
   | "RECEPTIONIST"
   | "HOUSEKEEPING"
-  | "MAINTENANCE";
+  | "MAINTENANCE"
+  | "LAUNDRY";
 
 export const TASK_TYPE_CONFIG: Record<
   TTaskType,
@@ -123,5 +124,10 @@ export const STAFF_ROLE_CONFIG: Record<
     labelEn: "Maintenance",
     labelAr: "صيانة",
     badge: "bg-orange-100 text-orange-700",
+  },
+  LAUNDRY: {
+    labelEn: "Laundry",
+    labelAr: "مغسلة",
+    badge: "bg-indigo-100 text-indigo-700",
   },
 };

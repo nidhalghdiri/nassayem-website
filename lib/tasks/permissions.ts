@@ -13,6 +13,7 @@ export const ASSIGNABLE_ROLES: Record<TStaffRole, TStaffRole[]> = {
   RECEPTIONIST: ["RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
   HOUSEKEEPING: ["MAINTENANCE"], // can submit maintenance requests directly (no approval)
   MAINTENANCE:  [],
+  LAUNDRY:      [], // laundry staff only handle laundry orders, not regular tasks
 };
 
 // ─── Capability checks ───────────────────────────────────────────────────────
