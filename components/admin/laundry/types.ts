@@ -15,7 +15,6 @@ export type LaundryItemLine = {
   nameEn: string;
   nameAr: string;
   requestedQty: number;
-  pickedUpQty: number | null;
   atLaundryQty: number | null;
   returnedQty: number | null;
   deliveredQty: number | null;
@@ -29,7 +28,6 @@ export type SerializedLaundryOrder = {
   neededDate: string;
   notes: string | null;
   createdAt: string;
-  pickedUpAt: string | null;
   atLaundryAt: string | null;
   processingAt: string | null;
   readyAt: string | null;

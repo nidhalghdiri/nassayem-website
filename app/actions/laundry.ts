@@ -298,12 +298,13 @@ async function notifyForStatus(
     neededDate: ctx.neededDate,
   };
 
-  if (status === "PICKED_UP") {
+  if (status === "AT_LAUNDRY") {
+    // Laundry has received it — let supervisors know it's in process.
     notifyLaundryUpdate({
       ...base,
-      recipients: await recipientsForRoles(["LAUNDRY"]),
-      statusLabelEn: "Laundry incoming",
-      statusLabelAr: "غسيل في الطريق",
+      recipients: await recipientsForRoles(["SUPERVISOR"]),
+      statusLabelEn: "Received at laundry",
+      statusLabelAr: "تم الاستلام في المغسلة",
     }).catch(console.error);
   } else if (status === "READY") {
     notifyLaundryUpdate({

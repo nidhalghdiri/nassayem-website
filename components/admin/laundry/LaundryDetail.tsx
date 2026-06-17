@@ -166,7 +166,6 @@ export default function LaundryDetail({
   // Stepper definition: timestamp + responsible person per stage.
   const steps: { key: TLaundryStatus; at: string | null; person: Person | null }[] = [
     { key: "REQUESTED", at: order.createdAt, person: order.requestedBy },
-    { key: "PICKED_UP", at: order.pickedUpAt, person: order.supervisor },
     { key: "AT_LAUNDRY", at: order.atLaundryAt, person: order.laundryUser },
     { key: "PROCESSING", at: order.processingAt, person: order.laundryUser },
     { key: "READY", at: order.readyAt, person: order.laundryUser },
@@ -179,7 +178,6 @@ export default function LaundryDetail({
   for (const item of order.items) {
     const itemCounts: ItemCounts = {
       requestedQty: item.requestedQty,
-      pickedUpQty: item.pickedUpQty,
       atLaundryQty: item.atLaundryQty,
       returnedQty: item.returnedQty,
       deliveredQty: item.deliveredQty,

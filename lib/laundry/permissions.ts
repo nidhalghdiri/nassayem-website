@@ -41,7 +41,7 @@ export function canAdvanceLaundry(
  * Can this actor cancel the order at its current status?
  *  - MANAGER: any non-terminal order.
  *  - The receptionist who created it: only while still REQUESTED.
- *  - SUPERVISOR: while it is in their custody (REQUESTED or PICKED_UP).
+ *  - SUPERVISOR: while it is still in their hands before the laundry receives it.
  */
 export function canCancelLaundry(
   role: TStaffRole,
@@ -51,9 +51,7 @@ export function canCancelLaundry(
   if (isTerminalLaundryStatus(status)) return false;
   if (role === "MANAGER") return true;
   if (isCreator && status === "REQUESTED") return true;
-  if (role === "SUPERVISOR" && (status === "REQUESTED" || status === "PICKED_UP")) {
-    return true;
-  }
+  if (role === "SUPERVISOR" && status === "REQUESTED") return true;
   return false;
 }
 

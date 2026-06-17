@@ -2,8 +2,10 @@
 // Laundry custody workflow — the linear handoff chain and its rules.
 // Safe to import in both Server and Client Components (no Prisma runtime).
 //
-// Chain: REQUESTED → PICKED_UP → AT_LAUNDRY → PROCESSING → READY
+// Chain: REQUESTED → AT_LAUNDRY → PROCESSING → READY
 //        → OUT_FOR_DELIVERY → DELIVERED
+// The supervisor physically collects from the building and brings it to the
+// laundry, but the first tracked/counted event is the laundry man's receipt.
 // Each forward step is performed by one role, optionally captures a counted
 // quantity per item, and stamps a timestamp (and sometimes a person) on the
 // order. CANCELLED is handled separately (see permissions.canCancelLaundry).
@@ -15,7 +17,6 @@ import { COUNT_FIELD_ORDER } from "./constants";
 
 // Timestamp columns on LaundryOrder, one per stage entered.
 export type TLaundryTimestampField =
-  | "pickedUpAt"
   | "atLaundryAt"
   | "processingAt"
   | "readyAt"
@@ -42,16 +43,6 @@ export type LaundryTransition = {
 export const LAUNDRY_TRANSITIONS: LaundryTransition[] = [
   {
     from: "REQUESTED",
-    to: "PICKED_UP",
-    actorRole: "SUPERVISOR",
-    countField: "pickedUpQty",
-    timestampField: "pickedUpAt",
-    personField: "supervisorId",
-    labelEn: "Confirm Pickup",
-    labelAr: "تأكيد الاستلام",
-  },
-  {
-    from: "PICKED_UP",
     to: "AT_LAUNDRY",
     actorRole: "LAUNDRY",
     countField: "atLaundryQty",

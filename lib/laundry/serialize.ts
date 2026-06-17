@@ -9,7 +9,6 @@ type PrismaItem = {
   id: string;
   itemTypeId: string;
   requestedQty: number;
-  pickedUpQty: number | null;
   atLaundryQty: number | null;
   returnedQty: number | null;
   deliveredQty: number | null;
@@ -26,7 +25,6 @@ type PrismaOrder = {
   neededDate: Date;
   notes: string | null;
   createdAt: Date;
-  pickedUpAt: Date | null;
   atLaundryAt: Date | null;
   processingAt: Date | null;
   readyAt: Date | null;
@@ -49,7 +47,6 @@ export function serializeLaundryOrder(o: PrismaOrder): SerializedLaundryOrder {
   const items = o.items.map((i) => {
     const counts: ItemCounts = {
       requestedQty: i.requestedQty,
-      pickedUpQty: i.pickedUpQty,
       atLaundryQty: i.atLaundryQty,
       returnedQty: i.returnedQty,
       deliveredQty: i.deliveredQty,
@@ -62,7 +59,6 @@ export function serializeLaundryOrder(o: PrismaOrder): SerializedLaundryOrder {
       nameEn: i.itemType.nameEn,
       nameAr: i.itemType.nameAr,
       requestedQty: i.requestedQty,
-      pickedUpQty: i.pickedUpQty,
       atLaundryQty: i.atLaundryQty,
       returnedQty: i.returnedQty,
       deliveredQty: i.deliveredQty,
@@ -77,7 +73,6 @@ export function serializeLaundryOrder(o: PrismaOrder): SerializedLaundryOrder {
     neededDate: o.neededDate.toISOString(),
     notes: o.notes,
     createdAt: o.createdAt.toISOString(),
-    pickedUpAt: o.pickedUpAt?.toISOString() ?? null,
     atLaundryAt: o.atLaundryAt?.toISOString() ?? null,
     processingAt: o.processingAt?.toISOString() ?? null,
     readyAt: o.readyAt?.toISOString() ?? null,

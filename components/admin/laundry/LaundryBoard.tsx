@@ -20,7 +20,6 @@ type Props = {
 // Display order of the status sections in the pipeline.
 const SECTION_ORDER: TLaundryStatus[] = [
   "REQUESTED",
-  "PICKED_UP",
   "AT_LAUNDRY",
   "PROCESSING",
   "READY",

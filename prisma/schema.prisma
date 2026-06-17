@@ -67,8 +67,7 @@ enum StaffRole {
 // A counted quantity is captured at each handoff so a missing piece can be
 // pinned to the exact leg where it disappeared.
 enum LaundryStatus {
-  REQUESTED // Receptionist submitted; waiting for a supervisor to collect
-  PICKED_UP // Supervisor collected from the building, en route to laundry
+  REQUESTED // Receptionist submitted; supervisor collects and brings to laundry
   AT_LAUNDRY // Laundry man confirmed receipt, pending process
   PROCESSING // Laundry man is washing
   READY // Finished, ready for the supervisor to collect
@@ -647,7 +646,6 @@ model LaundryOrder {
   notes      String?       @db.Text
 
   // Per-stage custody timestamps (null until that handoff occurs)
-  pickedUpAt       DateTime?
   atLaundryAt      DateTime?
   processingAt     DateTime?
   readyAt          DateTime?
@@ -679,7 +677,6 @@ model LaundryOrderItem {
   itemType   LaundryItemType @relation(fields: [itemTypeId], references: [id])
 
   requestedQty Int // declared by the receptionist
-  pickedUpQty  Int? // counted by the supervisor at the building
   atLaundryQty Int? // counted by the laundry man on receipt
   returnedQty  Int? // counted by the supervisor when collecting ready laundry
   deliveredQty Int? // counted by the receptionist on final return

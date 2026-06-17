@@ -6,7 +6,6 @@
 
 export type TLaundryStatus =
   | "REQUESTED"
-  | "PICKED_UP"
   | "AT_LAUNDRY"
   | "PROCESSING"
   | "READY"
@@ -18,7 +17,6 @@ export type TLaundryStatus =
 // different custodian, so a missing piece can be traced to the exact leg.
 export type TLaundryCountField =
   | "requestedQty"
-  | "pickedUpQty"
   | "atLaundryQty"
   | "returnedQty"
   | "deliveredQty";
@@ -33,41 +31,35 @@ export const LAUNDRY_STATUS_CONFIG: Record<
     badge: "bg-blue-100 text-blue-700",
     step: 1,
   },
-  PICKED_UP: {
-    labelEn: "Picked Up",
-    labelAr: "تم الاستلام",
-    badge: "bg-cyan-100 text-cyan-700",
-    step: 2,
-  },
   AT_LAUNDRY: {
     labelEn: "At Laundry",
     labelAr: "في المغسلة",
     badge: "bg-indigo-100 text-indigo-700",
-    step: 3,
+    step: 2,
   },
   PROCESSING: {
     labelEn: "Processing",
     labelAr: "قيد المعالجة",
     badge: "bg-purple-100 text-purple-700",
-    step: 4,
+    step: 3,
   },
   READY: {
     labelEn: "Ready",
     labelAr: "جاهز",
     badge: "bg-teal-100 text-teal-700",
-    step: 5,
+    step: 4,
   },
   OUT_FOR_DELIVERY: {
     labelEn: "Out for Delivery",
     labelAr: "قيد التوصيل",
     badge: "bg-amber-100 text-amber-700",
-    step: 6,
+    step: 5,
   },
   DELIVERED: {
     labelEn: "Delivered",
     labelAr: "تم التسليم",
     badge: "bg-green-100 text-green-700",
-    step: 7,
+    step: 6,
   },
   CANCELLED: {
     labelEn: "Cancelled",
@@ -93,13 +85,6 @@ export const COUNT_STAGES: {
     labelAr: "مطلوب",
     byRoleEn: "Receptionist",
     byRoleAr: "موظف الاستقبال",
-  },
-  {
-    field: "pickedUpQty",
-    labelEn: "Picked Up",
-    labelAr: "تم الاستلام",
-    byRoleEn: "Supervisor",
-    byRoleAr: "المشرف",
   },
   {
     field: "atLaundryQty",
