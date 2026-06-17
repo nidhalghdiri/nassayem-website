@@ -310,7 +310,7 @@ async function notifyForStatus(
   } else if (status === "READY") {
     notifyLaundryUpdate({
       ...base,
-      recipients: await recipientsForRoles(["SUPERVISOR"]),
+      recipients: await recipientsForRoles(["SUPERVISOR", "MANAGER"]),
       statusLabelEn: "Ready for collection",
       statusLabelAr: "جاهز للاستلام",
     }).catch(console.error);
