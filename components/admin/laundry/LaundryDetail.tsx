@@ -183,7 +183,9 @@ export default function LaundryDetail({
       deliveredQty: item.deliveredQty,
     };
     const bad = new Set<TLaundryCountField>();
-    for (const leg of getItemLegs(itemCounts)) if (leg.delta > 0) bad.add(leg.field);
+    // Any change vs the previous custodian's count is an anomaly — fewer
+    // pieces (missing) or more pieces (mixed in from elsewhere).
+    for (const leg of getItemLegs(itemCounts)) if (leg.delta !== 0) bad.add(leg.field);
     itemLegMap.set(item.id, bad);
   }
 
@@ -400,8 +402,8 @@ export default function LaundryDetail({
         </div>
         <p className="text-xs text-gray-400">
           {isEn
-            ? "A red count means pieces went missing on that handoff."
-            : "العدد بالأحمر يعني فقدان قطع في تلك المرحلة."}
+            ? "A red count means the quantity changed on that handoff — fewer (missing) or more (mixed in)."
+            : "العدد بالأحمر يعني أن الكمية تغيّرت في تلك المرحلة — أقل (نقص) أو أكثر (اختلاط)."}
         </p>
       </div>
 

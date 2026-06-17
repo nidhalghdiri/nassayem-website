@@ -73,6 +73,36 @@
 //     👤 أنجزها: {{4}}
 //     📅 بتاريخ: {{5}}
 //     اضغط على الزر أدناه لعرض التفاصيل.
+//
+// ── Laundry templates (one pair reused for every stage) ───────────────────────
+//
+//   nassayem_laundry_update  (EN)
+//   nassayem_laundry_update_ar  (AR)
+//   Body params: {{1}} name, {{2}} orderCode, {{3}} building,
+//                {{4}} status, {{5}} neededDate
+//   Button (URL, index 0):
+//     Text (EN): "View Order"   URL: https://yoursite.com/en/admin/laundry/{{1}}
+//     Text (AR): "عرض الطلب"     URL: https://yoursite.com/ar/admin/laundry/{{1}}
+//   ({{1}} on the button = the orderId suffix passed by notifyLaundryUpdate.)
+//
+//   nassayem_laundry_update (EN) body:
+//     Hello {{1}} 👋
+//     Laundry order {{2}} update:
+//     🏢 Building: {{3}}
+//     🧺 Status: {{4}}
+//     📅 Needed by: {{5}}
+//     Tap the button below to open the order.
+//
+//   nassayem_laundry_update_ar (AR) body:
+//     مرحباً {{1}} 👋
+//     تحديث طلب الغسيل {{2}}:
+//     🏢 المبنى: {{3}}
+//     🧺 الحالة: {{4}}
+//     📅 مطلوب بحلول: {{5}}
+//     اضغط على الزر أدناه لفتح الطلب.
+//
+//   When the order reaches READY, the supervisors receive this message with
+//   {{4}} = "Ready for collection" / "جاهز للاستلام".
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BASE_URL = "https://graph.facebook.com/v19.0";

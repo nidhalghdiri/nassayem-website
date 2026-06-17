@@ -238,9 +238,10 @@ export async function advanceLaundryStatus(input: {
     for (const item of itemTypes) {
       const legs = getItemLegs(item as unknown as ItemCounts);
       const thisLeg = legs.find((l) => l.field === field);
-      if (thisLeg && thisLeg.delta > 0) {
+      if (thisLeg && thisLeg.delta !== 0) {
+        const word = thisLeg.delta > 0 ? "missing" : "extra";
         countWarnings.push(
-          `${thisLeg.delta}× ${item.itemType.nameEn} missing vs ${legLabel(thisLeg.prevField)}`,
+          `${Math.abs(thisLeg.delta)}× ${item.itemType.nameEn} ${word} vs ${legLabel(thisLeg.prevField)}`,
         );
       }
     }
