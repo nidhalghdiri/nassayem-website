@@ -21,6 +21,7 @@ import {
   type ItemCounts,
 } from "@/lib/laundry/workflow";
 import { canAdvanceLaundry, canCancelLaundry } from "@/lib/laundry/permissions";
+import { buildingLabel } from "@/lib/buildingLabel";
 import {
   TASK_PRIORITY_CONFIG,
   STAFF_ROLE_CONFIG,
@@ -223,7 +224,7 @@ export default function LaundryDetail({
         </div>
 
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-          <Meta label={isEn ? "Building" : "المبنى"} value={order.building ? (isEn ? order.building.nameEn : order.building.nameAr) : "—"} />
+          <Meta label={isEn ? "Building" : "المبنى"} value={buildingLabel(order.building, isEn)} />
           <Meta label={isEn ? "Needed By" : "مطلوب بحلول"} value={formatDate(order.neededDate)} />
           <Meta label={isEn ? "Requested By" : "طلبه"} value={personName(order.requestedBy, "—")} />
           <Meta label={isEn ? "Total Pieces" : "إجمالي القطع"} value={String(order.totalRequested)} />

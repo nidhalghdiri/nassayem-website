@@ -3,12 +3,14 @@
 import { useActionState, useState } from "react";
 import { createTask } from "@/app/actions/tasks";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
 type Building = {
   id: string;
   nameEn: string;
   nameAr: string;
+  shortName?: string | null;
 };
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
@@ -147,7 +149,7 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
             <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
             {buildings.map((b) => (
               <option key={b.id} value={b.id}>
-                {isEn ? b.nameEn : b.nameAr}
+                {buildingLabel(b, isEn)}
               </option>
             ))}
           </select>

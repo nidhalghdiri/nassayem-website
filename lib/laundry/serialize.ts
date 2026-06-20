@@ -7,12 +7,13 @@ import type { SerializedLaundryOrder, Person } from "@/components/admin/laundry/
 
 type PrismaItem = {
   id: string;
-  itemTypeId: string;
+  itemTypeId: string | null;
+  customName: string | null;
   requestedQty: number;
   atLaundryQty: number | null;
   returnedQty: number | null;
   deliveredQty: number | null;
-  itemType: { nameEn: string; nameAr: string };
+  itemType: { nameEn: string; nameAr: string } | null;
 };
 
 type PrismaPerson = { id: string; name: string | null; email: string; role?: string } | null;
@@ -30,7 +31,7 @@ type PrismaOrder = {
   readyAt: Date | null;
   outForDeliveryAt: Date | null;
   deliveredAt: Date | null;
-  building: { id: string; nameEn: string; nameAr: string } | null;
+  building: { id: string; nameEn: string; nameAr: string; shortName: string | null } | null;
   requestedBy: PrismaPerson;
   supervisor: PrismaPerson;
   laundryUser: PrismaPerson;
@@ -56,8 +57,9 @@ export function serializeLaundryOrder(o: PrismaOrder): SerializedLaundryOrder {
     return {
       id: i.id,
       itemTypeId: i.itemTypeId,
-      nameEn: i.itemType.nameEn,
-      nameAr: i.itemType.nameAr,
+      // "Other" lines have no catalog type — show the typed custom name.
+      nameEn: i.customName ?? i.itemType?.nameEn ?? "Other",
+      nameAr: i.customName ?? i.itemType?.nameAr ?? "أخرى",
       requestedQty: i.requestedQty,
       atLaundryQty: i.atLaundryQty,
       returnedQty: i.returnedQty,

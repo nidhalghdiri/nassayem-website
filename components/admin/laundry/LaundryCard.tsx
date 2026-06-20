@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LAUNDRY_STATUS_CONFIG, type TLaundryStatus } from "@/lib/laundry/constants";
 import { TASK_PRIORITY_CONFIG, type TTaskPriority } from "@/lib/tasks/constants";
 import { isTerminalLaundryStatus } from "@/lib/laundry/workflow";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { SerializedLaundryOrder } from "./types";
 
 function formatDate(iso: string) {
@@ -50,7 +51,7 @@ export default function LaundryCard({
       {/* Building + priority */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 truncate">
-          {order.building ? (isEn ? order.building.nameEn : order.building.nameAr) : "—"}
+          {buildingLabel(order.building, isEn)}
         </p>
         {priority && (
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${priority.badge}`}>

@@ -3,6 +3,7 @@
 import { useState, memo } from "react";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import { STATUS_CONFIG, STATUS_TRANSITIONS, TRANSITION_BUTTON_LABEL, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { SerializedTask } from "./types";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -107,7 +108,7 @@ const TaskCard = memo(function TaskCard({
         {task.building && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className="text-xs text-gray-500 truncate">
-              {isEn ? task.building.nameEn : task.building.nameAr}
+              {buildingLabel(task.building, isEn)}
             </p>
             {task.unitNumber && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem shrink-0">

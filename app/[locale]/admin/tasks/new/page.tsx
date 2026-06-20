@@ -27,7 +27,7 @@ export default async function NewTaskPage({ params, searchParams }: PageProps) {
 
   const [buildings, assignableStaff, parentTask] = await Promise.all([
     prisma.building.findMany({
-      select: { id: true, nameEn: true, nameAr: true },
+      select: { id: true, nameEn: true, nameAr: true, shortName: true },
       orderBy: { nameEn: "asc" },
     }),
     // Self-only creators can only assign to themselves.

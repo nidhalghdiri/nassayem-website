@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import { STATUS_CONFIG, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { SerializedTask } from "./types";
 
 function formatDate(iso: string): string {
@@ -91,7 +92,7 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {task.building ? (
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{isEn ? task.building.nameEn : task.building.nameAr}</p>
+                        <p className="truncate font-medium">{buildingLabel(task.building, isEn)}</p>
                         {task.unitNumber && (
                           <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem">
                             {task.unitNumber}
@@ -153,7 +154,7 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
               <p className="font-semibold text-gray-800 mb-1.5">{task.title}</p>
               {task.building && (
                 <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                  <span>{isEn ? task.building.nameEn : task.building.nameAr}</span>
+                  <span>{buildingLabel(task.building, isEn)}</span>
                   {task.unitNumber && (
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem">
                       {task.unitNumber}

@@ -7,6 +7,7 @@ import { LAUNDRY_STATUS_CONFIG, type TLaundryStatus } from "@/lib/laundry/consta
 import { TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
 import { canCreateLaundryOrder, canManageLaundryItems } from "@/lib/laundry/permissions";
 import { isTerminalLaundryStatus } from "@/lib/laundry/workflow";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { SerializedLaundryOrder, Building } from "./types";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
@@ -203,7 +204,7 @@ export default function LaundryBoard({
             >
               <option value="">{isEn ? "All Buildings" : "كل المباني"}</option>
               {buildings.map((b) => (
-                <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
+                <option key={b.id} value={b.id}>{buildingLabel(b, isEn)}</option>
               ))}
             </select>
           )}

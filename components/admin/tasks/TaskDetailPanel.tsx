@@ -18,6 +18,7 @@ import {
   canUpdateTaskStatus,
   canSpawnSubtasks,
 } from "@/lib/tasks/permissions";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -54,7 +55,7 @@ type FullTask = {
   priority: string;
   status: string;
   dueDate: string;
-  building: { id: string; nameEn: string; nameAr: string } | null;
+  building: { id: string; nameEn: string; nameAr: string; shortName?: string | null } | null;
   unitNumber: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
@@ -716,9 +717,7 @@ export default function TaskDetailPanel({
                       {isEn ? "Building" : "المبنى"}
                     </dt>
                     <dd className="font-medium text-gray-800">
-                      {task.building
-                        ? isEn ? task.building.nameEn : task.building.nameAr
-                        : "—"}
+                      {buildingLabel(task.building, isEn)}
                     </dd>
                     {task.unitNumber && (
                       <dd className="text-xs text-gray-500 mt-1 truncate">{task.unitNumber}</dd>

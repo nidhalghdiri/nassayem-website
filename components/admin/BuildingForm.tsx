@@ -216,6 +216,24 @@ export default function BuildingForm({
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all dir-ltr"
           />
         </div>
+
+        <div className="mt-5">
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            {isEn ? "Short Name (internal)" : "الاسم المختصر (داخلي)"}
+            <span className="text-gray-400 font-normal ms-2 text-xs">
+              {isEn
+                ? "a short label shown across the admin (Tasks, Laundry) instead of the long public name"
+                : "اسم قصير يظهر في لوحة الإدارة (المهام، المغسلة) بدلاً من الاسم الطويل"}
+            </span>
+          </label>
+          <input
+            type="text"
+            name="shortName"
+            defaultValue={initialData?.shortName ?? ""}
+            placeholder={isEn ? "e.g. Saada 25" : "مثال: سعادة 25"}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all"
+          />
+        </div>
       </div>
 
       {/* 4. Building Cover Image (NEW SECTION) */}

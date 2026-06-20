@@ -3,11 +3,13 @@
 import { useActionState, useState } from "react";
 import { createMaintenanceRequest } from "@/app/actions/tasks";
 import { TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
+import { buildingLabel } from "@/lib/buildingLabel";
 
 type BuildingWithUnits = {
   id: string;
   nameEn: string;
   nameAr: string;
+  shortName?: string | null;
   units: { id: string; unitCode: string | null; titleEn: string; titleAr: string }[];
 };
 
@@ -126,7 +128,7 @@ export default function MaintenanceRequestForm({ buildings, locale }: Props) {
             </option>
             {buildings.map((b) => (
               <option key={b.id} value={b.id}>
-                {isEn ? b.nameEn : b.nameAr}
+                {buildingLabel(b, isEn)}
               </option>
             ))}
           </select>

@@ -13,7 +13,7 @@ type PageProps = {
 };
 
 const ORDER_INCLUDE = {
-  building: { select: { id: true, nameEn: true, nameAr: true } },
+  building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
   requestedBy: { select: { id: true, name: true, email: true, role: true } },
   supervisor: { select: { id: true, name: true, email: true, role: true } },
   laundryUser: { select: { id: true, name: true, email: true, role: true } },
@@ -59,7 +59,7 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
       orderBy: [{ createdAt: "desc" }],
     }),
     prisma.building.findMany({
-      select: { id: true, nameEn: true, nameAr: true },
+      select: { id: true, nameEn: true, nameAr: true, shortName: true },
       orderBy: { nameEn: "asc" },
     }),
   ]);

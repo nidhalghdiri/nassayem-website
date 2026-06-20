@@ -9,7 +9,7 @@ export type SerializedTask = {
   priority: TTaskPriority;
   status: TTaskStatus;
   dueDate: string;
-  building: { id: string; nameEn: string; nameAr: string } | null;
+  building: { id: string; nameEn: string; nameAr: string; shortName?: string | null } | null;
   unitNumber: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
@@ -18,5 +18,5 @@ export type SerializedTask = {
   updatedAt: string;
 };
 
-export type Building = { id: string; nameEn: string; nameAr: string };
+export type Building = { id: string; nameEn: string; nameAr: string; shortName?: string | null };
 export type StaffUser = { id: string; name: string | null; email: string; role: string };

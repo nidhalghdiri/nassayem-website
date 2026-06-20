@@ -26,7 +26,7 @@ export default async function LaundryOrderDetailPage({ params }: PageProps) {
   const order = await prisma.laundryOrder.findUnique({
     where: { id },
     include: {
-      building: { select: { id: true, nameEn: true, nameAr: true } },
+      building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
       requestedBy: { select: { id: true, name: true, email: true, role: true } },
       supervisor: { select: { id: true, name: true, email: true, role: true } },
       laundryUser: { select: { id: true, name: true, email: true, role: true } },

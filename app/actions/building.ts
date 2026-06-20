@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 export async function createBuilding(formData: FormData, locale: string) {
   const nameEn = formData.get("nameEn") as string;
   const nameAr = formData.get("nameAr") as string;
+  const shortName = (formData.get("shortName") as string)?.trim() || null;
   const locationEn = formData.get("locationEn") as string;
   const locationAr = formData.get("locationAr") as string;
   const latitude = formData.get("latitude") as string;
@@ -50,6 +51,7 @@ export async function createBuilding(formData: FormData, locale: string) {
     data: {
       nameEn,
       nameAr,
+      shortName,
       locationEn,
       locationAr,
       latitude: latitude ? parseFloat(latitude) : null,
@@ -73,6 +75,7 @@ export async function updateBuilding(
 ) {
   const nameEn = formData.get("nameEn") as string;
   const nameAr = formData.get("nameAr") as string;
+  const shortName = (formData.get("shortName") as string)?.trim() || null;
   const locationEn = formData.get("locationEn") as string;
   const locationAr = formData.get("locationAr") as string;
   const latitude = formData.get("latitude") as string;
@@ -89,6 +92,7 @@ export async function updateBuilding(
     data: {
       nameEn,
       nameAr,
+      shortName,
       locationEn,
       locationAr,
       latitude: latitude ? parseFloat(latitude) : null,

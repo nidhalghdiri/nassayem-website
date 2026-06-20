@@ -130,6 +130,9 @@ model Building {
   id            String  @id @default(uuid())
   nameEn        String
   nameAr        String
+  // Short internal label used across the admin (Tasks, Laundry) in place of the
+  // long public website name. Optional — falls back to nameEn/nameAr when empty.
+  shortName     String?
   locationEn    String
   locationAr    String
   latitude      Float?
@@ -673,8 +676,11 @@ model LaundryOrderItem {
   orderId String
   order   LaundryOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  itemTypeId String
-  itemType   LaundryItemType @relation(fields: [itemTypeId], references: [id])
+  // itemTypeId is null for an "Other" line; customName then holds the free-text
+  // name the receptionist typed.
+  itemTypeId String?
+  itemType   LaundryItemType? @relation(fields: [itemTypeId], references: [id])
+  customName String?
 
   requestedQty Int // declared by the receptionist
   atLaundryQty Int? // counted by the laundry man on receipt

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createLaundryOrder } from "@/app/actions/laundry";
 import { TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
+import { buildingLabel } from "@/lib/buildingLabel";
 import type { Building, LaundryItemTypeOption } from "./types";
 
 type Props = {
@@ -11,8 +12,9 @@ type Props = {
   locale: string;
 };
 
-type Row = { key: number; itemTypeId: string; qty: string };
+type Row = { key: number; itemTypeId: string; qty: string; customName: string };
 
+const OTHER_VALUE = "OTHER"; // sentinel: an item with no catalog type
 const initialState = { error: null };
 
 export default function CreateLaundryOrderForm({ buildings, itemTypes, locale }: Props) {
@@ -20,11 +22,11 @@ export default function CreateLaundryOrderForm({ buildings, itemTypes, locale }:
   const [state, formAction, isPending] = useActionState(createLaundryOrder, initialState);
 
   // Start with one empty row; user adds more.
-  const [rows, setRows] = useState<Row[]>([{ key: 0, itemTypeId: "", qty: "1" }]);
+  const [rows, setRows] = useState<Row[]>([{ key: 0, itemTypeId: "", qty: "1", customName: "" }]);
   const [nextKey, setNextKey] = useState(1);
 
   const addRow = () => {
-    setRows((r) => [...r, { key: nextKey, itemTypeId: "", qty: "1" }]);
+    setRows((r) => [...r, { key: nextKey, itemTypeId: "", qty: "1", customName: "" }]);
     setNextKey((k) => k + 1);
   };
   const removeRow = (key: number) => {
@@ -71,7 +73,7 @@ export default function CreateLaundryOrderForm({ buildings, itemTypes, locale }:
         >
           <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
           {buildings.map((b) => (
-            <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
+            <option key={b.id} value={b.id}>{buildingLabel(b, isEn)}</option>
           ))}
         </select>
       </div>
@@ -114,44 +116,65 @@ export default function CreateLaundryOrderForm({ buildings, itemTypes, locale }:
           {isEn ? "Laundry Items" : "أصناف الغسيل"} <span className="text-red-500">*</span>
         </label>
         <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={row.key} className="flex items-center gap-2">
-              <select
-                name="itemTypeId"
-                value={row.itemTypeId}
-                onChange={(e) => updateRow(row.key, { itemTypeId: e.target.value })}
-                required
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
-              >
-                <option value="">{isEn ? "Select item…" : "اختر الصنف…"}</option>
-                {itemTypes.map((it) => (
-                  <option key={it.id} value={it.id}>{isEn ? it.nameEn : it.nameAr}</option>
-                ))}
-              </select>
-              <input
-                name="requestedQty"
-                type="number"
-                min={1}
-                step={1}
-                value={row.qty}
-                onChange={(e) => updateRow(row.key, { qty: e.target.value })}
-                required
-                aria-label={isEn ? "Quantity" : "الكمية"}
-                className="w-20 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem text-center"
-              />
-              <button
-                type="button"
-                onClick={() => removeRow(row.key)}
-                disabled={rows.length === 1}
-                className="shrink-0 p-2.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label={isEn ? "Remove item" : "حذف الصنف"}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          ))}
+          {rows.map((row) => {
+            const isOther = row.itemTypeId === OTHER_VALUE;
+            return (
+              <div key={row.key} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    name="itemTypeId"
+                    value={row.itemTypeId}
+                    onChange={(e) => updateRow(row.key, { itemTypeId: e.target.value })}
+                    required
+                    className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+                  >
+                    <option value="">{isEn ? "Select item…" : "اختر الصنف…"}</option>
+                    {itemTypes.map((it) => (
+                      <option key={it.id} value={it.id}>{isEn ? it.nameEn : it.nameAr}</option>
+                    ))}
+                    <option value={OTHER_VALUE}>{isEn ? "Other (specify)" : "أخرى (حدّد)"}</option>
+                  </select>
+                  <input
+                    name="requestedQty"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={row.qty}
+                    onChange={(e) => updateRow(row.key, { qty: e.target.value })}
+                    required
+                    aria-label={isEn ? "Quantity" : "الكمية"}
+                    className="w-20 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem text-center"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    disabled={rows.length === 1}
+                    className="shrink-0 p-2.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={isEn ? "Remove item" : "حذف الصنف"}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Custom name for "Other". A hidden input keeps the customName
+                    array aligned with the item rows for non-Other lines. */}
+                {isOther ? (
+                  <input
+                    name="customName"
+                    value={row.customName}
+                    onChange={(e) => updateRow(row.key, { customName: e.target.value })}
+                    required
+                    maxLength={100}
+                    placeholder={isEn ? "Name the item…" : "اسم الصنف…"}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+                  />
+                ) : (
+                  <input type="hidden" name="customName" value="" />
+                )}
+              </div>
+            );
+          })}
         </div>
         <button
           type="button"

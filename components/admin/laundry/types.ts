@@ -1,6 +1,6 @@
 // Shared serialized types for the Laundry admin UI (Date → ISO string).
 
-export type Building = { id: string; nameEn: string; nameAr: string };
+export type Building = { id: string; nameEn: string; nameAr: string; shortName?: string | null };
 
 export type Person = {
   id: string;
@@ -11,7 +11,7 @@ export type Person = {
 
 export type LaundryItemLine = {
   id: string;
-  itemTypeId: string;
+  itemTypeId: string | null;
   nameEn: string;
   nameAr: string;
   requestedQty: number;

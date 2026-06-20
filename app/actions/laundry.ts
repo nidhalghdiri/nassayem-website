@@ -84,13 +84,19 @@ export async function createLaundryOrder(
   // Item lines arrive as parallel arrays.
   const itemTypeIds = formData.getAll("itemTypeId") as string[];
   const quantities = formData.getAll("requestedQty") as string[];
+  const customNames = formData.getAll("customName") as string[];
 
   if (!buildingId || !neededDate) {
     return { error: "Please choose a building and a needed-by date." };
   }
 
   // Build the validated item lines (skip blank rows; require qty ≥ 1).
-  const lines: { itemTypeId: string; requestedQty: number }[] = [];
+  // "OTHER" lines carry no catalog itemTypeId — they store a free-text customName.
+  const lines: {
+    itemTypeId: string | null;
+    customName: string | null;
+    requestedQty: number;
+  }[] = [];
   for (let i = 0; i < itemTypeIds.length; i++) {
     const itemTypeId = itemTypeIds[i];
     const qty = parseInt(quantities[i] ?? "", 10);
@@ -98,7 +104,15 @@ export async function createLaundryOrder(
     if (!Number.isInteger(qty) || qty < 1) {
       return { error: "Each laundry item needs a quantity of at least 1." };
     }
-    lines.push({ itemTypeId, requestedQty: qty });
+    if (itemTypeId === "OTHER") {
+      const customName = (customNames[i] ?? "").trim();
+      if (!customName) {
+        return { error: "Please name the “Other” item." };
+      }
+      lines.push({ itemTypeId: null, customName, requestedQty: qty });
+    } else {
+      lines.push({ itemTypeId, customName: null, requestedQty: qty });
+    }
   }
   if (lines.length === 0) {
     return { error: "Add at least one laundry item." };
@@ -162,7 +176,9 @@ async function itemSummary(orderId: string): Promise<string> {
     where: { orderId },
     include: { itemType: { select: { nameEn: true } } },
   });
-  return items.map((i) => `${i.itemType.nameEn} ×${i.requestedQty}`).join(", ");
+  return items
+    .map((i) => `${i.itemType?.nameEn ?? i.customName ?? "Item"} ×${i.requestedQty}`)
+    .join(", ");
 }
 
 // ── Advance an order to the next status (role-gated, captures counts) ──────────
@@ -240,8 +256,9 @@ export async function advanceLaundryStatus(input: {
       const thisLeg = legs.find((l) => l.field === field);
       if (thisLeg && thisLeg.delta !== 0) {
         const word = thisLeg.delta > 0 ? "missing" : "extra";
+        const itemName = item.itemType?.nameEn ?? item.customName ?? "Item";
         countWarnings.push(
-          `${Math.abs(thisLeg.delta)}× ${item.itemType.nameEn} ${word} vs ${legLabel(thisLeg.prevField)}`,
+          `${Math.abs(thisLeg.delta)}× ${itemName} ${word} vs ${legLabel(thisLeg.prevField)}`,
         );
       }
     }

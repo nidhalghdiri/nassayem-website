@@ -70,7 +70,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
       },
       include: {
-        building: { select: { id: true, nameEn: true, nameAr: true } },
+        building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
         assignedTo: { select: { id: true, name: true, email: true, role: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         _count: { select: { notes: true, photos: true, subTasks: true } },
@@ -78,7 +78,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
       orderBy: [{ createdAt: "desc" }],
     }),
     prisma.building.findMany({
-      select: { id: true, nameEn: true, nameAr: true },
+      select: { id: true, nameEn: true, nameAr: true, shortName: true },
       orderBy: { nameEn: "asc" },
     }),
     prisma.adminUser.findMany({

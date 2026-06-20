@@ -26,6 +26,7 @@ export default async function MaintenanceRequestPage({ params }: PageProps) {
       id: true,
       nameEn: true,
       nameAr: true,
+      shortName: true,
       units: {
         select: { id: true, unitCode: true, titleEn: true, titleAr: true },
         orderBy: { unitCode: "asc" },

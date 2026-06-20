@@ -27,7 +27,7 @@ export default async function NewLaundryOrderPage({ params }: PageProps) {
   const [buildings, itemTypes] = await Promise.all([
     prisma.building.findMany({
       where: buildingWhere,
-      select: { id: true, nameEn: true, nameAr: true },
+      select: { id: true, nameEn: true, nameAr: true, shortName: true },
       orderBy: { nameEn: "asc" },
     }),
     prisma.laundryItemType.findMany({
