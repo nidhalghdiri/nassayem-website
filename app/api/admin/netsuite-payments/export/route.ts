@@ -53,13 +53,17 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const where = {
-    ...buildNetsuiteWhere({
-      status: sp.get("status") ?? undefined,
-      q: sp.get("q") ?? undefined,
-      from: sp.get("from") ?? undefined,
-      to: sp.get("to") ?? undefined,
-    }),
-    ...(scope ?? {}),
+    AND: [
+      buildNetsuiteWhere({
+        status: sp.get("status") ?? undefined,
+        q: sp.get("q") ?? undefined,
+        from: sp.get("from") ?? undefined,
+        to: sp.get("to") ?? undefined,
+        buildingId: sp.get("buildingId") ?? undefined,
+        createdBy: sp.get("createdBy") ?? undefined,
+      }),
+      ...(scope ? [scope] : []),
+    ],
   };
 
   const payments = await prisma.netsuitePayment.findMany({

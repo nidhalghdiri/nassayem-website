@@ -16,6 +16,8 @@ type PageProps = {
     q?: string;
     from?: string;
     to?: string;
+    buildingId?: string;
+    createdBy?: string;
   }>;
 };
 
@@ -34,7 +36,14 @@ export default async function NetsuitePaymentsAdminPage({
   searchParams,
 }: PageProps) {
   const { locale } = await params;
-  const { status: rawStatus, q: searchQuery, from, to } = await searchParams;
+  const {
+    status: rawStatus,
+    q: searchQuery,
+    from,
+    to,
+    buildingId: buildingFilter,
+    createdBy,
+  } = await searchParams;
   const isEn = locale === "en";
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
@@ -51,17 +60,50 @@ export default async function NetsuitePaymentsAdminPage({
 
   const activeFilter = rawStatus?.toUpperCase() ?? "ALL";
 
-  // Combine status + text search + payment-date range. The "Inactive" tab is
-  // the only way to see soft-deleted records.
+  // Combine status + text search + payment-date range + building + created-by.
+  // Use AND so a building filter intersects with (rather than is overwritten
+  // by) the receptionist building scope. The "Inactive" tab is the only way to
+  // see soft-deleted records.
   const whereClause = {
-    ...buildNetsuiteWhere({
-      status: rawStatus,
-      q: searchQuery,
-      from,
-      to,
-    }),
-    ...(scope ?? {}),
+    AND: [
+      buildNetsuiteWhere({
+        status: rawStatus,
+        q: searchQuery,
+        from,
+        to,
+        buildingId: buildingFilter,
+        createdBy,
+      }),
+      ...(scope ? [scope] : []),
+    ],
   };
+
+  // Filter dropdown options, scoped to what this user can see.
+  const [buildingRows, createdByRows] = await Promise.all([
+    prisma.building.findMany({
+      where: scope ? { id: { in: scope.buildingId.in } } : {},
+      select: { id: true, nameEn: true, nameAr: true },
+      orderBy: { nameEn: "asc" },
+    }),
+    prisma.netsuitePayment.findMany({
+      where: { ...(scope ?? {}), receptionistEmail: { not: null } },
+      distinct: ["receptionistEmail"],
+      select: { receptionistEmail: true, receptionistName: true },
+      orderBy: { receptionistEmail: "asc" },
+    }),
+  ]);
+  const buildingOptions = buildingRows.map((b) => ({
+    value: b.id,
+    label: isEn ? b.nameEn : b.nameAr,
+  }));
+  const createdByOptions = createdByRows
+    .filter((r) => r.receptionistEmail)
+    .map((r) => ({
+      value: r.receptionistEmail as string,
+      label: r.receptionistName
+        ? `${r.receptionistName} (${r.receptionistEmail})`
+        : (r.receptionistEmail as string),
+    }));
 
   const payments = await prisma.netsuitePayment.findMany({
     where: whereClause,
@@ -115,6 +157,8 @@ export default async function NetsuitePaymentsAdminPage({
           if (searchQuery?.trim()) tabParams.set("q", searchQuery.trim());
           if (from) tabParams.set("from", from);
           if (to) tabParams.set("to", to);
+          if (buildingFilter) tabParams.set("buildingId", buildingFilter);
+          if (createdBy) tabParams.set("createdBy", createdBy);
           const href = `/${locale}/admin/netsuite-payments${
             tabParams.toString() ? `?${tabParams}` : ""
           }`;
@@ -161,7 +205,11 @@ export default async function NetsuitePaymentsAdminPage({
           from: from ?? "",
           to: to ?? "",
           status: activeFilter,
+          building: buildingFilter ?? "",
+          createdBy: createdBy ?? "",
         }}
+        buildingOptions={buildingOptions}
+        createdByOptions={createdByOptions}
         exportPath="/api/admin/netsuite-payments/export"
       />
 

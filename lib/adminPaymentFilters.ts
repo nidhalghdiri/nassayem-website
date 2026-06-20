@@ -10,6 +10,8 @@ export type ListFilterParams = {
   q?: string;
   from?: string; // YYYY-MM-DD (inclusive, by payment date)
   to?: string; // YYYY-MM-DD (inclusive, by payment date)
+  buildingId?: string; // NetSuite list only — resolved website Building id
+  createdBy?: string; // NetSuite list only — receptionistEmail that triggered the link
 };
 
 /**
@@ -85,6 +87,11 @@ export function buildNetsuiteWhere(
       { smartpayBankRefNo: { contains: q, mode: "insensitive" } },
     ];
   }
+
+  if (params.buildingId) where.buildingId = params.buildingId;
+
+  const createdBy = params.createdBy?.trim();
+  if (createdBy) where.receptionistEmail = { equals: createdBy, mode: "insensitive" };
 
   const range = paidAtRange(params.from, params.to);
   if (range) where.paidAt = range;

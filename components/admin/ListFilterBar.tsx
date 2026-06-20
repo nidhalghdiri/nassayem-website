@@ -3,14 +3,27 @@
 import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+type SelectOption = { value: string; label: string };
+
 type Props = {
   isEn: boolean;
   /** Placeholder for the free-text search box. */
   placeholder: string;
   /** Current values reflected from the URL. */
-  current: { q: string; from: string; to: string; status: string };
+  current: {
+    q: string;
+    from: string;
+    to: string;
+    status: string;
+    building?: string;
+    createdBy?: string;
+  };
   /** Base path of the Excel export route, e.g. "/api/admin/bookings/export". */
   exportPath: string;
+  /** Optional Building dropdown (NetSuite Payments list). */
+  buildingOptions?: SelectOption[];
+  /** Optional "Created By" dropdown (NetSuite Payments list). */
+  createdByOptions?: SelectOption[];
 };
 
 /**
@@ -24,6 +37,8 @@ export default function ListFilterBar({
   placeholder,
   current,
   exportPath,
+  buildingOptions,
+  createdByOptions,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,15 +47,19 @@ export default function ListFilterBar({
   const [q, setQ] = useState(current.q);
   const [from, setFrom] = useState(current.from);
   const [to, setTo] = useState(current.to);
+  const [building, setBuilding] = useState(current.building ?? "");
+  const [createdBy, setCreatedBy] = useState(current.createdBy ?? "");
 
   const buildParams = (overrides?: Partial<Props["current"]>) => {
-    const values = { q, from, to, status: current.status, ...overrides };
+    const values = { q, from, to, status: current.status, building, createdBy, ...overrides };
     const params = new URLSearchParams();
     if (values.status && values.status !== "ALL")
       params.set("status", values.status);
     if (values.q.trim()) params.set("q", values.q.trim());
     if (values.from) params.set("from", values.from);
     if (values.to) params.set("to", values.to);
+    if (values.building) params.set("buildingId", values.building);
+    if (values.createdBy) params.set("createdBy", values.createdBy);
     return params;
   };
 
@@ -55,10 +74,12 @@ export default function ListFilterBar({
     setQ("");
     setFrom("");
     setTo("");
-    apply({ q: "", from: "", to: "" });
+    setBuilding("");
+    setCreatedBy("");
+    apply({ q: "", from: "", to: "", building: "", createdBy: "" });
   };
 
-  const hasFilters = !!(q || from || to);
+  const hasFilters = !!(q || from || to || building || createdBy);
   const exportHref = `${exportPath}${buildParams().toString() ? `?${buildParams()}` : ""}`;
 
   return (
@@ -97,6 +118,50 @@ export default function ListFilterBar({
             />
           </div>
         </div>
+
+        {/* Building */}
+        {buildingOptions && (
+          <div className="w-full lg:w-48">
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              {isEn ? "Building" : "المبنى"}
+            </label>
+            <select
+              value={building}
+              onChange={(e) => {
+                setBuilding(e.target.value);
+                apply({ building: e.target.value });
+              }}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all"
+            >
+              <option value="">{isEn ? "All buildings" : "كل المباني"}</option>
+              {buildingOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Created By */}
+        {createdByOptions && (
+          <div className="w-full lg:w-52">
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              {isEn ? "Created by" : "أنشأه"}
+            </label>
+            <select
+              value={createdBy}
+              onChange={(e) => {
+                setCreatedBy(e.target.value);
+                apply({ createdBy: e.target.value });
+              }}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all"
+            >
+              <option value="">{isEn ? "All staff" : "كل الموظفين"}</option>
+              {createdByOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* From date */}
         <div className="w-full lg:w-44">
