@@ -39,6 +39,17 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
   const buildingId = sp.buildingId as string | undefined;
   const search = sp.search as string | undefined;
 
+  // A YYYY-MM-DD string → a filter matching that whole calendar day.
+  const dayRange = (d?: string) => {
+    if (!d) return undefined;
+    const start = new Date(`${d}T00:00:00`);
+    if (Number.isNaN(start.getTime())) return undefined;
+    return { gte: start, lte: new Date(`${d}T23:59:59.999`) };
+  };
+  const createdRange = dayRange(sp.createdOn as string | undefined);
+  const receivedRange = dayRange(sp.receivedOn as string | undefined);
+  const deliveredRange = dayRange(sp.deliveredOn as string | undefined);
+
   // Manager/Supervisor/Laundry see all; receptionists are scoped to their
   // assigned buildings. (getBuildingScopeFilter alone would hide everything
   // from the LAUNDRY role, which it doesn't know about.)
@@ -54,6 +65,9 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
         ...(priority ? { priority } : {}),
         ...(buildingId ? { buildingId } : {}),
         ...(search ? { orderCode: { contains: search, mode: "insensitive" } } : {}),
+        ...(createdRange ? { createdAt: createdRange } : {}),
+        ...(receivedRange ? { atLaundryAt: receivedRange } : {}),
+        ...(deliveredRange ? { deliveredAt: deliveredRange } : {}),
       },
       include: ORDER_INCLUDE,
       orderBy: [{ createdAt: "desc" }],

@@ -45,7 +45,18 @@ export default function LaundryBoard({
   const currentPriority = searchParams.get("priority") ?? "";
   const currentBuilding = searchParams.get("buildingId") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
-  const hasActiveFilters = !!(currentStatus || currentPriority || currentBuilding || currentSearch);
+  const currentCreatedOn = searchParams.get("createdOn") ?? "";
+  const currentReceivedOn = searchParams.get("receivedOn") ?? "";
+  const currentDeliveredOn = searchParams.get("deliveredOn") ?? "";
+  const hasActiveFilters = !!(
+    currentStatus ||
+    currentPriority ||
+    currentBuilding ||
+    currentSearch ||
+    currentCreatedOn ||
+    currentReceivedOn ||
+    currentDeliveredOn
+  );
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -217,6 +228,27 @@ export default function LaundryBoard({
               {isEn ? "Clear filters" : "مسح الفلاتر"}
             </button>
           )}
+        </div>
+
+        {/* Date filters */}
+        <div className="flex flex-wrap items-end gap-3 mt-2 pt-2 border-t border-gray-100">
+          {[
+            { key: "createdOn", value: currentCreatedOn, en: "Created", ar: "تاريخ الإنشاء" },
+            { key: "receivedOn", value: currentReceivedOn, en: "Received", ar: "تاريخ الاستلام" },
+            { key: "deliveredOn", value: currentDeliveredOn, en: "Delivered", ar: "تاريخ التسليم" },
+          ].map((f) => (
+            <div key={f.key} className="flex flex-col">
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                {isEn ? f.en : f.ar}
+              </label>
+              <input
+                type="date"
+                value={f.value}
+                onChange={(e) => updateFilter(f.key, e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+              />
+            </div>
+          ))}
         </div>
       </div>
 
