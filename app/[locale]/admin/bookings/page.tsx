@@ -91,9 +91,11 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
     },
   });
 
-  // Count per status for badge numbers (unfiltered)
+  // Count per status for badge numbers. Mirror the list's exclusion of unpaid
+  // online bookings so the badge totals match what's actually shown.
   const counts = await prisma.booking.groupBy({
     by: ["status"],
+    where: { NOT: { paymentMethod: "CARD", status: "PENDING" } },
     _count: { status: true },
   });
   const countMap: Record<string, number> = { ALL: 0 };

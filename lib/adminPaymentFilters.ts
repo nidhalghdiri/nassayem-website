@@ -42,6 +42,13 @@ export function buildBookingWhere(
   const status = params.status?.toUpperCase() ?? "ALL";
   if (status !== "ALL") where.status = status as BookingStatus;
 
+  // Online (CARD) bookings only ever appear once they reach a terminal state —
+  // Confirmed (paid) or Cancelled. A CARD booking that is still PENDING was
+  // never paid (guest abandoned the SmartPay page before any callback), so it
+  // is hidden from the admin list and exports. CASH bookings keep their
+  // legitimate Pending state (guest pays at reception).
+  where.NOT = { paymentMethod: "CARD", status: "PENDING" };
+
   const q = params.q?.trim();
   if (q) {
     where.OR = [
