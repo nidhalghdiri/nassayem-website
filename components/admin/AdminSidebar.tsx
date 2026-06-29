@@ -15,14 +15,14 @@ type Props = {
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions)
 // SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks, Laundry
-// RECEPTIONIST : Dashboard, Tasks, Laundry
+// RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Laundry
 // HOUSEKEEPING : Dashboard, Tasks
 // MAINTENANCE  : Dashboard, Tasks
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
   MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry"],
-  RECEPTIONIST: ["dashboard", "netsuitePayments", "tasks", "laundry"],
+  RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks"],
   MAINTENANCE:  ["dashboard", "tasks"],
   LAUNDRY:      ["dashboard", "laundry"],

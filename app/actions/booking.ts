@@ -9,6 +9,7 @@ import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { getActivePromotionForUnit } from "@/app/actions/promotion";
 import { getPeriodPricing } from "@/app/actions/pricing";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
+import { assertCanManageBooking } from "@/lib/adminAuth";
 
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
@@ -430,6 +431,9 @@ export async function updateBookingStatus(
   newStatus: BookingStatus,
   locale: string,
 ) {
+  // Building-scoped roles may only manage bookings in their own buildings.
+  await assertCanManageBooking(bookingId);
+
   const existing = await prisma.booking.findUnique({
     where: { id: bookingId },
     select: { paymentMethod: true },
@@ -456,6 +460,9 @@ export async function updateBookingStatus(
  * CORE FUNCTION 5: Delete Booking
  */
 export async function deleteBooking(bookingId: string, locale: string) {
+  // Building-scoped roles may only delete bookings in their own buildings.
+  await assertCanManageBooking(bookingId);
+
   await prisma.booking.delete({ where: { id: bookingId } });
   revalidatePath(`/${locale}/admin/bookings`);
   revalidatePath(`/${locale}/admin`);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
 import prisma from "@/lib/prisma";
-import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { buildBookingWhere } from "@/lib/adminPaymentFilters";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { buildExcel, excelHeaders, type ExcelColumn } from "@/lib/excel";
@@ -45,13 +45,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Receptionists export only their assigned buildings' bookings.
+  const buildingScope = await getBuildingScopeFilter(adminUser);
+  const scopeWhere = buildingScope
+    ? { unit: { buildingId: buildingScope.buildingId } }
+    : {};
+
   const sp = req.nextUrl.searchParams;
-  const where = buildBookingWhere({
-    status: sp.get("status") ?? undefined,
-    q: sp.get("q") ?? undefined,
-    from: sp.get("from") ?? undefined,
-    to: sp.get("to") ?? undefined,
-  });
+  const where = {
+    AND: [
+      buildBookingWhere({
+        status: sp.get("status") ?? undefined,
+        q: sp.get("q") ?? undefined,
+        from: sp.get("from") ?? undefined,
+        to: sp.get("to") ?? undefined,
+      }),
+      scopeWhere,
+    ],
+  };
 
   const bookings = await prisma.booking.findMany({
     where,

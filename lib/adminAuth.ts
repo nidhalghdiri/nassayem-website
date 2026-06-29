@@ -60,3 +60,25 @@ export async function getBuildingScopeFilter(
   }
   return { buildingId: { in: [] } };
 }
+
+/**
+ * Authorizes the current admin user to mutate a specific booking (status change
+ * or delete). MANAGER / SUPERVISOR may act on any booking; building-scoped roles
+ * (RECEPTIONIST) only on bookings whose unit belongs to one of their assigned
+ * buildings. Throws "Forbidden" otherwise. Call at the top of booking mutations.
+ */
+export async function assertCanManageBooking(bookingId: string): Promise<void> {
+  const user = await getCurrentAdminUser();
+  if (!user) throw new Error("Forbidden");
+
+  const scope = await getBuildingScopeFilter(user);
+  if (scope === null) return; // unrestricted (MANAGER / SUPERVISOR)
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { unit: { select: { buildingId: true } } },
+  });
+  if (!booking || !scope.buildingId.in.includes(booking.unit.buildingId)) {
+    throw new Error("Forbidden: booking is outside your assigned buildings");
+  }
+}

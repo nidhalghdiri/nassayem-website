@@ -4,9 +4,11 @@ import BookingDetailsModal from "@/components/admin/BookingDetailsModal";
 import DeleteBookingButton from "@/components/admin/DeleteBookingButton";
 import ListFilterBar from "@/components/admin/ListFilterBar";
 import { buildBookingWhere } from "@/lib/adminPaymentFilters";
+import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 
 type PageProps = {
@@ -70,13 +72,30 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
 
   const activeFilter = rawStatus?.toUpperCase() ?? "ALL";
 
+  // Building scope: receptionists only see bookings whose unit belongs to one
+  // of their assigned buildings; managers/supervisors see everything. Bookings
+  // reach their building through the related Unit, so the generic
+  // { buildingId } scope is wrapped as { unit: { buildingId } }.
+  const adminUser = await getCurrentAdminUser();
+  const buildingScope = adminUser
+    ? await getBuildingScopeFilter(adminUser)
+    : { buildingId: { in: [] as string[] } };
+  const scopeWhere: Prisma.BookingWhereInput = buildingScope
+    ? { unit: { buildingId: buildingScope.buildingId } }
+    : {};
+
   // Build Prisma where clause combining status + text search + payment-date range
-  const whereClause = buildBookingWhere({
-    status: rawStatus,
-    q: searchQuery,
-    from,
-    to,
-  });
+  const whereClause: Prisma.BookingWhereInput = {
+    AND: [
+      buildBookingWhere({
+        status: rawStatus,
+        q: searchQuery,
+        from,
+        to,
+      }),
+      scopeWhere,
+    ],
+  };
 
   const bookings = await prisma.booking.findMany({
     where: whereClause,
@@ -92,10 +111,12 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
   });
 
   // Count per status for badge numbers. Mirror the list's exclusion of unpaid
-  // online bookings so the badge totals match what's actually shown.
+  // online bookings AND the building scope so the badge totals match the list.
   const counts = await prisma.booking.groupBy({
     by: ["status"],
-    where: { NOT: { paymentMethod: "CARD", status: "PENDING" } },
+    where: {
+      AND: [{ NOT: { paymentMethod: "CARD", status: "PENDING" } }, scopeWhere],
+    },
     _count: { status: true },
   });
   const countMap: Record<string, number> = { ALL: 0 };
