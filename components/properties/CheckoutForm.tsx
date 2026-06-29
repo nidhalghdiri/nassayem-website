@@ -86,6 +86,11 @@ export default function CheckoutForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  // EMERGENCY request-only mode: when payments are disabled we hide the whole
+  // payment section and submit an unpaid booking request instead. Mirrors the
+  // server guard in app/actions/booking.ts. Flip the env flag off to restore.
+  const paymentsDisabled = process.env.NEXT_PUBLIC_PAYMENTS_DISABLED === "true";
+
   // Khareef season (July/August) forces online payment.
   const isKhareef = stayTouchesKhareef(checkIn, checkOut);
 
@@ -173,7 +178,22 @@ export default function CheckoutForm({
     <>
       <form onSubmit={handleSubmit} className="space-y-6 mt-8">
 
+        {/* ── Request-only notice (payments temporarily disabled) ─────────── */}
+        {paymentsDisabled && (
+          <div className="bg-nassayem/5 border border-nassayem/20 p-6 md:p-8 rounded-2xl">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              {isEn ? "Request to Book" : "اطلب الحجز"}
+            </h2>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              {isEn
+                ? "No payment is required right now. Submit your details below and our customer service team will contact you shortly to confirm availability and arrange payment."
+                : "لا حاجة للدفع الآن. أدخل بياناتك أدناه وسيتواصل معك فريق خدمة العملاء قريباً لتأكيد التوفر وترتيب الدفع."}
+            </p>
+          </div>
+        )}
+
         {/* ── Payment Method ─────────────────────────────────────────────── */}
+        {!paymentsDisabled && (
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-900 mb-5">
             {isEn ? "Payment Method" : "طريقة الدفع"}
@@ -455,6 +475,7 @@ export default function CheckoutForm({
             </p>
           )}
         </div>
+        )}
 
         {/* ── Guest Details ──────────────────────────────────────────────── */}
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -603,6 +624,14 @@ export default function CheckoutForm({
                   </svg>
                   {isEn ? "Processing..." : "جارٍ المعالجة..."}
                 </>
+              ) : paymentsDisabled ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {isEn ? "Request to Book" : "اطلب الحجز"}
+                </>
               ) : paymentMethod === "CASH" ? (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -631,7 +660,11 @@ export default function CheckoutForm({
             </button>
 
             <p className="text-center text-gray-400 text-xs mt-4">
-              {paymentMethod === "CASH"
+              {paymentsDisabled
+                ? isEn
+                  ? "No payment is taken now. We'll contact you shortly to confirm your booking."
+                  : "لن يتم تحصيل أي دفعة الآن. سنتواصل معك قريباً لتأكيد حجزك."
+                : paymentMethod === "CASH"
                 ? isEn
                   ? "Your booking will be confirmed immediately with no upfront payment required."
                   : "سيتم تأكيد حجزك فوراً دون الحاجة لدفع مسبق."

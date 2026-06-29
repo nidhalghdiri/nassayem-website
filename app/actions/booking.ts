@@ -259,15 +259,27 @@ export async function createBooking(
   const guestPhone = formData.get("guestPhone") as string;
   const guestNationality = (formData.get("guestNationality") as string) || null;
   const guestNotes = (formData.get("guestNotes") as string) || null;
-  const paymentMethod = (formData.get("paymentMethod") as string) || "CARD";
   const rawPaymentPlan = (formData.get("paymentPlan") as string) || "FULL";
+
+  // ── EMERGENCY request-only mode (peak season, limited inventory) ───────────
+  // When NEXT_PUBLIC_PAYMENTS_DISABLED is "true" we stop taking online payments
+  // entirely: every booking is treated as a PENDING request with no SmartPay
+  // redirect, regardless of what the client submitted. Staff confirm manually
+  // so we never charge a guest for a room that turns out to be occupied.
+  // Flip the flag off to restore the normal CASH/CARD + SmartPay flow below.
+  const requestOnly = process.env.NEXT_PUBLIC_PAYMENTS_DISABLED === "true";
+  const paymentMethod = requestOnly
+    ? "CASH"
+    : (formData.get("paymentMethod") as string) || "CARD";
 
   if (!guestName || !guestEmail || !guestPhone) {
     throw new Error("Please fill in all contact details.");
   }
 
-  // Khareef stays (any night in July/August) must be paid online.
+  // Khareef stays (any night in July/August) must be paid online — skipped in
+  // request-only mode, where nothing is paid online by design.
   if (
+    !requestOnly &&
     paymentMethod === "CASH" &&
     rangeContainsKhareef(
       startOfDay(parseISO(checkIn)),
@@ -374,10 +386,13 @@ export async function createBooking(
   }
 
   if (paymentMethod === "CASH") {
-    // No payment gateway — send confirmation email immediately
-    // Fire-and-forget: don't await so it doesn't block the response
-    sendBookingConfirmation(booking.id, locale);
-    return { success: true, isCash: true, bookingId: booking.id };
+    // Request-only mode: don't send the cash "confirmed" email — the booking is
+    // an unconfirmed request and staff will reach out before confirming.
+    // Normal cash flow: send confirmation email immediately (fire-and-forget).
+    if (!requestOnly) {
+      sendBookingConfirmation(booking.id, locale);
+    }
+    return { success: true, isCash: true, bookingId: booking.id, requestOnly };
   }
 
   // CARD: route through SmartPay; booking confirmed only after webhook.
