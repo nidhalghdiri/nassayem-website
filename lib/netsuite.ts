@@ -68,14 +68,22 @@ async function callChatbotRestlet<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RESTLET_TIMEOUT_MS);
   try {
-    const res = await fetch(NETSUITE_CHATBOT_RESTLET_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${NETSUITE_M2M_TOKEN}`,
-      },
-      body: JSON.stringify(body),
+    // GET with query params — externally-called Suitelets reject POST (405)
+    // on some URL domains. The token rides both the Authorization header and
+    // a `token` param (fallback for redirects that strip headers).
+    const url = new URL(NETSUITE_CHATBOT_RESTLET_URL);
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined && value !== null && value !== "") {
+        url.searchParams.set(key, String(value));
+      }
+    }
+    url.searchParams.set("token", NETSUITE_M2M_TOKEN);
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: { Authorization: `Bearer ${NETSUITE_M2M_TOKEN}` },
       signal: controller.signal,
+      redirect: "follow",
     });
     const text = await res.text();
     if (!res.ok) {

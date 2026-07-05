@@ -173,7 +173,9 @@ Until `NETSUITE_CHATBOT_RESTLET_URL` is set, the chatbot silently falls back to 
 
 **Test with curl:**
 ```bash
-curl -X POST "$SUITELET_EXTERNAL_URL" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"action":"check_availability","unitType":"TWO_BEDROOM","netsuiteBuildingId":"77","checkIn":"2026-08-10","checkOut":"2026-08-13"}'
+curl -G "$SUITELET_EXTERNAL_URL" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "action=check_availability" --data-urlencode "unitType=TWO_BEDROOM" \
+  --data-urlencode "netsuiteBuildingId=77" --data-urlencode "checkIn=2026-08-10" \
+  --data-urlencode "checkOut=2026-08-13" --data-urlencode "token=$TOKEN"
 ```

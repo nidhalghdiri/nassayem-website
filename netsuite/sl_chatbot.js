@@ -110,6 +110,11 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       if (!expected) return false;
       var header = request.headers["authorization"] || request.headers["Authorization"] || "";
       var provided = header.indexOf("Bearer ") === 0 ? header.substring(7) : header;
+      // Fallback: token as a query parameter, in case a redirect in the
+      // external-URL chain strips the Authorization header.
+      if (!provided && request.parameters && request.parameters.token) {
+        provided = request.parameters.token;
+      }
       return !!provided && provided === expected;
     }
 
@@ -352,12 +357,36 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       return { ok: true, reservationId: String(id), reservationRef: ref, unitCode: unit.code };
     }
 
+    /**
+     * Externally-called Suitelets can reject POST (405) depending on the URL
+     * domain, so GET with query parameters is the primary transport; POST
+     * with a JSON body is kept as a fallback for environments where it works.
+     */
+    function readParams(request) {
+      if (request.method === "GET") {
+        var p = request.parameters || {};
+        return {
+          action: p.action,
+          netsuiteBuildingId: p.netsuiteBuildingId,
+          unitType: p.unitType,
+          checkIn: p.checkIn,
+          checkOut: p.checkOut,
+          customerName: p.customerName,
+          customerPhone: p.customerPhone,
+          customerEmail: p.customerEmail,
+          totalAmount: p.totalAmount ? Number(p.totalAmount) : undefined,
+          notes: p.notes,
+        };
+      }
+      return JSON.parse(request.body || "{}");
+    }
+
     function onRequest(context) {
       var request = context.request;
       var response = context.response;
 
-      if (request.method !== "POST") {
-        return json(response, { ok: false, error: "POST only" });
+      if (request.method !== "GET" && request.method !== "POST") {
+        return json(response, { ok: false, error: "GET or POST only" });
       }
       if (!authorized(request)) {
         log.audit("chatbot suitelet", "unauthorized request rejected");
@@ -366,9 +395,9 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
 
       var body;
       try {
-        body = JSON.parse(request.body || "{}");
+        body = readParams(request);
       } catch (e) {
-        return json(response, { ok: false, error: "Invalid JSON" });
+        return json(response, { ok: false, error: "Invalid request payload" });
       }
 
       try {
