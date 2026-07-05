@@ -80,6 +80,7 @@ type WaMessage = {
   location?: { latitude?: number; longitude?: number };
 };
 type WaValue = {
+  metadata?: { phone_number_id?: string };
   messages?: WaMessage[];
   contacts?: { wa_id?: string; profile?: { name?: string } }[];
   statuses?: unknown[];
@@ -135,6 +136,7 @@ async function sendMediaFollowUps(
   to: string,
   language: string,
   toolCalls: { name: string; result: unknown }[],
+  senderPhoneNumberId?: string,
 ): Promise<void> {
   const isAr = language === "ar";
   let imagesSent = 0;
@@ -147,7 +149,7 @@ async function sendMediaFollowUps(
       for (let i = 0; i < urls.length; i++) {
         const caption =
           i === 0 ? (isAr ? r.title_ar : r.title_en) ?? undefined : undefined;
-        await sendWhatsAppImage(to, urls[i], caption);
+        await sendWhatsAppImage(to, urls[i], caption, senderPhoneNumberId);
         imagesSent++;
       }
     }
@@ -165,6 +167,7 @@ async function sendMediaFollowUps(
             b.longitude,
             isAr ? b.name_ar : b.name_en,
             isAr ? b.location_ar : b.location_en,
+            senderPhoneNumberId,
           );
           locationSent = true;
         }
@@ -177,6 +180,10 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
   const text = extractText(msg);
   if (!text || !msg.from) return;
 
+  // Reply from the exact number the customer wrote to — the 24h service
+  // window is per receiving number. Falls back to the env var inside senders.
+  const senderPhoneNumberId = value.metadata?.phone_number_id;
+
   // Dedupe Meta webhook retries by wamid.
   const seen = await prisma.chatbotMessage.findUnique({
     where: { waMessageId: msg.id },
@@ -185,7 +192,7 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
   if (seen) return;
 
   // Blue ticks while the agent thinks — fire and forget.
-  markWhatsAppMessageRead(msg.id).catch(() => {});
+  markWhatsAppMessageRead(msg.id, senderPhoneNumberId).catch(() => {});
 
   const profileName = value.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name;
 
@@ -197,8 +204,30 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
     externalMessageId: msg.id,
   });
 
-  await sendWhatsAppText(msg.from, result.text);
-  await sendMediaFollowUps(msg.from, result.language, result.toolCalls);
+  const delivery = await sendWhatsAppText(msg.from, result.text, senderPhoneNumberId);
+  if (!delivery.ok) {
+    // Surface the exact Meta error in the admin transcript (violet tool chip)
+    // so delivery problems are diagnosable without server-log access.
+    await prisma.chatbotMessage
+      .create({
+        data: {
+          conversationId: result.conversationId,
+          role: "TOOL",
+          content: "whatsapp_delivery → error",
+          toolName: "whatsapp_delivery",
+          toolPayload: JSON.parse(
+            JSON.stringify({
+              input: { to: msg.from, sender_phone_number_id: senderPhoneNumberId ?? null },
+              result: { error: delivery.error },
+            }),
+          ),
+        },
+      })
+      .catch(() => {});
+    return; // reply never reached the customer — skip media follow-ups
+  }
+
+  await sendMediaFollowUps(msg.from, result.language, result.toolCalls, senderPhoneNumberId);
 }
 
 export async function POST(req: NextRequest) {

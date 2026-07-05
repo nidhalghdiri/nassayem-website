@@ -112,12 +112,26 @@ const BASE_URL = "https://graph.facebook.com/v19.0";
 // customer-service window, which every inbound customer message opens — so the
 // AI chatbot can reply without registered templates.
 
-async function postWhatsAppPayload(payload: object): Promise<boolean> {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+export type WhatsAppSendResult = { ok: boolean; error?: unknown };
+
+/**
+ * senderPhoneNumberId: prefer the `metadata.phone_number_id` from the inbound
+ * webhook — the 24-hour customer-service window belongs to the exact number
+ * the customer wrote to; replying from a different number is rejected by Meta.
+ * Falls back to the WHATSAPP_PHONE_NUMBER_ID env var.
+ */
+async function postWhatsAppPayload(
+  payload: object,
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
+  const phoneNumberId = senderPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!phoneNumberId || !token) {
     console.warn("[WhatsApp] Missing WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN — skipping send.");
-    return false;
+    return {
+      ok: false,
+      error: "WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN env var is missing/empty on this server",
+    };
   }
   try {
     const res = await fetch(`${BASE_URL}/${phoneNumberId}/messages`, {
@@ -131,25 +145,32 @@ async function postWhatsAppPayload(payload: object): Promise<boolean> {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("[WhatsApp] Send failed:", JSON.stringify(err));
-      return false;
+      return { ok: false, error: err };
     }
-    return true;
+    return { ok: true };
   } catch (e) {
     console.error("[WhatsApp] Network error:", e);
-    return false;
+    return { ok: false, error: String(e) };
   }
 }
 
 /** Free-form text message (chatbot replies). WhatsApp caps body at 4096 chars. */
-export async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
+export async function sendWhatsAppText(
+  to: string,
+  body: string,
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
   const cleanTo = to.replace(/\D/g, "");
-  if (!cleanTo || !body.trim()) return false;
-  return postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    to: cleanTo,
-    type: "text",
-    text: { body: body.slice(0, 4096), preview_url: true },
-  });
+  if (!cleanTo || !body.trim()) return { ok: false, error: "empty recipient or body" };
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "text",
+      text: { body: body.slice(0, 4096), preview_url: true },
+    },
+    senderPhoneNumberId,
+  );
 }
 
 /** Image by public URL with optional caption (unit gallery photos). */
@@ -157,15 +178,19 @@ export async function sendWhatsAppImage(
   to: string,
   imageUrl: string,
   caption?: string,
-): Promise<boolean> {
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
   const cleanTo = to.replace(/\D/g, "");
-  if (!cleanTo) return false;
-  return postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    to: cleanTo,
-    type: "image",
-    image: { link: imageUrl, ...(caption ? { caption: caption.slice(0, 1024) } : {}) },
-  });
+  if (!cleanTo) return { ok: false, error: "empty recipient" };
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "image",
+      image: { link: imageUrl, ...(caption ? { caption: caption.slice(0, 1024) } : {}) },
+    },
+    senderPhoneNumberId,
+  );
 }
 
 /** Native location pin (building position). */
@@ -175,24 +200,34 @@ export async function sendWhatsAppLocation(
   longitude: number,
   name?: string,
   address?: string,
-): Promise<boolean> {
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
   const cleanTo = to.replace(/\D/g, "");
-  if (!cleanTo) return false;
-  return postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    to: cleanTo,
-    type: "location",
-    location: { latitude, longitude, ...(name ? { name } : {}), ...(address ? { address } : {}) },
-  });
+  if (!cleanTo) return { ok: false, error: "empty recipient" };
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "location",
+      location: { latitude, longitude, ...(name ? { name } : {}), ...(address ? { address } : {}) },
+    },
+    senderPhoneNumberId,
+  );
 }
 
 /** Mark an inbound message as read (blue ticks) — polite chatbot UX. */
-export async function markWhatsAppMessageRead(messageId: string): Promise<void> {
-  await postWhatsAppPayload({
-    messaging_product: "whatsapp",
-    status: "read",
-    message_id: messageId,
-  });
+export async function markWhatsAppMessageRead(
+  messageId: string,
+  senderPhoneNumberId?: string,
+): Promise<void> {
+  await postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: messageId,
+    },
+    senderPhoneNumberId,
+  );
 }
 
 // ── Low-level sender ──────────────────────────────────────────────────────────
