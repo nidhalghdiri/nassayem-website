@@ -161,10 +161,12 @@ The website logs sync errors on each `NetsuitePayment` row and shows them in `/a
 
 Gives the AI chatbot real-time availability from NetSuite and lets it create reservations automatically (payment is collected via the existing payment-link flow).
 
+The availability logic mirrors `reservation_script.js` (the reservation form's client script) exactly: units = service items filtered by `location` + `custitem_ns_item_unit_type`; busy = `customsale_ns_reservations` overlapping the dates (account 1388) whose status code ends in **A** (Pending Check-In) or **B** (Checked-In). Reservation creation replicates `onAddUnits()`: find-or-create the customer by phone (subsidiary 2), then a reservation with `startdate`/`enddate`, `location`, cycle/period, and one item line (UOM 86 day / 87 month, custom rate from the website's quoted total).
+
 **Deploy:**
 1. Upload `sl_chatbot.js` as a Suitelet, **Available Without Login: YES**.
-2. Define script parameter `custscript_nass_chatbot_token` — a long random string. Put the SAME value in the website env var `NETSUITE_M2M_TOKEN` (if it's already set for the payment-sync RESTlet, reuse that value here).
-3. Edit the `CONFIG` block at the top: unit record type + fields, the `UNIT_TYPE_MAP` (website STUDIO/ONE_BEDROOM/… → your unit-type list internal ids), reservation record type + fields, `blockingStatusIds` (statuses that make a unit unavailable) and `newStatusId` (status for a fresh unpaid chatbot reservation).
+2. Define script parameter `custscript_nass_chatbot_token` — a long random string. Put the SAME value in the website env var `NETSUITE_M2M_TOKEN`.
+3. Verify the `CONFIG` block: `UNIT_TYPE_MAP` internal ids (currently Studio=3, 1BHK=2, 2BHK=1, 3BHK=4, Villa=5), the reservation `accountId` (1388) and customer `subsidiary` (2).
 4. Copy the deployment's **external URL** into the website env var `NETSUITE_CHATBOT_RESTLET_URL` and redeploy the website.
 
 Until `NETSUITE_CHATBOT_RESTLET_URL` is set, the chatbot silently falls back to website-side availability, so deploys are safe in any order.

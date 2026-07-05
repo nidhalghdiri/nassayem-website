@@ -1,19 +1,31 @@
 /**
  * Nassayem — Suitelet powering the AI chatbot's real-time NetSuite access.
  *
+ * Availability logic mirrors reservation_script.js (the reservation form's
+ * client script) exactly:
+ *   - Units   = service ITEMs in a building:  filter [location, is, building]
+ *               columns itemid / custitem_ns_item_unit_type / custitem_ns_property_status
+ *   - Busy    = customsale_ns_reservations overlapping the dates
+ *               (startdate < requested checkOut AND enddate > requested checkIn,
+ *                account 1388) whose status CODE ends in "A" (Pending Check-In)
+ *               or "B" (Checked-In). "C"/"D" (Cancelled / Checked-Out) don't block.
+ *   - Free    = units of the requested type − busy units.
+ *
  * Two actions, both POST JSON:
- *   { action: "check_availability", netsuiteBuildingId?, unitType, checkIn, checkOut }
+ *   { action: "check_availability", netsuiteBuildingId, unitType, checkIn, checkOut }
  *     → { ok, totalUnits, freeUnits, freeUnitCodes: ["OK-305", ...] }
- *   { action: "create_reservation", netsuiteBuildingId?, unitType, checkIn,
+ *   { action: "create_reservation", netsuiteBuildingId, unitType, checkIn,
  *     checkOut, customerName, customerPhone, customerEmail?, totalAmount, notes? }
  *     → { ok, reservationId, reservationRef, unitCode }
  *
  * unitType arrives as the WEBSITE enum (STUDIO / ONE_BEDROOM / TWO_BEDROOM /
- * THREE_BEDROOM / VILLA) — map it to your NetSuite values in CONFIG.UNIT_TYPE_MAP.
+ * THREE_BEDROOM / VILLA) — mapped in CONFIG.UNIT_TYPE_MAP to the internal ids
+ * of the custitem_ns_item_unit_type list. netsuiteBuildingId is the NetSuite
+ * LOCATION internal id (= Building.netsuiteId on the website, the same id the
+ * payment-link scripts send).
  *
  * Date semantics match the website: checkOut is the departure morning
- * (exclusive). A reservation blocks a unit when
- *   reservation.checkIn < requested.checkOut AND reservation.checkOut > requested.checkIn
+ * (exclusive).
  *
  * Deployment notes:
  *   - Script type: Suitelet
@@ -32,60 +44,63 @@
 define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
   function (record, search, runtime, format, log) {
 
-    // ── EDIT ME: your NetSuite schema ────────────────────────────────────────
+    // ── CONFIG (matches the live schema used by reservation_script.js) ──────
     var CONFIG = {
       UNIT: {
-        recordType: "customrecord_nass_unit",       // your unit custom record
+        // Units are service items; the building is the item's location.
         fields: {
-          code:      "name",                        // human unit code, e.g. "OK-305"
-          unitType:  "custrecord_nass_unit_type",   // list/select field
-          building:  "custrecord_nass_unit_building", // link to building record
-          inactive:  "isinactive",                  // standard inactive flag
+          code: "itemid",                           // human unit code
+          unitType: "custitem_ns_item_unit_type",   // list field
+          status: "custitem_ns_property_status",    // 1 Vacant / 2 Occupied / 3 Cleaning (informational)
         },
       },
 
-      // Website unit type → NetSuite unit-type value(s).
-      // Use the INTERNAL IDs of your unit-type list values (open the list in
-      // NetSuite to see them). Several NetSuite values may map to one website
-      // type (e.g. two flavours of 2BHK) — hence arrays.
+      // Website unit type → internal id(s) of the custitem_ns_item_unit_type
+      // list values. Arrays: several NetSuite values may map to one website type.
       UNIT_TYPE_MAP: {
-        STUDIO:        ["1"],
-        ONE_BEDROOM:   ["2"],   // 1BHK
-        TWO_BEDROOM:   ["3"],   // 2BHK
-        THREE_BEDROOM: ["4"],   // 3BHK
-        VILLA:         ["5"],
+        STUDIO: ["3"],
+        ONE_BEDROOM: ["2"],   // 1BHK
+        TWO_BEDROOM: ["1"],   // 2BHK
+        THREE_BEDROOM: ["4"], // 3BHK
+        VILLA: ["5"],
       },
 
       RESERVATION: {
-        recordType: "customrecord_nass_reservation", // your reservation record
+        recordType: "customsale_ns_reservations",
+        // Same account filter the reservation form's occupancy search uses.
+        accountId: "1388",
+        // Status CODES (trailing letter of the search "status" value) that
+        // BLOCK a unit: A = Pending Check-In, B = Checked-In.
+        // C = Cancelled and D = Checked-Out do NOT block.
+        blockingStatusCodes: ["A", "B"],
         fields: {
-          unit:          "custrecord_nass_res_unit",       // link to unit record
-          checkIn:       "custrecord_nass_res_check_in",   // date
-          checkOut:      "custrecord_nass_res_check_out",  // date
-          status:        "custrecord_nass_res_status",     // list/select
-          customerName:  "custrecord_nass_res_customer",   // free text (or entity — adjust setValue below)
-          customerPhone: "custrecord_nass_res_phone",
-          customerEmail: "custrecord_nass_res_email",
-          amount:        "custrecord_nass_res_amount",
-          notes:         "custrecord_nass_res_notes",
-          source:        "custrecord_nass_res_source",     // optional; "" to skip
+          customerNameTxt: "custbody_ns_customer_name",
+          customerPhone: "custbody_nass_customer_phone",
+          customerEmail: "custbody_nass_customer_email",
+          unitCode: "custbody_nass_unit_code",
+          cycle: "custbody_ns_reservation_cycle", // "1" daily · "2" monthly
+          period: "custbody_ns_res_period",
+          memo: "memo",
         },
-        // Status internal ids that BLOCK availability (booked/confirmed/checked-in…).
-        // Cancelled / no-show statuses must NOT be listed here.
-        blockingStatusIds: ["1", "2", "3"],
-        // Status internal id for a new, unpaid chatbot reservation.
-        newStatusId: "1",
-        // Optional value for the source field (internal id or text). "" to skip.
-        chatbotSourceValue: "",
+        cycleDaily: "1",
+        cycleMonthly: "2",
+        // Item-line units of measure (same ids onAddUnits() uses).
+        uomDaily: "86",
+        uomMonthly: "87",
+        // Stays of at least this many nights use the monthly cycle.
+        monthlyThresholdNights: 30,
+      },
+
+      CUSTOMER: {
+        subsidiary: "2",              // same subsidiary the reservation form searches
+        fullNameField: "custentity38", // full-name custom field on customer
       },
     };
-    // ── END EDIT ME ──────────────────────────────────────────────────────────
+    // ── END CONFIG ───────────────────────────────────────────────────────────
 
-    function json(response, status, body) {
+    function json(response, body) {
       response.setHeader({ name: "Content-Type", value: "application/json" });
       response.write(JSON.stringify(body));
-      // Suitelets can't set arbitrary status codes reliably; ok:false carries it.
-      void status;
     }
 
     function authorized(request) {
@@ -98,122 +113,243 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       return !!provided && provided === expected;
     }
 
-    function toNsDate(isoDate) {
-      // "2026-07-20" → NetSuite date string in the account's format
-      var parts = isoDate.split("-");
-      var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    /** "2026-07-20" → JS Date (local calendar day, no TZ shifting). */
+    function isoToDate(isoDate) {
+      var p = String(isoDate).split("-");
+      return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    }
+
+    /** JS Date → date string in the account's format (for search filters). */
+    function toNsDateString(d) {
       return format.format({ value: d, type: format.Type.DATE });
     }
 
-    /** All active unit ids+codes of the requested type (optionally one building). */
-    function findUnits(unitType, buildingId) {
+    function nightsBetween(checkIn, checkOut) {
+      var oneDay = 1000 * 60 * 60 * 24;
+      return Math.round(
+        (isoToDate(checkOut).getTime() - isoToDate(checkIn).getTime()) / oneDay,
+      );
+    }
+
+    /**
+     * All active unit items of the requested type in the building —
+     * mirrors searchAllUnits() but filters the type in the search itself.
+     */
+    function findUnitsOfType(buildingId, unitType) {
       var typeIds = CONFIG.UNIT_TYPE_MAP[unitType];
       if (!typeIds || !typeIds.length) {
         throw new Error("Unmapped unit type: " + unitType);
       }
-      var filters = [
-        [CONFIG.UNIT.fields.unitType, "anyof", typeIds],
-        "and",
-        [CONFIG.UNIT.fields.inactive, "is", "F"],
-      ];
-      if (buildingId) {
-        filters.push("and");
-        filters.push([CONFIG.UNIT.fields.building, "anyof", [String(buildingId)]]);
-      }
       var units = [];
       search.create({
-        type: CONFIG.UNIT.recordType,
-        filters: filters,
-        columns: [CONFIG.UNIT.fields.code],
+        type: search.Type.ITEM,
+        columns: ["internalid", CONFIG.UNIT.fields.code],
+        filters: [
+          ["location", "is", buildingId],
+          "and",
+          [CONFIG.UNIT.fields.unitType, "anyof", typeIds],
+          "and",
+          ["isinactive", "is", "F"],
+        ],
       }).run().each(function (r) {
-        units.push({ id: r.id, code: r.getValue(CONFIG.UNIT.fields.code) });
-        return units.length < 500;
+        units.push({
+          id: r.getValue({ name: "internalid" }),
+          code: r.getValue({ name: CONFIG.UNIT.fields.code }),
+        });
+        return units.length < 1000;
       });
       return units;
     }
 
-    /** Unit ids busy (blocking reservation overlapping the range) among unitIds. */
-    function findBusyUnitIds(unitIds, checkIn, checkOut) {
-      if (!unitIds.length) return {};
-      var F = CONFIG.RESERVATION.fields;
-      var busy = {};
+    /**
+     * Item internal ids taken by an overlapping ACTIVE reservation — mirrors
+     * searchOccuipedUnits(): date overlap + account filter in the search, then
+     * the status decided by the TRAILING code letter in JS (the "status"
+     * search column returns forms like "<type>:A", never plain "statusA").
+     */
+    function searchOccupiedUnitIds(buildingId, checkIn, checkOut) {
+      var occupied = {};
       search.create({
         type: CONFIG.RESERVATION.recordType,
+        columns: ["tranid", "status", "item"],
         filters: [
-          [F.unit, "anyof", unitIds],
+          ["location", "is", buildingId],
           "and",
-          [F.status, "anyof", CONFIG.RESERVATION.blockingStatusIds],
+          ["account", "is", CONFIG.RESERVATION.accountId],
           "and",
-          // reservation.checkIn < requested.checkOut (checkOut exclusive)
-          [F.checkIn, "before", toNsDate(checkOut)],
+          // reservation.startdate < requested checkOut (checkOut exclusive)
+          ["startdate", "before", toNsDateString(isoToDate(checkOut))],
           "and",
-          // reservation.checkOut > requested.checkIn
-          [F.checkOut, "after", toNsDate(checkIn)],
+          // reservation.enddate > requested checkIn
+          ["enddate", "after", toNsDateString(isoToDate(checkIn))],
         ],
-        columns: [F.unit],
       }).run().each(function (r) {
-        busy[String(r.getValue(F.unit))] = true;
+        var statusCode = String(r.getValue({ name: "status" }) || "")
+          .slice(-1)
+          .toUpperCase();
+        if (CONFIG.RESERVATION.blockingStatusCodes.indexOf(statusCode) !== -1) {
+          var itemId = r.getValue({ name: "item" });
+          if (itemId) occupied[String(itemId)] = true;
+        }
         return true;
       });
-      return busy;
+      return occupied;
     }
 
     function availability(body) {
-      var units = findUnits(body.unitType, body.netsuiteBuildingId);
-      var busy = findBusyUnitIds(units.map(function (u) { return u.id; }),
-        body.checkIn, body.checkOut);
-      var free = units.filter(function (u) { return !busy[String(u.id)]; });
+      if (!body.netsuiteBuildingId) {
+        return { ok: false, error: "netsuiteBuildingId (NetSuite location id) is required" };
+      }
+      var buildingId = String(body.netsuiteBuildingId);
+      var units = findUnitsOfType(buildingId, body.unitType);
+      var occupied = searchOccupiedUnitIds(buildingId, body.checkIn, body.checkOut);
+      var free = units.filter(function (u) { return !occupied[String(u.id)]; });
       return {
         ok: true,
         totalUnits: units.length,
         freeUnits: free.length,
         freeUnitCodes: free.slice(0, 5).map(function (u) { return u.code; }),
-        _freeUnitIds: free.map(function (u) { return u.id; }), // internal use
+        _free: free, // internal use — stripped before responding
       };
+    }
+
+    /** Find a customer by phone in our subsidiary, or create one. */
+    function findOrCreateCustomer(name, phone, email) {
+      // Match on the last 8 digits so "+968 9912 3456" and "96899123456" agree.
+      var phoneTail = String(phone).replace(/\D/g, "").slice(-8);
+      var found = null;
+      if (phoneTail.length >= 6) {
+        try {
+          search.create({
+            type: search.Type.CUSTOMER,
+            columns: ["internalid"],
+            filters: [
+              ["phone", "contains", phoneTail],
+              "and",
+              ["subsidiary", "anyof", CONFIG.CUSTOMER.subsidiary],
+              "and",
+              ["isinactive", "is", "F"],
+            ],
+          }).run().each(function (r) {
+            found = r.getValue({ name: "internalid" });
+            return false; // first match wins
+          });
+        } catch (e) {
+          log.debug("customer phone search failed", e);
+        }
+      }
+      if (found) return { id: found, created: false };
+
+      var cust = record.create({ type: record.Type.CUSTOMER, isDynamic: true });
+      try { cust.setValue({ fieldId: "isperson", value: "T" }); } catch (e) { /* ignore */ }
+      try {
+        var parts = String(name).trim().split(/\s+/);
+        cust.setValue({ fieldId: "firstname", value: parts[0] || name });
+        cust.setValue({ fieldId: "lastname", value: parts.slice(1).join(" ") || "-" });
+      } catch (e) {
+        try { cust.setValue({ fieldId: "companyname", value: name }); } catch (e2) { /* ignore */ }
+      }
+      cust.setValue({ fieldId: "subsidiary", value: CONFIG.CUSTOMER.subsidiary });
+      try { cust.setValue({ fieldId: "phone", value: phone }); } catch (e) { /* ignore */ }
+      if (email) { try { cust.setValue({ fieldId: "email", value: email }); } catch (e) { /* ignore */ } }
+      if (CONFIG.CUSTOMER.fullNameField) {
+        try { cust.setValue({ fieldId: CONFIG.CUSTOMER.fullNameField, value: name }); } catch (e) { /* ignore */ }
+      }
+      var id = cust.save({ enableSourcing: true, ignoreMandatoryFields: true });
+      log.audit("chatbot customer created", "id=" + id + " phone=" + phone);
+      return { id: id, created: true };
     }
 
     function createReservation(body) {
       var avail = availability(body);
+      if (!avail.ok) return avail;
       if (avail.freeUnits < 1) {
         return { ok: false, error: "No free unit of this type for these dates." };
       }
-      var chosen = avail._freeUnitIds[0];
-      var chosenCode = avail.freeUnitCodes[0];
+      var unit = avail._free[0];
 
-      var F = CONFIG.RESERVATION.fields;
-      var rec = record.create({ type: CONFIG.RESERVATION.recordType });
-      rec.setValue({ fieldId: F.unit, value: chosen });
-      rec.setValue({
-        fieldId: F.checkIn,
-        value: format.parse({ value: toNsDate(body.checkIn), type: format.Type.DATE }),
-      });
-      rec.setValue({
-        fieldId: F.checkOut,
-        value: format.parse({ value: toNsDate(body.checkOut), type: format.Type.DATE }),
-      });
-      rec.setValue({ fieldId: F.status, value: CONFIG.RESERVATION.newStatusId });
-      rec.setValue({ fieldId: F.customerName, value: body.customerName || "" });
-      if (F.customerPhone) rec.setValue({ fieldId: F.customerPhone, value: body.customerPhone || "" });
-      if (F.customerEmail && body.customerEmail) rec.setValue({ fieldId: F.customerEmail, value: body.customerEmail });
-      if (F.amount) rec.setValue({ fieldId: F.amount, value: body.totalAmount || 0 });
-      if (F.notes) rec.setValue({ fieldId: F.notes, value: body.notes || "Created by AI chatbot" });
-      if (F.source && CONFIG.RESERVATION.chatbotSourceValue) {
-        rec.setValue({ fieldId: F.source, value: CONFIG.RESERVATION.chatbotSourceValue });
+      var nights = nightsBetween(body.checkIn, body.checkOut);
+      if (nights < 1) return { ok: false, error: "Invalid date range." };
+
+      var R = CONFIG.RESERVATION;
+      var F = R.fields;
+      var isMonthly = nights >= R.monthlyThresholdNights;
+      var period = isMonthly ? Math.round(nights / 30) : nights;
+
+      var customer = findOrCreateCustomer(
+        body.customerName, body.customerPhone, body.customerEmail,
+      );
+
+      var rec = record.create({ type: R.recordType, isDynamic: true });
+      rec.setValue({ fieldId: "entity", value: customer.id });
+      rec.setValue({ fieldId: "location", value: String(body.netsuiteBuildingId) });
+      rec.setValue({ fieldId: "startdate", value: isoToDate(body.checkIn) });
+      rec.setValue({ fieldId: "enddate", value: isoToDate(body.checkOut) });
+      rec.setValue({ fieldId: F.cycle, value: isMonthly ? R.cycleMonthly : R.cycleDaily });
+      try { rec.setValue({ fieldId: F.period, value: period }); } catch (e) { /* optional */ }
+      // "A" = Pending Check-In (usually the default for a new reservation)
+      try { rec.setValue({ fieldId: "transtatus", value: "A" }); } catch (e) { /* default ok */ }
+      try { rec.setValue({ fieldId: F.customerNameTxt, value: body.customerName }); } catch (e) { }
+      try { rec.setValue({ fieldId: F.customerPhone, value: body.customerPhone }); } catch (e) { }
+      if (body.customerEmail) {
+        try { rec.setValue({ fieldId: F.customerEmail, value: body.customerEmail }); } catch (e) { }
       }
-      var id = rec.save();
+      try { rec.setValue({ fieldId: F.unitCode, value: unit.code }); } catch (e) { }
+      try {
+        rec.setValue({
+          fieldId: F.memo,
+          value: body.notes || "Created by AI chatbot (unpaid — payment link sent)",
+        });
+      } catch (e) { }
 
-      // Best-effort human ref (name/tranid of the saved record)
+      // Item line — same shape onAddUnits() builds: unit item, quantity =
+      // period, UOM 86 (day) / 87 (month). Rate comes from the website's
+      // pricing engine total (custom price level) so NetSuite shows the same
+      // amount the customer was quoted.
+      rec.selectNewLine({ sublistId: "item" });
+      rec.setCurrentSublistValue({ sublistId: "item", fieldId: "item", value: unit.id });
+      rec.setCurrentSublistValue({ sublistId: "item", fieldId: "quantity", value: period });
+      try {
+        rec.setCurrentSublistValue({
+          sublistId: "item",
+          fieldId: "units",
+          value: isMonthly ? R.uomMonthly : R.uomDaily,
+        });
+      } catch (e) { /* UOM optional */ }
+      try {
+        rec.setCurrentSublistValue({ sublistId: "item", fieldId: "price", value: "-1" }); // custom price level
+        rec.setCurrentSublistValue({
+          sublistId: "item",
+          fieldId: "rate",
+          value: Math.round((Number(body.totalAmount) / period) * 1000) / 1000,
+        });
+      } catch (e) { /* fall back to the item's own price */ }
+      try {
+        rec.setCurrentSublistValue({
+          sublistId: "item",
+          fieldId: "location",
+          value: String(body.netsuiteBuildingId),
+        });
+      } catch (e) { }
+      rec.commitLine({ sublistId: "item" });
+
+      var id = rec.save({ enableSourcing: true, ignoreMandatoryFields: true });
+
       var ref = String(id);
       try {
         var saved = search.lookupFields({
-          type: CONFIG.RESERVATION.recordType,
-          id: id,
-          columns: ["name"],
+          type: R.recordType, id: id, columns: ["tranid"],
         });
-        if (saved && saved.name) ref = String(saved.name);
-      } catch (e) { /* keep numeric id */ }
+        if (saved && saved.tranid) ref = String(saved.tranid);
+      } catch (e) { /* keep internal id */ }
 
-      return { ok: true, reservationId: String(id), reservationRef: ref, unitCode: chosenCode };
+      log.audit(
+        "chatbot reservation created",
+        "id=" + id + " ref=" + ref + " unit=" + unit.code +
+        " customer=" + customer.id + (customer.created ? " (new)" : ""),
+      );
+
+      return { ok: true, reservationId: String(id), reservationRef: ref, unitCode: unit.code };
     }
 
     function onRequest(context) {
@@ -221,39 +357,39 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       var response = context.response;
 
       if (request.method !== "POST") {
-        return json(response, 405, { ok: false, error: "POST only" });
+        return json(response, { ok: false, error: "POST only" });
       }
       if (!authorized(request)) {
         log.audit("chatbot suitelet", "unauthorized request rejected");
-        return json(response, 401, { ok: false, error: "Unauthorized" });
+        return json(response, { ok: false, error: "Unauthorized" });
       }
 
       var body;
       try {
         body = JSON.parse(request.body || "{}");
       } catch (e) {
-        return json(response, 400, { ok: false, error: "Invalid JSON" });
+        return json(response, { ok: false, error: "Invalid JSON" });
       }
 
       try {
         if (!body.unitType || !body.checkIn || !body.checkOut) {
-          return json(response, 400, { ok: false, error: "unitType, checkIn, checkOut are required" });
+          return json(response, { ok: false, error: "unitType, checkIn, checkOut are required" });
         }
         if (body.action === "check_availability") {
           var result = availability(body);
-          delete result._freeUnitIds;
-          return json(response, 200, result);
+          delete result._free;
+          return json(response, result);
         }
         if (body.action === "create_reservation") {
           if (!body.customerName || !body.customerPhone) {
-            return json(response, 400, { ok: false, error: "customerName and customerPhone are required" });
+            return json(response, { ok: false, error: "customerName and customerPhone are required" });
           }
-          return json(response, 200, createReservation(body));
+          return json(response, createReservation(body));
         }
-        return json(response, 400, { ok: false, error: "Unknown action: " + body.action });
+        return json(response, { ok: false, error: "Unknown action: " + body.action });
       } catch (e) {
         log.error("chatbot suitelet error", e);
-        return json(response, 500, { ok: false, error: e.message || String(e) });
+        return json(response, { ok: false, error: (e && e.message) || String(e) });
       }
     }
 
