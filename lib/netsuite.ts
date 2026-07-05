@@ -69,8 +69,10 @@ async function callChatbotRestlet<T>(
   const timer = setTimeout(() => controller.abort(), RESTLET_TIMEOUT_MS);
   try {
     // GET with query params — externally-called Suitelets reject POST (405)
-    // on some URL domains. The token rides both the Authorization header and
-    // a `token` param (fallback for redirects that strip headers).
+    // on some URL domains. Auth is the `token` query param ONLY: an
+    // Authorization header must NOT be sent, because NetSuite intercepts it
+    // and tries to validate it as a NetSuite OAuth token before the Suitelet
+    // runs — failing with an HTML error page.
     const url = new URL(NETSUITE_CHATBOT_RESTLET_URL);
     for (const [key, value] of Object.entries(body)) {
       if (value !== undefined && value !== null && value !== "") {
@@ -81,7 +83,6 @@ async function callChatbotRestlet<T>(
 
     const res = await fetch(url.toString(), {
       method: "GET",
-      headers: { Authorization: `Bearer ${NETSUITE_M2M_TOKEN}` },
       signal: controller.signal,
       redirect: "follow",
     });
