@@ -18,6 +18,12 @@ import {
   calculateBookingPrice,
 } from "@/app/actions/booking";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
+import {
+  checkNetsuiteAvailability,
+  createNetsuiteReservation,
+  isNetsuiteChatbotConfigured,
+} from "@/lib/netsuite";
+import { createNetsuitePaymentLink } from "@/lib/netsuitePaymentLink";
 import { getChatbotSettings } from "./config";
 
 export type ToolContext = {
@@ -90,6 +96,79 @@ async function availabilityWithHolds(
 
   const remaining = Math.max(0, (base.remaining ?? 0) - holdCount);
   return { available: remaining > 0, remaining };
+}
+
+type UnifiedAvailability = {
+  available: boolean;
+  remaining: number;
+  source: "netsuite" | "website";
+  error?: string;
+};
+
+type AvailabilityMemo = Map<string, Promise<UnifiedAvailability>>;
+
+/**
+ * Availability source of truth: NetSuite (real-time, per building + unit
+ * type), when the RESTlet is configured and the building is mapped. Falls
+ * back to website bookings when NetSuite is unconfigured, the building has no
+ * netsuiteId, or the call fails — the chat must keep working either way.
+ * Chatbot soft holds are subtracted in both paths. The memo dedupes RESTlet
+ * calls within one tool execution (several website units often share the same
+ * building + type pool).
+ */
+async function unifiedAvailability(
+  unit: { id: string; unitType: UnitType; buildingNetsuiteId: string | null },
+  checkIn: string,
+  checkOut: string,
+  conversationId: string,
+  memo?: AvailabilityMemo,
+): Promise<UnifiedAvailability> {
+  const subtractHolds = async (freeCount: number): Promise<number> => {
+    const start = startOfDay(parseISO(checkIn));
+    const end = startOfDay(parseISO(checkOut));
+    const holdCount = await prisma.chatbotHold.count({
+      where: {
+        unitId: unit.id,
+        status: "ACTIVE",
+        expiresAt: { gt: new Date() },
+        conversationId: { not: conversationId },
+        AND: [{ checkIn: { lt: end } }, { checkOut: { gt: start } }],
+      },
+    });
+    return Math.max(0, freeCount - holdCount);
+  };
+
+  if (isNetsuiteChatbotConfigured() && unit.buildingNetsuiteId) {
+    const key = `${unit.buildingNetsuiteId}|${unit.unitType}|${checkIn}|${checkOut}`;
+    let pending = memo?.get(key);
+    if (!pending) {
+      pending = (async (): Promise<UnifiedAvailability> => {
+        const ns = await checkNetsuiteAvailability({
+          netsuiteBuildingId: unit.buildingNetsuiteId,
+          unitType: unit.unitType,
+          checkIn,
+          checkOut,
+        });
+        if (!ns.ok) {
+          console.error("[chatbot] NetSuite availability failed:", ns.error);
+          const fallback = await availabilityWithHolds(
+            unit.id,
+            checkIn,
+            checkOut,
+            conversationId,
+          );
+          return { ...fallback, source: "website", error: ns.error };
+        }
+        const remaining = await subtractHolds(ns.data.freeUnits);
+        return { available: remaining > 0, remaining, source: "netsuite" };
+      })();
+      memo?.set(key, pending);
+    }
+    return pending;
+  }
+
+  const fallback = await availabilityWithHolds(unit.id, checkIn, checkOut, conversationId);
+  return { ...fallback, available: fallback.available, source: "website" };
 }
 
 type PriceInfo =
@@ -189,14 +268,20 @@ const searchUnits = defineTool({
     }[];
 
     if (hasDates) {
+      const memo: AvailabilityMemo = new Map();
       const checked = await Promise.all(
         units.map(async (unit) => ({
           unit,
-          availability: await availabilityWithHolds(
-            unit.id,
+          availability: await unifiedAvailability(
+            {
+              id: unit.id,
+              unitType: unit.unitType,
+              buildingNetsuiteId: unit.building.netsuiteId,
+            },
             input.check_in!,
             input.check_out!,
             ctx.conversationId,
+            memo,
           ),
         })),
       );
@@ -329,8 +414,18 @@ const checkAvailability = defineTool({
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
-    const availability = await availabilityWithHolds(
-      input.unit_id,
+    const unit = await prisma.unit.findUnique({
+      where: { id: input.unit_id, isPublished: true },
+      select: { id: true, unitType: true, building: { select: { netsuiteId: true } } },
+    });
+    if (!unit) return { error: "Unit not found or not published." };
+
+    const availability = await unifiedAvailability(
+      {
+        id: unit.id,
+        unitType: unit.unitType,
+        buildingNetsuiteId: unit.building.netsuiteId,
+      },
       input.check_in,
       input.check_out,
       ctx.conversationId,
@@ -480,8 +575,18 @@ const createHold = defineTool({
     check_out: dateString,
   }),
   execute: async (input, ctx) => {
-    const availability = await availabilityWithHolds(
-      input.unit_id,
+    const unit = await prisma.unit.findUnique({
+      where: { id: input.unit_id, isPublished: true },
+      select: { id: true, unitType: true, building: { select: { netsuiteId: true } } },
+    });
+    if (!unit) return { held: false, reason: "Unit not found." };
+
+    const availability = await unifiedAvailability(
+      {
+        id: unit.id,
+        unitType: unit.unitType,
+        buildingNetsuiteId: unit.building.netsuiteId,
+      },
       input.check_in,
       input.check_out,
       ctx.conversationId,
@@ -507,6 +612,144 @@ const createHold = defineTool({
       expires_at: expiresAt.toISOString(),
       booking_link: `${baseUrl()}/en/properties/${input.unit_id}`,
       next: `Tell the customer the unit is set aside for ${HOLD_MINUTES} minutes and they can complete the booking online now, or the team can call them (offer create_lead).`,
+    };
+  },
+});
+
+const createReservation = defineTool({
+  name: "create_reservation",
+  description:
+    "Create a REAL reservation in our reservation system and get a card-payment link for the customer. Only call after the customer has EXPLICITLY confirmed: the exact unit, check-in/check-out dates, full name and phone number — repeat these back and get a clear yes first. The reservation is confirmed once the customer pays the link.",
+  schema: z.object({
+    unit_id: z.string().uuid(),
+    check_in: dateString,
+    check_out: dateString,
+    customer_name: z.string().min(2).max(120),
+    customer_phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
+    customer_email: z.string().email().optional(),
+  }),
+  execute: async (input, ctx) => {
+    const settings = await getChatbotSettings();
+    if (!settings.show_prices) {
+      return {
+        reserved: false,
+        reason:
+          "Online booking is disabled while price quoting is off. Save the customer as a lead (create_lead) and give them the call center number.",
+      };
+    }
+    if (!isNetsuiteChatbotConfigured()) {
+      return {
+        reserved: false,
+        reason:
+          "The reservation system connection is not configured. Save the customer as a lead (create_lead) and give them the call center number.",
+      };
+    }
+
+    const unit = await prisma.unit.findUnique({
+      where: { id: input.unit_id, isPublished: true },
+      include: { building: true },
+    });
+    if (!unit) return { reserved: false, reason: "Unit not found." };
+    if (!unit.building.netsuiteId) {
+      return {
+        reserved: false,
+        reason:
+          "This building is not linked to the reservation system yet. Save a lead and offer the call center.",
+      };
+    }
+
+    // Re-check real-time availability right before reserving.
+    const availability = await unifiedAvailability(
+      { id: unit.id, unitType: unit.unitType, buildingNetsuiteId: unit.building.netsuiteId },
+      input.check_in,
+      input.check_out,
+      ctx.conversationId,
+    );
+    if (!availability.available) {
+      return {
+        reserved: false,
+        reason: "The unit just became unavailable for these dates.",
+        suggestion: "Apologize and offer alternative dates or units (search_units).",
+      };
+    }
+
+    // Exact total from the website pricing engine (promos, per-day pricing).
+    const price = await priceForStay(unit.id, input.check_in, input.check_out);
+    if ("price_unavailable" in price) {
+      return {
+        reserved: false,
+        reason: `Cannot price these dates online: ${price.price_unavailable}`,
+        suggestion: "Save a lead (create_lead) so the call center completes the booking.",
+      };
+    }
+
+    // 1. Reservation in NetSuite (it picks a free unit of this type).
+    const reservation = await createNetsuiteReservation({
+      netsuiteBuildingId: unit.building.netsuiteId,
+      unitType: unit.unitType,
+      checkIn: input.check_in,
+      checkOut: input.check_out,
+      customerName: input.customer_name,
+      customerPhone: input.customer_phone,
+      customerEmail: input.customer_email ?? null,
+      totalAmount: price.total_omr,
+      notes: `AI chatbot reservation — ${unit.titleEn} (${price.nights} nights)`,
+    });
+    if (!reservation.ok) {
+      console.error("[chatbot] NetSuite reservation failed:", reservation.error);
+      return {
+        reserved: false,
+        reason: "The reservation system did not accept the booking right now.",
+        suggestion: "Apologize, save a lead (create_lead) and offer the call center.",
+      };
+    }
+
+    // 2. Card-payment link (same machinery as receptionist-issued links).
+    const conversation = await prisma.chatbotConversation.findUnique({
+      where: { id: ctx.conversationId },
+      select: { language: true },
+    });
+    const paymentLink = await createNetsuitePaymentLink({
+      netsuiteReservationId: reservation.data.reservationId,
+      netsuiteReservationRef: reservation.data.reservationRef ?? null,
+      netsuiteBuildingId: unit.building.netsuiteId,
+      unitCode: reservation.data.unitCode ?? unit.unitCode ?? null,
+      checkIn: input.check_in,
+      checkOut: input.check_out,
+      customerName: input.customer_name,
+      customerPhone: input.customer_phone,
+      customerEmail: input.customer_email ?? null,
+      amount: price.total_omr,
+      description: "Reservation created by the Nassayem AI assistant",
+      locale: conversation?.language === "ar" ? "ar" : "en",
+    });
+
+    // 3. Lead row so the team sees it in the pipeline.
+    await prisma.chatbotLead.create({
+      data: {
+        conversationId: ctx.conversationId,
+        name: input.customer_name,
+        phone: input.customer_phone,
+        unitId: unit.id,
+        checkIn: startOfDay(parseISO(input.check_in)),
+        checkOut: startOfDay(parseISO(input.check_out)),
+        status: "CONTACTED",
+        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; payment link sent.`,
+      },
+    });
+    await prisma.chatbotConversation.update({
+      where: { id: ctx.conversationId },
+      data: { customerName: input.customer_name },
+    });
+
+    return {
+      reserved: true,
+      reservation_ref: reservation.data.reservationRef ?? reservation.data.reservationId,
+      total_omr: price.total_omr,
+      nights: price.nights,
+      payment_url: paymentLink.url,
+      payment_link_expires_at: paymentLink.expiresAt.toISOString(),
+      next: "Tell the customer the reservation is held for them and becomes CONFIRMED once paid. Send the payment link (bare URL) and the total. Mention the link expiry.",
     };
   },
 });
@@ -562,6 +805,7 @@ const TOOLS: ToolDef<z.ZodType>[] = [
   getBuildingInfo,
   createLead,
   createHold,
+  createReservation,
   escalateToHuman,
 ];
 

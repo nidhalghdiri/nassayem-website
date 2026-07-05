@@ -46,6 +46,118 @@ export function verifyNetsuiteInboundSecret(
   return mismatch === 0;
 }
 
+// ── Chatbot RESTlet (real-time availability + reservation creation) ──────────
+// One RESTlet handles both actions (netsuite/rl_chatbot.js), authenticated by
+// the same Bearer M2M token. Env: NETSUITE_CHATBOT_RESTLET_URL. When unset,
+// isNetsuiteChatbotConfigured() is false and the chatbot falls back to
+// website-side availability — deploy-safe before the RESTlet exists.
+
+const NETSUITE_CHATBOT_RESTLET_URL = process.env.NETSUITE_CHATBOT_RESTLET_URL || "";
+const RESTLET_TIMEOUT_MS = 20_000; // NetSuite RESTlets can be slow
+
+export function isNetsuiteChatbotConfigured(): boolean {
+  return !!(NETSUITE_CHATBOT_RESTLET_URL && NETSUITE_M2M_TOKEN);
+}
+
+async function callChatbotRestlet<T>(
+  body: Record<string, unknown>,
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  if (!isNetsuiteChatbotConfigured()) {
+    return { ok: false, error: "NetSuite chatbot RESTlet not configured" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RESTLET_TIMEOUT_MS);
+  try {
+    const res = await fetch(NETSUITE_CHATBOT_RESTLET_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${NETSUITE_M2M_TOKEN}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: `NetSuite ${res.status}: ${text.slice(0, 400)}` };
+    }
+    const data = JSON.parse(text) as T & { ok?: boolean; error?: string };
+    if (data && data.ok === false) {
+      return { ok: false, error: data.error ?? "NetSuite returned ok:false" };
+    }
+    return { ok: true, data };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error && err.name === "AbortError"
+          ? "NetSuite request timed out"
+          : err instanceof Error
+            ? err.message
+            : String(err),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type NetsuiteAvailability = {
+  ok: boolean;
+  totalUnits: number;
+  freeUnits: number;
+  /** A few free unit codes, informational (e.g. ["OK-305"]). */
+  freeUnitCodes?: string[];
+};
+
+/**
+ * Real-time availability from NetSuite for a (building, unit type, date range).
+ * unitType is the WEBSITE enum value (STUDIO/ONE_BEDROOM/...) — the RESTlet's
+ * EDIT-ME config maps it to the NetSuite unit-type values (1BHK/2BHK/...).
+ */
+export async function checkNetsuiteAvailability(params: {
+  netsuiteBuildingId?: string | null;
+  unitType: string;
+  checkIn: string; // YYYY-MM-DD
+  checkOut: string; // YYYY-MM-DD
+}): Promise<{ ok: true; data: NetsuiteAvailability } | { ok: false; error: string }> {
+  return callChatbotRestlet<NetsuiteAvailability>({
+    action: "check_availability",
+    ...params,
+  });
+}
+
+export type NetsuiteReservationCreated = {
+  ok: boolean;
+  reservationId: string;
+  reservationRef?: string;
+  unitCode?: string;
+};
+
+/**
+ * Creates a reservation in NetSuite. The RESTlet re-checks availability and
+ * picks a free unit of the requested type itself (closest thing to atomicity
+ * NetSuite gives us), returning the chosen unit code.
+ */
+export async function createNetsuiteReservation(params: {
+  netsuiteBuildingId?: string | null;
+  unitType: string;
+  checkIn: string;
+  checkOut: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  totalAmount: number;
+  notes?: string;
+}): Promise<
+  { ok: true; data: NetsuiteReservationCreated } | { ok: false; error: string }
+> {
+  return callChatbotRestlet<NetsuiteReservationCreated>({
+    action: "create_reservation",
+    source: "chatbot",
+    ...params,
+  });
+}
+
 /**
  * Notifies NetSuite that a payment link has been paid.
  * Returns { ok: true } on success or { ok: false, error: string } otherwise.

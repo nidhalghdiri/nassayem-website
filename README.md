@@ -53,6 +53,16 @@ A grounded, tool-calling assistant (web widget + WhatsApp) that answers customer
 | `WHATSAPP_APP_SECRET` | New — Meta App secret, used to verify webhook signatures |
 | `EMAIL_FROM` / `RESEND_API_KEY` | Existing — reused for escalation email notifications |
 | `NEXT_PUBLIC_BASE_URL` | Existing — used to build property links the bot shares |
+| `NETSUITE_CHATBOT_RESTLET_URL` | New — external URL of the `netsuite/sl_chatbot.js` Suitelet. When set (with `NETSUITE_M2M_TOKEN`), unit availability comes from NetSuite in real time and the bot can create reservations + send SmartPay payment links. When unset, the bot falls back to website-side availability |
+| `NETSUITE_M2M_TOKEN` | Existing — also authenticates the chatbot Suitelet calls (`custscript_nass_chatbot_token`) |
+
+### NetSuite live availability + auto reservations
+
+With the Suitelet deployed (see `netsuite/README.md` → Chatbot Suitelet):
+
+- `search_units` / `check_availability` query NetSuite per (building, unit type, date range) — the bot never offers a unit a receptionist already reserved in NetSuite. Chatbot soft holds are still subtracted on top.
+- `create_reservation` (bot tool): after the customer explicitly confirms unit, dates, name and phone, the bot creates the reservation in NetSuite (NetSuite picks a free unit of that type), generates a SmartPay payment link via the existing payment-link machinery, and sends it in the chat. The reservation is confirmed when the customer pays — the existing SmartPay webhook then syncs the payment back to NetSuite. Each reservation also appears as a lead in `/admin/chatbot/leads` and the link in `/admin/netsuite-payments`.
+- Guardrails: the tool refuses when price quoting is disabled, when the building has no `netsuiteId` mapping, when dates can't be priced online (Khareef gate), or when NetSuite reports no free unit — in every case the bot offers the call center instead.
 
 ### Architecture
 
