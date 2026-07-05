@@ -107,6 +107,94 @@
 
 const BASE_URL = "https://graph.facebook.com/v19.0";
 
+// ── Shared low-level POST (free-form chatbot messages) ───────────────────────
+// Free-form (non-template) messages are allowed inside WhatsApp's 24-hour
+// customer-service window, which every inbound customer message opens — so the
+// AI chatbot can reply without registered templates.
+
+async function postWhatsAppPayload(payload: object): Promise<boolean> {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !token) {
+    console.warn("[WhatsApp] Missing WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN — skipping send.");
+    return false;
+  }
+  try {
+    const res = await fetch(`${BASE_URL}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[WhatsApp] Send failed:", JSON.stringify(err));
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[WhatsApp] Network error:", e);
+    return false;
+  }
+}
+
+/** Free-form text message (chatbot replies). WhatsApp caps body at 4096 chars. */
+export async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo || !body.trim()) return false;
+  return postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: cleanTo,
+    type: "text",
+    text: { body: body.slice(0, 4096), preview_url: true },
+  });
+}
+
+/** Image by public URL with optional caption (unit gallery photos). */
+export async function sendWhatsAppImage(
+  to: string,
+  imageUrl: string,
+  caption?: string,
+): Promise<boolean> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return false;
+  return postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: cleanTo,
+    type: "image",
+    image: { link: imageUrl, ...(caption ? { caption: caption.slice(0, 1024) } : {}) },
+  });
+}
+
+/** Native location pin (building position). */
+export async function sendWhatsAppLocation(
+  to: string,
+  latitude: number,
+  longitude: number,
+  name?: string,
+  address?: string,
+): Promise<boolean> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return false;
+  return postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: cleanTo,
+    type: "location",
+    location: { latitude, longitude, ...(name ? { name } : {}), ...(address ? { address } : {}) },
+  });
+}
+
+/** Mark an inbound message as read (blue ticks) — polite chatbot UX. */
+export async function markWhatsAppMessageRead(messageId: string): Promise<void> {
+  await postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    status: "read",
+    message_id: messageId,
+  });
+}
+
 // ── Low-level sender ──────────────────────────────────────────────────────────
 
 async function sendTemplate(

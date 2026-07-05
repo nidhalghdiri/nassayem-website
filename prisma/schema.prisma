@@ -816,6 +816,9 @@ model ChatbotMessage {
   role    ChatMessageRole
   content String          @db.Text // user/assistant text; short summary for TOOL rows
 
+  // WhatsApp inbound message id (wamid) — used to dedupe Meta webhook retries.
+  waMessageId String? @unique
+
   // TOOL rows only
   toolName    String?
   toolPayload Json? // { input, result } — full trace for the admin transcript

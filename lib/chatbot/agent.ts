@@ -28,6 +28,14 @@ export type ChatbotTurnResult = {
   /** Final assistant text (already streamed via onTextDelta when provided). */
   text: string;
   escalated: boolean;
+  /** Detected customer language for this turn ("ar" | "en"). */
+  language: string;
+  /**
+   * Tools executed during this turn (name + result). Lets channel transports
+   * add native follow-ups — e.g. WhatsApp sends gallery images after
+   * get_unit_details and a location pin after get_building_info.
+   */
+  toolCalls: { name: string; result: unknown }[];
 };
 
 export type ChatbotTurnOptions = {
@@ -36,6 +44,8 @@ export type ChatbotTurnOptions = {
   externalId: string;
   message: string;
   customerName?: string;
+  /** Inbound provider message id (WhatsApp wamid) — stored for webhook-retry dedupe. */
+  externalMessageId?: string;
   /** Stream text to the transport as the model produces it (web widget). */
   onTextDelta?: (text: string) => void;
 };
@@ -92,7 +102,13 @@ export async function runChatbotTurn(
   if (!rate.allowed) {
     const text = rateLimitText(language, settings);
     opts.onTextDelta?.(text);
-    return { conversationId: conversation.id, text, escalated: false };
+    return {
+      conversationId: conversation.id,
+      text,
+      escalated: false,
+      language,
+      toolCalls: [],
+    };
   }
 
   // ── History (text turns only) — loaded BEFORE persisting this message ─────
@@ -111,7 +127,12 @@ export async function runChatbotTurn(
   }
 
   await prisma.chatbotMessage.create({
-    data: { conversationId: conversation.id, role: "USER", content: message },
+    data: {
+      conversationId: conversation.id,
+      role: "USER",
+      content: message,
+      waMessageId: opts.externalMessageId ?? null,
+    },
   });
 
   const messages: Anthropic.MessageParam[] = [
@@ -142,6 +163,7 @@ export async function runChatbotTurn(
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let finalText = "";
+  const executedToolCalls: { name: string; result: unknown }[] = [];
 
   try {
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
@@ -167,6 +189,9 @@ export async function runChatbotTurn(
         const execution = await executeChatbotTool(call.name, call.input, {
           conversationId: conversation.id,
         });
+        if (!execution.isError) {
+          executedToolCalls.push({ name: call.name, result: execution.result });
+        }
         await prisma.chatbotMessage.create({
           data: {
             conversationId: conversation.id,
@@ -235,5 +260,7 @@ export async function runChatbotTurn(
     conversationId: conversation.id,
     text: finalText,
     escalated: after?.status === "ESCALATED",
+    language,
+    toolCalls: executedToolCalls,
   };
 }

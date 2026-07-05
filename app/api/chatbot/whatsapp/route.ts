@@ -1,0 +1,242 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// WhatsApp Cloud API webhook — the WhatsApp transport for the shared chatbot
+// agent core (same brain as the web widget; only the transport differs).
+//
+//   GET  → Meta webhook verification handshake (hub.challenge echo).
+//   POST → inbound messages: signature check → dedupe (wamid) → runChatbotTurn
+//          → free-form text reply + native media follow-ups (unit gallery
+//          images after get_unit_details, a location pin after a single-
+//          building get_building_info).
+//
+// Env: WHATSAPP_VERIFY_TOKEN (handshake), WHATSAPP_APP_SECRET (signatures),
+//      plus the existing WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID.
+// Meta retries deliveries that don't get a fast 2xx — we therefore ALWAYS
+// return 200 after basic validation and rely on wamid dedupe for replays.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import prisma from "@/lib/prisma";
+import { runChatbotTurn } from "@/lib/chatbot/agent";
+import { getChatbotSettings } from "@/lib/chatbot/config";
+import {
+  sendWhatsAppText,
+  sendWhatsAppImage,
+  sendWhatsAppLocation,
+  markWhatsAppMessageRead,
+} from "@/lib/whatsapp";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
+const MAX_GALLERY_IMAGES = 3;
+
+// ── GET: verification handshake ───────────────────────────────────────────────
+
+export async function GET(req: NextRequest) {
+  const params = req.nextUrl.searchParams;
+  const mode = params.get("hub.mode");
+  const token = params.get("hub.verify_token");
+  const challenge = params.get("hub.challenge");
+
+  if (
+    mode === "subscribe" &&
+    token &&
+    process.env.WHATSAPP_VERIFY_TOKEN &&
+    token === process.env.WHATSAPP_VERIFY_TOKEN
+  ) {
+    return new Response(challenge ?? "", { status: 200 });
+  }
+  return new Response("Forbidden", { status: 403 });
+}
+
+// ── POST: inbound messages ────────────────────────────────────────────────────
+
+function verifySignature(rawBody: string, header: string | null): boolean {
+  const secret = process.env.WHATSAPP_APP_SECRET;
+  if (!secret) {
+    // Not configured yet — allow (useful during first setup) but warn loudly.
+    console.warn("[chatbot/whatsapp] WHATSAPP_APP_SECRET not set — skipping signature verification.");
+    return true;
+  }
+  if (!header?.startsWith("sha256=")) return false;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const received = header.slice("sha256=".length);
+  if (received.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(received, "hex"), Buffer.from(expected, "hex"));
+}
+
+// Minimal shapes for the webhook payload pieces we consume.
+type WaMessage = {
+  id: string;
+  from: string;
+  type: string;
+  text?: { body?: string };
+  button?: { text?: string };
+  interactive?: {
+    button_reply?: { title?: string };
+    list_reply?: { title?: string };
+  };
+  location?: { latitude?: number; longitude?: number };
+};
+type WaValue = {
+  messages?: WaMessage[];
+  contacts?: { wa_id?: string; profile?: { name?: string } }[];
+  statuses?: unknown[];
+};
+
+/** Turn any supported inbound message type into text for the agent. */
+function extractText(msg: WaMessage): string | null {
+  switch (msg.type) {
+    case "text":
+      return msg.text?.body?.trim() || null;
+    case "button":
+      return msg.button?.text?.trim() || null;
+    case "interactive":
+      return (
+        msg.interactive?.button_reply?.title?.trim() ||
+        msg.interactive?.list_reply?.title?.trim() ||
+        null
+      );
+    case "location":
+      return msg.location
+        ? `[The customer shared their location pin: ${msg.location.latitude}, ${msg.location.longitude}]`
+        : null;
+    case "image":
+    case "video":
+    case "audio":
+    case "document":
+    case "sticker":
+      return `[The customer sent a ${msg.type} message you cannot view. Politely say you can only read text here, and offer the call center for anything else.]`;
+    default:
+      return null; // reactions, system events, etc. — ignore
+  }
+}
+
+// Narrow views over tool results for media follow-ups.
+type UnitDetailsResult = {
+  title_en?: string;
+  title_ar?: string;
+  gallery_urls?: string[];
+};
+type BuildingInfoResult = {
+  buildings?: {
+    name_en?: string;
+    name_ar?: string;
+    location_en?: string;
+    location_ar?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  }[];
+};
+
+/** Native follow-ups after the text reply: gallery photos + location pin. */
+async function sendMediaFollowUps(
+  to: string,
+  language: string,
+  toolCalls: { name: string; result: unknown }[],
+): Promise<void> {
+  const isAr = language === "ar";
+  let imagesSent = 0;
+  let locationSent = false;
+
+  for (const call of toolCalls) {
+    if (call.name === "get_unit_details" && imagesSent < MAX_GALLERY_IMAGES) {
+      const r = call.result as UnitDetailsResult;
+      const urls = (r.gallery_urls ?? []).slice(0, MAX_GALLERY_IMAGES - imagesSent);
+      for (let i = 0; i < urls.length; i++) {
+        const caption =
+          i === 0 ? (isAr ? r.title_ar : r.title_en) ?? undefined : undefined;
+        await sendWhatsAppImage(to, urls[i], caption);
+        imagesSent++;
+      }
+    }
+
+    if (call.name === "get_building_info" && !locationSent) {
+      const r = call.result as BuildingInfoResult;
+      // Only when the customer asked about ONE specific building — sending
+      // pins for a full building list would be spam.
+      if (r.buildings?.length === 1) {
+        const b = r.buildings[0];
+        if (b.latitude != null && b.longitude != null) {
+          await sendWhatsAppLocation(
+            to,
+            b.latitude,
+            b.longitude,
+            isAr ? b.name_ar : b.name_en,
+            isAr ? b.location_ar : b.location_en,
+          );
+          locationSent = true;
+        }
+      }
+    }
+  }
+}
+
+async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<void> {
+  const text = extractText(msg);
+  if (!text || !msg.from) return;
+
+  // Dedupe Meta webhook retries by wamid.
+  const seen = await prisma.chatbotMessage.findUnique({
+    where: { waMessageId: msg.id },
+    select: { id: true },
+  });
+  if (seen) return;
+
+  // Blue ticks while the agent thinks — fire and forget.
+  markWhatsAppMessageRead(msg.id).catch(() => {});
+
+  const profileName = value.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name;
+
+  const result = await runChatbotTurn({
+    channel: "WHATSAPP",
+    externalId: msg.from,
+    message: text,
+    customerName: profileName,
+    externalMessageId: msg.id,
+  });
+
+  await sendWhatsAppText(msg.from, result.text);
+  await sendMediaFollowUps(msg.from, result.language, result.toolCalls);
+}
+
+export async function POST(req: NextRequest) {
+  const rawBody = await req.text();
+
+  if (!verifySignature(rawBody, req.headers.get("x-hub-signature-256"))) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  const settings = await getChatbotSettings();
+
+  try {
+    const body = JSON.parse(rawBody) as {
+      entry?: { changes?: { field?: string; value?: WaValue }[] }[];
+    };
+
+    for (const entry of body.entry ?? []) {
+      for (const change of entry.changes ?? []) {
+        if (change.field !== "messages") continue;
+        const value = change.value ?? {};
+        // Delivery/read receipts arrive on the same field — nothing to do.
+        if (!value.messages?.length) continue;
+        if (!settings.enabled) continue; // bot disabled from admin config
+
+        for (const msg of value.messages) {
+          try {
+            await handleInboundMessage(msg, value);
+          } catch (err) {
+            // Per-message isolation: one bad message must not fail the batch
+            // (a non-2xx would make Meta redeliver everything).
+            console.error("[chatbot/whatsapp] message handling failed:", err);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[chatbot/whatsapp] webhook parse failed:", err);
+  }
+
+  return NextResponse.json({ received: true }, { status: 200 });
+}
