@@ -15,7 +15,7 @@ export default function WhatsAppButton({ locale }: { locale: string }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={isEn ? "Chat on WhatsApp" : "تواصل عبر واتساب"}
-      className="fixed bottom-6 end-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg bg-[#25D366] hover:bg-[#1ebe5d] active:scale-95 transition-all duration-200 group"
+      className="fixed bottom-6 start-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg bg-[#25D366] hover:bg-[#1ebe5d] active:scale-95 transition-all duration-200 group"
     >
       {/* WhatsApp SVG icon */}
       <svg
@@ -28,7 +28,7 @@ export default function WhatsAppButton({ locale }: { locale: string }) {
       </svg>
 
       {/* Tooltip */}
-      <span className="absolute end-16 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+      <span className="absolute start-16 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         {isEn ? "Chat with us" : "تواصل معنا"}
       </span>
     </a>
