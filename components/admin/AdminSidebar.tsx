@@ -20,8 +20,8 @@ type Props = {
 // MAINTENANCE  : Dashboard, Tasks
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "blog", "recommendations", "users", "settings"],
-  SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "chatbot", "blog", "recommendations", "users", "settings"],
+  SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry", "chatbot"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks"],
   MAINTENANCE:  ["dashboard", "tasks"],
@@ -107,6 +107,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/laundry`,
       exact: false,
       icon: "M12 6a6 6 0 016 6c0 3.314-2.686 6-6 6s-6-2.686-6-6a6 6 0 016-6zm0 0V4m-4.5.5l1.5 1.5M5 9H3m18 0h-2M9.5 12a2.5 2.5 0 015 0",
+    },
+    {
+      key: "chatbot",
+      nameEn: "Chatbot",
+      nameAr: "المساعد الذكي",
+      href: `/${locale}/admin/chatbot`,
+      exact: false,
+      icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
     },
     {
       key: "blog",

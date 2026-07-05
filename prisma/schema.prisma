@@ -107,6 +107,41 @@ enum TaskStatus {
 }
 
 // ------------------------------------------------------
+// ENUMS — AI Chatbot
+// ------------------------------------------------------
+
+enum ChatChannel {
+  WHATSAPP
+  WEB
+}
+
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+  TOOL // one row per executed tool call — payload holds { input, result }
+}
+
+enum ChatConversationStatus {
+  ACTIVE
+  ESCALATED // flagged for human takeover — surfaced in the admin panel
+  CLOSED
+}
+
+enum ChatLeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+enum ChatHoldStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED // customer completed a real booking
+  CANCELLED
+}
+
+// ------------------------------------------------------
 // ENUMS — Recommendations
 // ------------------------------------------------------
 
@@ -192,6 +227,8 @@ model Unit {
   amenities      Amenity[]
   bookings       Booking[]
   priceOverrides UnitDailyPriceOverride[]
+  chatbotLeads   ChatbotLead[]
+  chatbotHolds   ChatbotHold[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -737,6 +774,122 @@ model Post {
 
   @@index([slug])
   @@index([isPublished])
+}
+
+// ------------------------------------------------------
+// MODELS — AI Chatbot (Claude-powered, web widget + WhatsApp)
+// ------------------------------------------------------
+
+// One conversation per customer per channel. externalId is the WhatsApp phone
+// number (digits only, e.g. "96899551237") or the web widget's session UUID.
+model ChatbotConversation {
+  id         String      @id @default(uuid())
+  channel    ChatChannel
+  externalId String
+
+  customerName String?
+  // Detected customer language: "ar" | "en". Arabizi (Arabic in Latin script)
+  // is stored as "ar" — the model mirrors the customer's script when replying.
+  language     String                 @default("ar")
+  status       ChatConversationStatus @default(ACTIVE)
+  // Why the bot escalated (tool call reason) — shown in the admin panel.
+  escalationReason String?
+
+  lastMessageAt DateTime @default(now())
+
+  messages ChatbotMessage[]
+  leads    ChatbotLead[]
+  holds    ChatbotHold[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([channel, externalId])
+  @@index([status, lastMessageAt])
+  @@index([lastMessageAt])
+}
+
+model ChatbotMessage {
+  id             String @id @default(uuid())
+  conversationId String
+
+  role    ChatMessageRole
+  content String          @db.Text // user/assistant text; short summary for TOOL rows
+
+  // TOOL rows only
+  toolName    String?
+  toolPayload Json? // { input, result } — full trace for the admin transcript
+
+  // Anthropic usage for cost tracking (assistant rows only, summed across the
+  // tool loop for the turn).
+  inputTokens  Int?
+  outputTokens Int?
+
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([createdAt])
+}
+
+model ChatbotLead {
+  id             String @id @default(uuid())
+  conversationId String
+
+  name  String
+  phone String
+
+  // Structured interest when the bot matched a real unit; free text otherwise.
+  unitId       String?
+  unitInterest String?
+
+  checkIn  DateTime?
+  checkOut DateTime?
+  guests   Int?
+
+  status ChatLeadStatus @default(NEW)
+  notes  String?        @db.Text
+
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  unit         Unit?               @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+// Editable bot settings — single source of truth read live by the agent
+// (system prompt additions, tone, business rules, escalation triggers, canned
+// replies, contact numbers, show_prices toggle). Defaults live in
+// lib/chatbot/config.ts; a DB row overrides its default. No redeploy needed.
+model ChatbotConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// Soft reservation created by the bot (~30 min TTL). Counts against
+// availability in CHATBOT answers only — the public checkout flow is
+// intentionally untouched. Expiry is lazy: queries filter on expiresAt.
+model ChatbotHold {
+  id             String @id @default(uuid())
+  unitId         String
+  conversationId String
+
+  checkIn   DateTime
+  checkOut  DateTime
+  expiresAt DateTime
+  status    ChatHoldStatus @default(ACTIVE)
+
+  unit         Unit                @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([unitId, status, expiresAt])
+  @@index([conversationId])
 }
 
 // ------------------------------------------------------

@@ -4,6 +4,7 @@ import "../globals.css";
 import "leaflet/dist/leaflet.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import ChatWidget from "@/components/chatbot/ChatWidget";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from '@next/third-parties/google'
 import Script from "next/script";
@@ -140,6 +141,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         )}
 
         {!isAdmin && <Footer locale={locale} />}
+        {!isAdmin && <ChatWidget locale={locale} />}
         <GoogleAnalytics gaId="G-JVX3CTNWVT" />
         {/* Google Ads (gtag.js) */}
         <Script
