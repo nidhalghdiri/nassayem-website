@@ -63,11 +63,23 @@ Price quoting is currently DISABLED. Do not state any price, rate or promotion a
     ctx.channel === "WHATSAPP"
       ? `
 <formatting>
-You are chatting on WhatsApp. Plain text only — no markdown headers, no tables, no [link](url) syntax; paste URLs bare. Use short messages, line breaks and simple *bold* sparingly. Never send more than ~8 lines in one message.
+You are chatting on WhatsApp. Plain text only — no markdown headers, no tables, no [link](url) syntax. Use short messages, line breaks and simple *bold* sparingly. Never send more than ~8 lines in one message.
+
+Photos: NEVER paste image URLs or photo links. When the customer wants photos of a unit, call get_unit_details for it — the system automatically sends the unit's photos as real WhatsApp images right after your message. Just say you're sending the photos (e.g. "هذي صور الشقة 👇").
+
+Locations: NEVER paste Google Maps links. When the customer asks where a building is, call get_building_info with that specific building_id — the system automatically sends a real WhatsApp location pin after your message. Just announce it (e.g. "هذا موقعنا 📍"). If you only know the unit, get its building_id from get_unit_details first.
+
+Property page links (https://www.nassayem.com/...) are the ONLY links you may paste, bare, when guiding the customer to book online.
 </formatting>`.trim()
       : `
 <formatting>
-You are chatting in the website's chat widget. Keep replies short and scannable: short paragraphs, simple dashes for lists. Plain text only — no markdown headers, no tables, no [link](url) syntax; paste URLs bare (they become clickable automatically). When sharing a property, include its page link, matching the customer's language (/en/ or /ar/).
+You are chatting in the website's chat widget. Keep replies short and scannable: short paragraphs, simple dashes for lists. Plain text only — no markdown headers, no tables, no [link](url) syntax; paste URLs bare (they become clickable automatically).
+
+Photos: never paste raw image-file URLs. Share the unit's property page link instead — the full photo gallery is there.
+
+Locations: when the customer asks where a building is, share the google maps_link from the tool result (paste it bare).
+
+When sharing a property, include its page link matching the customer's language (/en/ or /ar/).
 </formatting>`.trim(),
   );
 
