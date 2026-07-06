@@ -57,6 +57,20 @@ const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD");
 
+// Zod's uuid() accepts the nil/max UUIDs, which is exactly what the model
+// fabricates when it has lost the real id from context. Reject them with an
+// instruction that tells the model how to recover.
+const realId = z
+  .string()
+  .uuid()
+  .refine(
+    (v) => !/^(0{8}-0{4}-0{4}-0{4}-0{12}|f{8}-f{4}-f{4}-f{4}-f{12})$/i.test(v),
+    {
+      message:
+        "This is a placeholder, not a real id. Copy the exact id from a search_units / get_unit_details / get_building_info result. If you no longer have it, call search_units again first.",
+    },
+  );
+
 const UNIT_TYPES = [
   "STUDIO",
   "ONE_BEDROOM",
@@ -231,7 +245,7 @@ const searchUnits = defineTool({
     "Search available apartments. Use whenever the customer describes what they need (type, dates, guests, building). With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only.",
   schema: z.object({
     unit_type: z.enum(UNIT_TYPES).optional().describe("Filter by apartment type"),
-    building_id: z.string().uuid().optional().describe("Filter to one building (from get_building_info)"),
+    building_id: realId.optional().describe("Filter to one building (from get_building_info)"),
     check_in: dateString.optional().describe("Check-in date YYYY-MM-DD"),
     check_out: dateString.optional().describe("Check-out date YYYY-MM-DD"),
     guests: z.number().int().min(1).max(20).optional().describe("Number of guests the unit must sleep"),
@@ -350,7 +364,7 @@ const getUnitDetails = defineTool({
   description:
     "Full details of one apartment: description, amenities, photo gallery URLs, building location with Google Maps link, and the booking page link. Use when a customer asks about a specific unit.",
   schema: z.object({
-    unit_id: z.string().uuid().describe("Unit id from search_units"),
+    unit_id: realId.describe("Unit id from search_units"),
   }),
   execute: async (input) => {
     const settings = await getChatbotSettings();
@@ -408,7 +422,7 @@ const checkAvailability = defineTool({
   description:
     "Check whether one specific unit is free for exact dates, with the exact total price. ALWAYS use this before quoting availability or a total for specific dates.",
   schema: z.object({
-    unit_id: z.string().uuid(),
+    unit_id: realId,
     check_in: dateString,
     check_out: dateString,
   }),
@@ -492,7 +506,7 @@ const getBuildingInfo = defineTool({
   description:
     "Information about our buildings: location, Google Maps link, and available unit types. Call without building_id to list all buildings (e.g. when the customer asks 'where are you located?').",
   schema: z.object({
-    building_id: z.string().uuid().optional(),
+    building_id: realId.optional(),
   }),
   execute: async (input) => {
     const where = input.building_id ? { id: input.building_id } : {};
@@ -533,7 +547,7 @@ const createLead = defineTool({
   schema: z.object({
     name: z.string().min(2).max(120),
     phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
-    unit_id: z.string().uuid().optional().describe("The unit they're interested in, if a specific one"),
+    unit_id: realId.optional().describe("The unit they're interested in, if a specific one"),
     unit_interest: z.string().max(200).optional().describe("Free-text interest, e.g. 'two-bedroom near Ittin road in August'"),
     check_in: dateString.optional(),
     check_out: dateString.optional(),
@@ -570,7 +584,7 @@ const createHold = defineTool({
   description:
     `Place a soft reservation on a unit for ${HOLD_MINUTES} minutes while the customer decides. It is NOT a confirmed booking and no payment is taken — always say so. Verify the customer wants it before calling.`,
   schema: z.object({
-    unit_id: z.string().uuid(),
+    unit_id: realId,
     check_in: dateString,
     check_out: dateString,
   }),
@@ -621,7 +635,7 @@ const createReservation = defineTool({
   description:
     "Create a REAL reservation in our reservation system and get a card-payment link for the customer. Only call after the customer has EXPLICITLY confirmed: the exact unit, check-in/check-out dates, full name and phone number — repeat these back and get a clear yes first. The reservation is confirmed once the customer pays the link.",
   schema: z.object({
-    unit_id: z.string().uuid(),
+    unit_id: realId,
     check_in: dateString,
     check_out: dateString,
     customer_name: z.string().min(2).max(120),

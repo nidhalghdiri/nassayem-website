@@ -20,8 +20,9 @@ import { getAnthropicTools, executeChatbotTool } from "./tools";
 import { checkChatbotRateLimit } from "./rateLimit";
 
 const MAX_TOOL_ITERATIONS = 5;
-const HISTORY_MESSAGES = 20;
+const HISTORY_MESSAGES = 30; // includes replayed tool results
 const MAX_INBOUND_CHARS = 2000;
+const TOOL_REPLAY_CHARS = 700; // per tool result, when replayed into history
 
 export type ChatbotTurnResult = {
   conversationId: string;
@@ -142,13 +143,15 @@ export async function runChatbotTurn(
     };
   }
 
-  // ── History (text turns only) — loaded BEFORE persisting this message ─────
-  // STAFF rows (human handoff messages) are included as assistant turns so a
-  // resumed bot knows what the team already told the customer.
+  // ── History — loaded BEFORE persisting this message ───────────────────────
+  // STAFF rows (human handoff) are included as assistant turns so a resumed
+  // bot knows what the team already said. TOOL rows are replayed as compact
+  // "[tool_result …]" assistant lines: without them the model loses the unit
+  // ids returned by earlier searches and starts inventing placeholder UUIDs
+  // when the customer books a unit discussed a few turns ago.
   const historyRows = await prisma.chatbotMessage.findMany({
     where: {
       conversationId: conversation.id,
-      role: { in: ["USER", "ASSISTANT", "STAFF"] },
       content: { not: "" },
     },
     orderBy: { createdAt: "desc" },
@@ -171,16 +174,48 @@ export async function runChatbotTurn(
     },
   });
 
-  const messages: Anthropic.MessageParam[] = [
-    ...historyRows.map(
-      (row): Anthropic.MessageParam => ({
-        role: row.role === "USER" ? "user" : "assistant",
-        content:
-          row.role === "STAFF" ? `[Staff member]: ${row.content}` : row.content,
-      }),
-    ),
-    { role: "user", content: message },
-  ];
+  type Turn = { role: "user" | "assistant"; text: string };
+  const turns: Turn[] = [];
+  for (const row of historyRows) {
+    let turn: Turn | null = null;
+    if (row.role === "USER") {
+      turn = { role: "user", text: row.content };
+    } else if (row.role === "ASSISTANT") {
+      turn = { role: "assistant", text: row.content };
+    } else if (row.role === "STAFF") {
+      turn = { role: "assistant", text: `[Staff member]: ${row.content}` };
+    } else if (row.role === "TOOL" && row.toolName && row.toolPayload) {
+      const result = (row.toolPayload as { result?: unknown }).result;
+      if (result !== undefined) {
+        const json = JSON.stringify(result);
+        turn = {
+          role: "assistant",
+          text: `[tool_result ${row.toolName}]: ${json.length > TOOL_REPLAY_CHARS ? json.slice(0, TOOL_REPLAY_CHARS) + "…(truncated)" : json}`,
+        };
+      }
+    }
+    if (!turn) continue;
+    // Merge consecutive same-role turns — keeps user/assistant alternation.
+    const last = turns[turns.length - 1];
+    if (last && last.role === turn.role) {
+      last.text += `\n\n${turn.text}`;
+    } else {
+      turns.push(turn);
+    }
+  }
+
+  // Append the current message through the same merge rule (history can end
+  // with user turns, e.g. messages that arrived while the AI was paused).
+  const lastTurn = turns[turns.length - 1];
+  if (lastTurn && lastTurn.role === "user") {
+    lastTurn.text += `\n\n${message}`;
+  } else {
+    turns.push({ role: "user", text: message });
+  }
+
+  const messages: Anthropic.MessageParam[] = turns.map(
+    (t): Anthropic.MessageParam => ({ role: t.role, content: t.text }),
+  );
 
   const system = buildSystemPrompt(settings, {
     channel: opts.channel,
