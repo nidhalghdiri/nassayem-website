@@ -715,6 +715,9 @@ const createReservation = defineTool({
         reserved: false,
         reason: "The reservation system did not accept the booking right now.",
         suggestion: "Apologize, save a lead (create_lead) and offer the call center.",
+        // Internal diagnostic — visible in the admin tool trace. Do not read
+        // this to the customer.
+        system_error: String(reservation.error).slice(0, 400),
       };
     }
 

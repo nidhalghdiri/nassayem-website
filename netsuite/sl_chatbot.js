@@ -94,6 +94,13 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       CUSTOMER: {
         subsidiary: "2",              // same subsidiary the reservation form searches
         fullNameField: "custentity38", // full-name custom field on customer
+        // Fallback customer used when creating a new customer record fails
+        // (e.g. an unrelated User Event script such as rm_ue_student_infos.js
+        // blocks the save demanding a "Join Year"). Create ONE generic
+        // customer in NetSuite (e.g. "WhatsApp Chatbot Guest") and put its
+        // internal id here. The real guest name/phone still land on the
+        // reservation's custbody fields. "" = no fallback (fail instead).
+        fallbackCustomerId: "",
       },
     };
     // ── END CONFIG ───────────────────────────────────────────────────────────
@@ -260,9 +267,24 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       if (CONFIG.CUSTOMER.fullNameField) {
         try { cust.setValue({ fieldId: CONFIG.CUSTOMER.fullNameField, value: name }); } catch (e) { /* ignore */ }
       }
-      var id = cust.save({ enableSourcing: true, ignoreMandatoryFields: true });
-      log.audit("chatbot customer created", "id=" + id + " phone=" + phone);
-      return { id: id, created: true };
+      try {
+        var id = cust.save({ enableSourcing: true, ignoreMandatoryFields: true });
+        log.audit("chatbot customer created", "id=" + id + " phone=" + phone);
+        return { id: id, created: true };
+      } catch (saveErr) {
+        // Customer-record User Event scripts from other projects can block the
+        // save (seen live: rm_ue_student_infos.js requiring a "Join Year").
+        // Fall back to the generic chatbot customer so the booking survives.
+        log.error("chatbot customer create blocked", saveErr);
+        if (CONFIG.CUSTOMER.fallbackCustomerId) {
+          return { id: CONFIG.CUSTOMER.fallbackCustomerId, created: false };
+        }
+        throw new Error(
+          "Customer creation blocked by a customer-record script: " +
+          ((saveErr && saveErr.message) || saveErr) +
+          " — set CONFIG.CUSTOMER.fallbackCustomerId or fix that script.",
+        );
+      }
     }
 
     function createReservation(body) {
