@@ -125,6 +125,14 @@ export default function ChatWidget({ locale }: Props) {
           }
         }
       }
+
+      // No reply arrived (e.g. staff paused the AI to take over) — drop the
+      // empty typing bubble instead of leaving it hanging.
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && !last.text) return prev.slice(0, -1);
+        return prev;
+      });
     } catch {
       setMessages((prev) => {
         const next = [...prev];

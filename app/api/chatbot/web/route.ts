@@ -56,7 +56,11 @@ export async function POST(req: NextRequest) {
           message: body.message,
           onTextDelta: (text) => send({ type: "delta", text }),
         });
-        send({ type: "done", escalated: result.escalated });
+        send({
+          type: "done",
+          escalated: result.escalated,
+          ...(result.aiPaused ? { aiPaused: true } : {}),
+        });
       } catch (err) {
         // runChatbotTurn handles its own failures; this is a last resort.
         console.error("[chatbot/web] stream failed:", err);

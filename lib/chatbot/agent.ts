@@ -28,6 +28,12 @@ export type ChatbotTurnResult = {
   /** Final assistant text (already streamed via onTextDelta when provided). */
   text: string;
   escalated: boolean;
+  /**
+   * True when the admin pressed "Stop AI" on this conversation: the customer
+   * message was stored but no model call was made and no reply should be
+   * sent. Transports must send nothing when this is set.
+   */
+  aiPaused?: boolean;
   /** Detected customer language for this turn ("ar" | "en"). */
   language: string;
   /**
@@ -97,6 +103,27 @@ export async function runChatbotTurn(
       where: { id: conversation.id },
       data: { status: "ACTIVE" },
     });
+  }
+
+  // "Stop AI": store the customer's message for the team to read, but never
+  // call the model and never reply — zero token spend during human handling.
+  if (conversation.aiPaused) {
+    await prisma.chatbotMessage.create({
+      data: {
+        conversationId: conversation.id,
+        role: "USER",
+        content: message,
+        waMessageId: opts.externalMessageId ?? null,
+      },
+    });
+    return {
+      conversationId: conversation.id,
+      text: "",
+      escalated: conversation.status === "ESCALATED",
+      aiPaused: true,
+      language,
+      toolCalls: [],
+    };
   }
 
   if (!rate.allowed) {

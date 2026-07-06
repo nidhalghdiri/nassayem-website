@@ -191,9 +191,6 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
   });
   if (seen) return;
 
-  // Blue ticks while the agent thinks — fire and forget.
-  markWhatsAppMessageRead(msg.id, senderPhoneNumberId).catch(() => {});
-
   const profileName = value.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name;
 
   const result = await runChatbotTurn({
@@ -203,6 +200,12 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
     customerName: profileName,
     externalMessageId: msg.id,
   });
+
+  // "Stop AI" is on for this conversation: message stored, nothing sent.
+  // Deliberately no read-receipt either — a human is handling the chat.
+  if (result.aiPaused) return;
+
+  markWhatsAppMessageRead(msg.id, senderPhoneNumberId).catch(() => {});
 
   const delivery = await sendWhatsAppText(msg.from, result.text, senderPhoneNumberId);
   if (!delivery.ok) {

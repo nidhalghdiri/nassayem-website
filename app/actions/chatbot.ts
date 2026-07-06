@@ -57,6 +57,25 @@ export async function setConversationStatus(
   revalidatePath("/", "layout");
 }
 
+/**
+ * "Stop AI" switch. While paused, customer messages are still stored (the
+ * team reads them in the transcript) but the model is never called and no
+ * reply is sent — zero token spend during a human takeover.
+ */
+export async function setConversationAiPaused(
+  conversationId: string,
+  aiPaused: boolean,
+) {
+  const user = await getCurrentAdminUser();
+  if (!user || !canViewChatbot(user.role)) throw new Error("Forbidden");
+
+  await prisma.chatbotConversation.update({
+    where: { id: conversationId },
+    data: { aiPaused },
+  });
+  revalidatePath("/", "layout");
+}
+
 // ── Leads ─────────────────────────────────────────────────────────────────────
 
 export async function updateLeadStatus(leadId: string, status: ChatLeadStatus) {

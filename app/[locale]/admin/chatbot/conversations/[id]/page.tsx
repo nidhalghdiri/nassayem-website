@@ -57,11 +57,19 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
               ⚠ {conversation.escalationReason}
             </p>
           )}
+          {conversation.aiPaused && (
+            <p className="text-sm text-violet-700 mt-1 font-medium">
+              ⏸ {isEn
+                ? "AI stopped — customer messages are saved but the bot does not reply."
+                : "الذكاء متوقف — رسائل العميل تُحفظ لكن البوت لا يرد."}
+            </p>
+          )}
         </div>
         <ConversationActions
           locale={locale}
           conversationId={conversation.id}
           status={conversation.status}
+          aiPaused={conversation.aiPaused}
         />
       </div>
 

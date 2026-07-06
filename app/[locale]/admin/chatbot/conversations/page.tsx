@@ -148,6 +148,11 @@ export default async function ConversationsPage({ params, searchParams }: PagePr
                     {c.status === "ESCALATED" && c.escalationReason && (
                       <div className="text-xs text-red-500 mt-0.5">{c.escalationReason}</div>
                     )}
+                    {c.aiPaused && (
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                        ⏸ {isEn ? "AI stopped" : "الذكاء متوقف"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span
