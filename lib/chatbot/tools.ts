@@ -248,7 +248,7 @@ const searchUnits = defineTool({
     building_id: realId.optional().describe("Filter to one building (from get_building_info)"),
     check_in: dateString.optional().describe("Check-in date YYYY-MM-DD"),
     check_out: dateString.optional().describe("Check-out date YYYY-MM-DD"),
-    guests: z.number().int().min(1).max(20).optional().describe("Number of guests the unit must sleep"),
+    guests: z.number().int().min(1).max(20).optional().describe("Group size. Results also include units whose official capacity is ONE below this (capacity is a guideline — families with children often fit); such units carry a capacity_note. Present them honestly and let the customer decide."),
     rent_type: z.enum(["DAILY", "MONTHLY"]).optional().describe("DAILY for short stays, MONTHLY for 30+ nights"),
   }),
   execute: async (input, ctx) => {
@@ -256,7 +256,11 @@ const searchUnits = defineTool({
     const where: Prisma.UnitWhereInput = { isPublished: true };
     if (input.unit_type) where.unitType = input.unit_type as UnitType;
     if (input.building_id) where.buildingId = input.building_id;
-    if (input.guests) where.guests = { gte: input.guests };
+    // Capacity is a soft limit: include units officially sleeping ONE fewer
+    // than the group (families with children usually fit) — flagged with a
+    // capacity_note below so the bot presents them honestly instead of
+    // telling the customer "nothing fits you".
+    if (input.guests) where.guests = { gte: Math.max(1, input.guests - 1) };
     if (input.rent_type === "DAILY") where.rentType = { in: ["DAILY", "BOTH"] };
     if (input.rent_type === "MONTHLY") where.rentType = { in: ["MONTHLY", "BOTH"] };
 
@@ -269,6 +273,12 @@ const searchUnits = defineTool({
       orderBy: { createdAt: "asc" },
       take: 20,
     });
+
+    // Exact-capacity fits first; near-fits (one below) after.
+    if (input.guests) {
+      const g = input.guests;
+      units.sort((a, b) => Number(b.guests >= g) - Number(a.guests >= g));
+    }
 
     const hasDates = !!(input.check_in && input.check_out);
 
@@ -333,6 +343,11 @@ const searchUnits = defineTool({
         sleeps: unit.guests,
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
+        ...(input.guests && unit.guests < input.guests
+          ? {
+              capacity_note: `Official capacity is ${unit.guests} and the group is ${input.guests}. Usually fine when the extra guest is a child — mention the capacity honestly and let the customer decide. Never refuse on their behalf.`,
+            }
+          : {}),
         ...(hasDates
           ? { availability, price }
           : settings.show_prices
