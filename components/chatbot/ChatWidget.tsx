@@ -8,7 +8,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = { locale: string };
 
-type ChatMessage = { role: "user" | "assistant"; text: string };
+type ChatMessage = {
+  role: "user" | "assistant" | "staff";
+  text: string;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
+};
 
 const SESSION_KEY = "nsm_chat_session";
 
@@ -73,6 +78,45 @@ export default function ChatWidget({ locale }: Props) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, open]);
+
+  // While open, poll for human-agent (handoff) replies sent from the admin
+  // panel — bot replies arrive via the send stream, staff replies via this.
+  const staffCursor = useRef<string>(new Date().toISOString());
+  const seenStaffIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!open || !enabled) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/chatbot/web?sessionId=${encodeURIComponent(getSessionId())}&after=${encodeURIComponent(staffCursor.current)}`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          messages?: { id: string; text: string; mediaUrl?: string | null; mediaType?: string | null; createdAt: string }[];
+        };
+        const fresh = (data.messages ?? []).filter((m) => !seenStaffIds.current.has(m.id));
+        if (fresh.length === 0) return;
+        for (const m of fresh) {
+          seenStaffIds.current.add(m.id);
+          if (m.createdAt > staffCursor.current) staffCursor.current = m.createdAt;
+        }
+        setMessages((prev) => [
+          ...prev,
+          ...fresh.map(
+            (m): ChatMessage => ({
+              role: "staff",
+              text: m.text,
+              mediaUrl: m.mediaUrl,
+              mediaType: m.mediaType,
+            }),
+          ),
+        ]);
+      } catch {
+        /* network hiccup — next tick retries */
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [open, enabled]);
 
   const send = useCallback(async () => {
     const text = input.trim();
@@ -203,6 +247,25 @@ export default function ChatWidget({ locale }: Props) {
                 <div key={i} className="flex justify-end">
                   <div className="max-w-[85%] rounded-2xl rounded-ee-md bg-nassayem text-white px-3 py-2">
                     <Linkified text={m.text} />
+                  </div>
+                </div>
+              ) : m.role === "staff" ? (
+                <div key={i} className="flex">
+                  <div className="max-w-[85%] rounded-2xl rounded-es-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-gray-800">
+                    <div className="text-[10px] font-semibold text-emerald-700 mb-0.5">
+                      {isEn ? "Nassayem team" : "فريق نسائم"}
+                    </div>
+                    {m.mediaType === "image" && m.mediaUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.mediaUrl} alt="" className="rounded-lg max-w-full mb-1" />
+                    )}
+                    {m.mediaType === "location" && m.mediaUrl ? (
+                      <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                        {m.text}
+                      </a>
+                    ) : (
+                      <Linkified text={m.text} />
+                    )}
                   </div>
                 </div>
               ) : (

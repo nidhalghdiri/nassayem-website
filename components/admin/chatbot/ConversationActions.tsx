@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import {
   setConversationStatus,
   setConversationAiPaused,
+  deleteChatbotConversation,
 } from "@/app/actions/chatbot";
 import type { ChatConversationStatus } from "@prisma/client";
 
@@ -13,6 +14,7 @@ type Props = {
   conversationId: string;
   status: ChatConversationStatus;
   aiPaused: boolean;
+  canDelete?: boolean;
 };
 
 export default function ConversationActions({
@@ -20,6 +22,7 @@ export default function ConversationActions({
   conversationId,
   status,
   aiPaused,
+  canDelete = false,
 }: Props) {
   const isEn = locale === "en";
   const router = useRouter();
@@ -91,6 +94,27 @@ export default function ConversationActions({
           className={`${btn} bg-gray-100 text-gray-600 hover:bg-gray-200`}
         >
           {isEn ? "Close" : "إغلاق"}
+        </button>
+      )}
+      {canDelete && (
+        <button
+          disabled={isPending}
+          onClick={() => {
+            const sure = window.confirm(
+              isEn
+                ? "Permanently delete this conversation, its transcript, tool traces, leads and holds? This cannot be undone."
+                : "حذف هذه المحادثة نهائياً مع كل الرسائل والعملاء المحتملين المرتبطين بها؟ لا يمكن التراجع.",
+            );
+            if (!sure) return;
+            startTransition(async () => {
+              await deleteChatbotConversation(conversationId);
+              router.push(`/${locale}/admin/chatbot/conversations`);
+              router.refresh();
+            });
+          }}
+          className={`${btn} bg-red-600 text-white hover:bg-red-700`}
+        >
+          {isEn ? "Delete" : "حذف"}
         </button>
       )}
     </div>

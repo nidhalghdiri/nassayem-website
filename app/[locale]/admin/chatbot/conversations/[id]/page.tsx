@@ -4,6 +4,9 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canViewChatbot } from "@/lib/chatbot/permissions";
 import ConversationActions from "@/components/admin/chatbot/ConversationActions";
+import LiveTranscript, {
+  type TranscriptMessage,
+} from "@/components/admin/chatbot/LiveTranscript";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +35,19 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
     0,
   );
 
+  const initialMessages: TranscriptMessage[] = conversation.messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    mediaUrl: m.mediaUrl,
+    mediaType: m.mediaType,
+    toolName: m.toolName,
+    toolPayload: m.toolPayload,
+    inputTokens: m.inputTokens,
+    outputTokens: m.outputTokens,
+    createdAt: m.createdAt.toISOString(),
+  }));
+
   return (
     <div className="p-4 lg:p-8 max-w-4xl space-y-4">
       <Link
@@ -57,19 +73,13 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
               ⚠ {conversation.escalationReason}
             </p>
           )}
-          {conversation.aiPaused && (
-            <p className="text-sm text-violet-700 mt-1 font-medium">
-              ⏸ {isEn
-                ? "AI stopped — customer messages are saved but the bot does not reply."
-                : "الذكاء متوقف — رسائل العميل تُحفظ لكن البوت لا يرد."}
-            </p>
-          )}
         </div>
         <ConversationActions
           locale={locale}
           conversationId={conversation.id}
           status={conversation.status}
           aiPaused={conversation.aiPaused}
+          canDelete={adminUser.role === "MANAGER"}
         />
       </div>
 
@@ -87,61 +97,19 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
               ⏳ {isEn ? "Hold:" : "حجز مؤقت:"} {h.unit.titleEn} ·{" "}
               {h.checkIn.toISOString().slice(0, 10)} → {h.checkOut.toISOString().slice(0, 10)} ·{" "}
               {h.status}
-              {h.status === "ACTIVE" && h.expiresAt > new Date()
-                ? ` (${isEn ? "expires" : "ينتهي"} ${h.expiresAt.toLocaleTimeString(isEn ? "en-GB" : "ar-OM", { timeStyle: "short" })})`
-                : ""}
             </div>
           ))}
         </div>
       )}
 
-      {/* Transcript */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-        {conversation.messages.map((m) => {
-          if (m.role === "TOOL") {
-            return (
-              <details key={m.id} className="text-xs">
-                <summary className="cursor-pointer inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 text-violet-700 font-medium">
-                  🔧 {m.toolName}
-                  <span className="text-violet-400 font-normal">
-                    {m.createdAt.toLocaleTimeString("en-GB", { timeStyle: "short" })}
-                  </span>
-                </summary>
-                <pre className="mt-2 p-3 rounded-xl bg-gray-900 text-gray-100 overflow-x-auto text-[11px] leading-relaxed">
-                  {JSON.stringify(m.toolPayload, null, 2)}
-                </pre>
-              </details>
-            );
-          }
-          const isUser = m.role === "USER";
-          return (
-            <div key={m.id} className={`flex ${isUser ? "" : "justify-end"}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words ${
-                  isUser
-                    ? "bg-gray-100 text-gray-800 rounded-es-md"
-                    : "bg-nassayem text-white rounded-ee-md"
-                }`}
-              >
-                {m.content}
-                <div
-                  className={`text-[10px] mt-1 ${isUser ? "text-gray-400" : "text-white/70"}`}
-                >
-                  {m.createdAt.toLocaleTimeString("en-GB", { timeStyle: "short" })}
-                  {m.role === "ASSISTANT" && m.outputTokens
-                    ? ` · ${(m.inputTokens ?? 0) + (m.outputTokens ?? 0)} tok`
-                    : ""}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {conversation.messages.length === 0 && (
-          <p className="text-center text-gray-400 text-sm py-6">
-            {isEn ? "No messages." : "لا توجد رسائل."}
-          </p>
-        )}
-      </div>
+      {/* Live chat (polls for new messages, WhatsApp-style, staff composer) */}
+      <LiveTranscript
+        locale={locale}
+        conversationId={conversation.id}
+        channel={conversation.channel}
+        initialMessages={initialMessages}
+        initialAiPaused={conversation.aiPaused}
+      />
     </div>
   );
 }

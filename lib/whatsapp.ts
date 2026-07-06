@@ -215,6 +215,31 @@ export async function sendWhatsAppLocation(
   );
 }
 
+/** Native contact card (e.g. the call-center number during handoff). */
+export async function sendWhatsAppContact(
+  to: string,
+  contactName: string,
+  contactPhone: string,
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return { ok: false, error: "empty recipient" };
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "contacts",
+      contacts: [
+        {
+          name: { formatted_name: contactName, first_name: contactName },
+          phones: [{ phone: contactPhone, type: "CELL" }],
+        },
+      ],
+    },
+    senderPhoneNumberId,
+  );
+}
+
 /** Mark an inbound message as read (blue ticks) — polite chatbot UX. */
 export async function markWhatsAppMessageRead(
   messageId: string,

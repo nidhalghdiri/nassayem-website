@@ -118,6 +118,7 @@ enum ChatChannel {
 enum ChatMessageRole {
   USER
   ASSISTANT
+  STAFF // human agent message sent from the admin panel (handoff mode)
   TOOL // one row per executed tool call — payload holds { input, result }
 }
 
@@ -822,6 +823,12 @@ model ChatbotMessage {
 
   // WhatsApp inbound message id (wamid) — used to dedupe Meta webhook retries.
   waMessageId String? @unique
+
+  // Media attached to this message (inbound WhatsApp media is mirrored into
+  // Supabase storage; staff attachments are uploaded there directly).
+  // mediaType: image | video | audio | document | sticker | location | contact
+  mediaUrl  String?
+  mediaType String?
 
   // TOOL rows only
   toolName    String?

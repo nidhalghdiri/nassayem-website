@@ -10,13 +10,41 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import prisma from "@/lib/prisma";
 import { runChatbotTurn } from "@/lib/chatbot/agent";
 import { getChatbotSettings } from "@/lib/chatbot/config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // tool loop + streaming can take a while
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Poll mode: ?sessionId=&after= → staff (human handoff) messages for this
+  // web session, so agent replies from the admin panel reach the widget
+  // without websockets. The sessionId is an unguessable client-generated UUID.
+  const sessionId = req.nextUrl.searchParams.get("sessionId");
+  if (sessionId) {
+    const after = req.nextUrl.searchParams.get("after");
+    const messages = await prisma.chatbotMessage.findMany({
+      where: {
+        role: "STAFF",
+        conversation: { channel: "WEB", externalId: sessionId },
+        ...(after ? { createdAt: { gt: new Date(after) } } : {}),
+      },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+    });
+    return NextResponse.json({
+      messages: messages.map((m) => ({
+        id: m.id,
+        text: m.content,
+        mediaUrl: m.mediaUrl,
+        mediaType: m.mediaType,
+        createdAt: m.createdAt.toISOString(),
+      })),
+    });
+  }
+
+  // Bootstrap mode: widget config.
   const settings = await getChatbotSettings();
   return NextResponse.json({
     enabled: settings.enabled,

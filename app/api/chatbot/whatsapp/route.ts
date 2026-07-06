@@ -25,6 +25,7 @@ import {
   sendWhatsAppLocation,
   markWhatsAppMessageRead,
 } from "@/lib/whatsapp";
+import { mirrorWhatsAppMedia } from "@/lib/chatbot/whatsappMedia";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -67,6 +68,7 @@ function verifySignature(rawBody: string, header: string | null): boolean {
 }
 
 // Minimal shapes for the webhook payload pieces we consume.
+type WaMediaRef = { id?: string; caption?: string; mime_type?: string };
 type WaMessage = {
   id: string;
   from: string;
@@ -78,7 +80,23 @@ type WaMessage = {
     list_reply?: { title?: string };
   };
   location?: { latitude?: number; longitude?: number };
+  image?: WaMediaRef;
+  video?: WaMediaRef;
+  audio?: WaMediaRef;
+  document?: WaMediaRef & { filename?: string };
+  sticker?: WaMediaRef;
 };
+
+const MEDIA_TYPES = ["image", "video", "audio", "document", "sticker"] as const;
+type WaMediaType = (typeof MEDIA_TYPES)[number];
+
+function mediaRefOf(msg: WaMessage): { type: WaMediaType; ref: WaMediaRef } | null {
+  for (const type of MEDIA_TYPES) {
+    const ref = msg[type];
+    if (msg.type === type && ref?.id) return { type, ref };
+  }
+  return null;
+}
 type WaValue = {
   metadata?: { phone_number_id?: string };
   messages?: WaMessage[];
@@ -107,8 +125,12 @@ function extractText(msg: WaMessage): string | null {
     case "video":
     case "audio":
     case "document":
-    case "sticker":
-      return `[The customer sent a ${msg.type} message you cannot view. Politely say you can only read text here, and offer the call center for anything else.]`;
+    case "sticker": {
+      const caption = mediaRefOf(msg)?.ref.caption;
+      return caption
+        ? `[The customer sent a ${msg.type} with this caption]: ${caption}`
+        : `[The customer sent a ${msg.type}. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]`;
+    }
     default:
       return null; // reactions, system events, etc. — ignore
   }
@@ -193,12 +215,21 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
 
   const profileName = value.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name;
 
+  // Mirror inbound media into our storage so the admin transcript can show it.
+  let media: { url: string; type: string } | undefined;
+  const mediaRef = mediaRefOf(msg);
+  if (mediaRef) {
+    const mirrored = await mirrorWhatsAppMedia(mediaRef.ref.id!, msg.from);
+    if (mirrored) media = { url: mirrored.url, type: mediaRef.type };
+  }
+
   const result = await runChatbotTurn({
     channel: "WHATSAPP",
     externalId: msg.from,
     message: text,
     customerName: profileName,
     externalMessageId: msg.id,
+    media,
   });
 
   // "Stop AI" is on for this conversation: message stored, nothing sent.

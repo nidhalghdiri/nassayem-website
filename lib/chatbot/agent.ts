@@ -52,6 +52,8 @@ export type ChatbotTurnOptions = {
   customerName?: string;
   /** Inbound provider message id (WhatsApp wamid) — stored for webhook-retry dedupe. */
   externalMessageId?: string;
+  /** Inbound media already mirrored to storage — stored on the USER row so the admin transcript can render it. */
+  media?: { url: string; type: string };
   /** Stream text to the transport as the model produces it (web widget). */
   onTextDelta?: (text: string) => void;
 };
@@ -114,6 +116,8 @@ export async function runChatbotTurn(
         role: "USER",
         content: message,
         waMessageId: opts.externalMessageId ?? null,
+        mediaUrl: opts.media?.url ?? null,
+        mediaType: opts.media?.type ?? null,
       },
     });
     return {
@@ -139,10 +143,13 @@ export async function runChatbotTurn(
   }
 
   // ── History (text turns only) — loaded BEFORE persisting this message ─────
+  // STAFF rows (human handoff messages) are included as assistant turns so a
+  // resumed bot knows what the team already told the customer.
   const historyRows = await prisma.chatbotMessage.findMany({
     where: {
       conversationId: conversation.id,
-      role: { in: ["USER", "ASSISTANT"] },
+      role: { in: ["USER", "ASSISTANT", "STAFF"] },
+      content: { not: "" },
     },
     orderBy: { createdAt: "desc" },
     take: HISTORY_MESSAGES,
@@ -159,6 +166,8 @@ export async function runChatbotTurn(
       role: "USER",
       content: message,
       waMessageId: opts.externalMessageId ?? null,
+      mediaUrl: opts.media?.url ?? null,
+      mediaType: opts.media?.type ?? null,
     },
   });
 
@@ -166,7 +175,8 @@ export async function runChatbotTurn(
     ...historyRows.map(
       (row): Anthropic.MessageParam => ({
         role: row.role === "USER" ? "user" : "assistant",
-        content: row.content,
+        content:
+          row.role === "STAFF" ? `[Staff member]: ${row.content}` : row.content,
       }),
     ),
     { role: "user", content: message },
