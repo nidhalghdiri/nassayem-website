@@ -52,20 +52,66 @@ function toResult(message: Anthropic.Message): ModelTurnResult {
   };
 }
 
+/** Adaptive thinking is an Opus 4.7+/Fable capability; other models reject it. */
+function supportsAdaptiveThinking(model: string): boolean {
+  return /opus-4-[789]|opus-5|fable|mythos/.test(model);
+}
+
 export async function runModelTurn(
   params: ModelTurnParams,
 ): Promise<ModelTurnResult> {
   const client = getAnthropicClient();
+  const model = getChatModel();
+
+  // Prompt caching: the system prompt and tool definitions are identical for
+  // every conversation and every tool-loop iteration — cached reads bill at
+  // 10% of the input price. The last message is also marked so iterations
+  // within one tool loop (seconds apart) reuse the whole request prefix.
+  const system: Anthropic.TextBlockParam[] = [
+    {
+      type: "text",
+      text: params.system,
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+
+  const tools =
+    params.tools && params.tools.length > 0
+      ? params.tools.map((tool, i) =>
+          i === params.tools!.length - 1
+            ? { ...tool, cache_control: { type: "ephemeral" as const } }
+            : tool,
+        )
+      : undefined;
+
+  const messages = params.messages.map((message, i) => {
+    if (i !== params.messages.length - 1) return message;
+    const blocks: Anthropic.ContentBlockParam[] =
+      typeof message.content === "string"
+        ? [{ type: "text", text: message.content }]
+        : [...message.content];
+    if (blocks.length > 0) {
+      const last = blocks[blocks.length - 1];
+      if (last.type === "text" || last.type === "tool_result") {
+        blocks[blocks.length - 1] = {
+          ...last,
+          cache_control: { type: "ephemeral" },
+        } as Anthropic.ContentBlockParam;
+      }
+    }
+    return { ...message, content: blocks };
+  });
 
   const request: Anthropic.MessageCreateParamsNonStreaming = {
-    model: getChatModel(),
+    model,
     max_tokens: params.maxTokens ?? 2048,
-    // Adaptive thinking: the model decides when reasoning is worth the
-    // latency — simple greetings stay fast, multi-tool queries get depth.
-    thinking: { type: "adaptive" },
-    system: params.system,
-    messages: params.messages,
-    ...(params.tools && params.tools.length > 0 ? { tools: params.tools } : {}),
+    // Adaptive thinking on models that support it (Opus decides when
+    // reasoning is worth the latency). Cheaper models run without thinking —
+    // faster replies and no reasoning tokens billed as output.
+    ...(supportsAdaptiveThinking(model) ? { thinking: { type: "adaptive" } } : {}),
+    system,
+    messages,
+    ...(tools ? { tools } : {}),
   };
 
   if (params.onTextDelta) {
