@@ -157,6 +157,8 @@ export async function createNetsuiteReservation(params: {
   customerEmail?: string | null;
   totalAmount: number;
   notes?: string;
+  /** Keep the DAILY cycle even for 30+ nights (Khareef has no monthly rentals). */
+  forceDaily?: boolean;
 }): Promise<
   { ok: true; data: NetsuiteReservationCreated } | { ok: false; error: string }
 > {

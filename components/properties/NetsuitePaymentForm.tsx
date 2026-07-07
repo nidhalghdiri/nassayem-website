@@ -91,22 +91,23 @@ export default function NetsuitePaymentForm({
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">
             {isEn ? "Email Address" : "البريد الإلكتروني"}{" "}
-            <span className="text-red-500">*</span>
+            <span className="text-gray-400 font-normal">
+              {isEn ? "(optional)" : "(اختياري)"}
+            </span>
           </label>
           <input
             type="email"
             name="customerEmail"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
             placeholder="email@example.com"
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all"
             dir="ltr"
           />
           <p className="text-xs text-gray-400 mt-1">
             {isEn
-              ? "We'll send your payment receipt to this email."
-              : "سنرسل إيصال الدفع إلى هذا البريد."}
+              ? "If provided, we'll send your payment receipt to this email."
+              : "إذا أدخلته، سنرسل إيصال الدفع إلى هذا البريد."}
           </p>
         </div>
 

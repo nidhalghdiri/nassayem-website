@@ -18,9 +18,11 @@ export async function startNetsuitePaymentCheckout(
   formData: FormData,
   locale: string,
 ) {
-  const customerEmail = (formData.get("customerEmail") as string)?.trim();
+  // Email is OPTIONAL — used only for the receipt. Validate format only when
+  // the customer actually entered one.
+  const customerEmail = (formData.get("customerEmail") as string)?.trim() || "";
 
-  if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+  if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
     throw new Error(
       locale === "ar"
         ? "يرجى إدخال بريد إلكتروني صحيح."
@@ -67,11 +69,14 @@ export async function startNetsuitePaymentCheckout(
     );
   }
 
-  // Persist the email the customer entered (in case NetSuite didn't supply one)
-  await prisma.netsuitePayment.update({
-    where: { id: payment.id },
-    data: { customerEmail },
-  });
+  // Persist the email the customer entered (in case NetSuite didn't supply
+  // one). Never overwrite an existing email with an empty value.
+  if (customerEmail) {
+    await prisma.netsuitePayment.update({
+      where: { id: payment.id },
+      data: { customerEmail },
+    });
+  }
 
   // Build SmartPay request — amount comes from DB, not from client
   const formattedAmount = Number(payment.amount).toFixed(3);

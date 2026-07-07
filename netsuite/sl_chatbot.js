@@ -300,7 +300,10 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
 
       var R = CONFIG.RESERVATION;
       var F = R.fields;
-      var isMonthly = nights >= R.monthlyThresholdNights;
+      // forceDaily: Khareef stays are always daily-cycle, even at 30+ nights
+      // (monthly rentals are not offered during Khareef).
+      var forceDaily = String(body.forceDaily) === "true" || body.forceDaily === true;
+      var isMonthly = nights >= R.monthlyThresholdNights && !forceDaily;
       var period = isMonthly ? Math.round(nights / 30) : nights;
 
       var customer = findOrCreateCustomer(
@@ -398,6 +401,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           customerEmail: p.customerEmail,
           totalAmount: p.totalAmount ? Number(p.totalAmount) : undefined,
           notes: p.notes,
+          forceDaily: p.forceDaily,
         };
       }
       return JSON.parse(request.body || "{}");

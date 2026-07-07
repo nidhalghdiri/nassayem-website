@@ -11,12 +11,14 @@
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import prisma from "@/lib/prisma";
-import { parseISO, startOfDay } from "date-fns";
+import { differenceInDays, parseISO, startOfDay } from "date-fns";
 import type { Prisma, UnitType } from "@prisma/client";
 import {
   checkUnitAvailability,
   calculateBookingPrice,
 } from "@/app/actions/booking";
+import { getActivePromotionForUnit } from "@/app/actions/promotion";
+import { getPeriodPricing } from "@/app/actions/pricing";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 import {
   checkNetsuiteAvailability,
@@ -191,8 +193,89 @@ type PriceInfo =
       nights: number;
       per_night_omr: number;
       promotion: { title_en: string; title_ar: string; savings_omr: number } | null;
+      note?: string;
     }
   | { price_unavailable: string };
+
+/** True when any night in [checkIn, checkOut) falls in July or August. */
+function stayContainsKhareef(checkIn: string, checkOut: string): boolean {
+  const cursor = startOfDay(parseISO(checkIn));
+  const end = startOfDay(parseISO(checkOut));
+  while (cursor < end) {
+    const m = cursor.getMonth();
+    if (m === 6 || m === 7) return true;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return false;
+}
+
+const KHAREEF_MONTHLY_NOTE =
+  "Monthly rentals are NOT available during Khareef season (July–August). This total is calculated at the DAILY rate — tell the customer that monthly isn't offered in Khareef and this is the daily-rate total.";
+
+/**
+ * Daily-rate pricing for long Khareef stays. The website engine switches to
+ * the monthly rate at 30+ nights, but monthly rentals do not exist during
+ * Khareef — so we price such stays night-by-night using the same priority
+ * the engine's daily branch uses: promotion > per-day pricing table
+ * (Khareef gate applies — no published rate means call center).
+ */
+async function dailyRatePrice(
+  unit: { id: string; buildingId: string; unitType: UnitType; dailyPrice: number | null },
+  checkIn: string,
+  checkOut: string,
+): Promise<PriceInfo> {
+  const nights = differenceInDays(
+    startOfDay(parseISO(checkOut)),
+    startOfDay(parseISO(checkIn)),
+  );
+  if (nights <= 0) return { price_unavailable: "Invalid date range." };
+
+  const [promo, modulePricing] = await Promise.all([
+    getActivePromotionForUnit(unit.id, checkIn, checkOut),
+    getPeriodPricing({
+      buildingId: unit.buildingId,
+      unitType: unit.unitType,
+      unitId: unit.id,
+      startDate: checkIn,
+      endDate: checkOut,
+    }),
+  ]);
+  const moduleAllPriced =
+    modulePricing !== null &&
+    modulePricing.totals.unpricedNights === 0 &&
+    modulePricing.totals.pricedNights > 0;
+
+  if (promo) {
+    const total = Math.round(promo.promoPrice * nights * 100) / 100;
+    const originalDaily = unit.dailyPrice ?? promo.regularPrice;
+    return {
+      total_omr: total,
+      nights,
+      per_night_omr: Math.floor(promo.promoPrice),
+      promotion: {
+        title_en: promo.titleEn,
+        title_ar: promo.titleAr,
+        savings_omr: Math.round((originalDaily - promo.promoPrice) * nights * 100) / 100,
+      },
+      note: KHAREEF_MONTHLY_NOTE,
+    };
+  }
+  if (moduleAllPriced) {
+    const inclusiveSum = modulePricing!.totals.total ?? 0;
+    const dailyAverage = Math.floor(inclusiveSum / (nights + 1));
+    return {
+      total_omr: dailyAverage * nights,
+      nights,
+      per_night_omr: dailyAverage,
+      promotion: null,
+      note: KHAREEF_MONTHLY_NOTE,
+    };
+  }
+  return {
+    price_unavailable:
+      "Online rates for these Khareef (July/August) dates are not published, and monthly rates are not available in Khareef. The call center can quote and book these dates.",
+  };
+}
 
 /** Full pricing via the website engine, translating its errors for the model. */
 async function priceForStay(
@@ -200,6 +283,21 @@ async function priceForStay(
   checkIn: string,
   checkOut: string,
 ): Promise<PriceInfo> {
+  // Khareef exception: 30+ night stays would normally get the monthly rate,
+  // but monthly rentals don't exist during Khareef — price them daily.
+  const nights = differenceInDays(
+    startOfDay(parseISO(checkOut)),
+    startOfDay(parseISO(checkIn)),
+  );
+  if (nights >= 30 && stayContainsKhareef(checkIn, checkOut)) {
+    const unit = await prisma.unit.findUnique({
+      where: { id: unitId },
+      select: { id: true, buildingId: true, unitType: true, dailyPrice: true },
+    });
+    if (!unit) return { price_unavailable: "Unit not found." };
+    return dailyRatePrice(unit, checkIn, checkOut);
+  }
+
   try {
     const p = await calculateBookingPrice(unitId, checkIn, checkOut);
     return {
@@ -253,6 +351,21 @@ const searchUnits = defineTool({
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
+
+    // Business rule: NO monthly rentals during Khareef (July–August).
+    if (
+      input.rent_type === "MONTHLY" &&
+      input.check_in &&
+      input.check_out &&
+      stayContainsKhareef(input.check_in, input.check_out)
+    ) {
+      return {
+        count: 0,
+        units: [],
+        note: "Monthly rentals are NOT available during Khareef season (July–August) — only daily rentals. Tell the customer this and ask if they would like the stay calculated at the daily rate; if yes, search again without rent_type MONTHLY.",
+      };
+    }
+
     const where: Prisma.UnitWhereInput = { isPublished: true };
     if (input.unit_type) where.unitType = input.unit_type as UnitType;
     if (input.building_id) where.buildingId = input.building_id;
@@ -713,6 +826,9 @@ const createReservation = defineTool({
     }
 
     // 1. Reservation in NetSuite (it picks a free unit of this type).
+    // 30+ night Khareef stays stay on the DAILY cycle — no monthly in Khareef.
+    const forceDaily =
+      price.nights >= 30 && stayContainsKhareef(input.check_in, input.check_out);
     const reservation = await createNetsuiteReservation({
       netsuiteBuildingId: unit.building.netsuiteId,
       unitType: unit.unitType,
@@ -722,7 +838,8 @@ const createReservation = defineTool({
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
       totalAmount: price.total_omr,
-      notes: `AI chatbot reservation — ${unit.titleEn} (${price.nights} nights)`,
+      notes: `AI chatbot reservation — ${unit.titleEn} (${price.nights} nights${forceDaily ? ", daily rate — Khareef" : ""})`,
+      forceDaily,
     });
     if (!reservation.ok) {
       console.error("[chatbot] NetSuite reservation failed:", reservation.error);
