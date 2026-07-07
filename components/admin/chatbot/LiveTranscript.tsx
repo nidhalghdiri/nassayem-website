@@ -218,7 +218,7 @@ export default function LiveTranscript({
     "w-9 h-9 rounded-full flex items-center justify-center text-lg hover:bg-gray-200 transition-colors";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl flex flex-col h-[72vh] overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-2xl flex flex-col h-full overflow-hidden">
       {/* Status strip */}
       <div
         className={`px-4 py-2 text-xs font-medium shrink-0 ${
