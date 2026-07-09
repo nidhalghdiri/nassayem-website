@@ -913,7 +913,6 @@ model ChatbotLead {
   updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
-  @@index([reservationNumber])
 }
 
 // Editable bot settings — single source of truth read live by the agent
