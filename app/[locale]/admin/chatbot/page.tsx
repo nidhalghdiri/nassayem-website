@@ -99,7 +99,10 @@ export default async function ChatbotOverviewPage({ params }: PageProps) {
     { href: `/${locale}/admin/chatbot/leads`, en: "Leads", ar: "العملاء المحتملون" },
     { href: `/${locale}/admin/chatbot/playground`, en: "Playground", ar: "بيئة التجربة" },
     ...(canManageChatbotConfig(adminUser.role)
-      ? [{ href: `/${locale}/admin/chatbot/config`, en: "Configuration", ar: "الإعدادات" }]
+      ? [
+          { href: `/${locale}/admin/chatbot/insights`, en: "Insights", ar: "التحليلات" },
+          { href: `/${locale}/admin/chatbot/config`, en: "Configuration", ar: "الإعدادات" },
+        ]
       : []),
   ];
 

@@ -805,6 +805,7 @@ model ChatbotConversation {
   messages ChatbotMessage[]
   leads    ChatbotLead[]
   holds    ChatbotHold[]
+  audit    ChatbotConversationAudit?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -812,6 +813,37 @@ model ChatbotConversation {
   @@unique([channel, externalId])
   @@index([status, lastMessageAt])
   @@index([lastMessageAt])
+}
+
+// LLM-graded quality audit — one row per conversation, produced by the
+// admin-triggered audit run (/admin/chatbot/insights). Re-audited when the
+// conversation gets new messages after auditedAt.
+model ChatbotConversationAudit {
+  id             String @id @default(uuid())
+  conversationId String @unique
+
+  auditedAt DateTime @default(now())
+  model     String // model id that produced the verdict
+
+  // Extracted columns for fast aggregation; `issues`/`topics` hold the detail.
+  outcome             String // paid | reserved_unpaid | lead_captured | escalated | info_only | abandoned | spam
+  funnelStage         Int // 1 started … 8 paid
+  sentiment           String // positive | neutral | negative | frustrated
+  missedBooking       Boolean @default(false)
+  missedBookingReason String?
+  reservationCreated  Boolean @default(false)
+  paymentStatus       String? // from NetsuitePayment when a reservation was created
+
+  issues Json // [{ tag, evidence, suggested_fix }]
+  topics Json // ["parking", "cancellation_policy", ...]
+
+  abandonLastBotMessage String? @db.Text // bot's final message before the customer went silent
+  summary               String  @db.Text
+
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([outcome])
+  @@index([funnelStage])
 }
 
 model ChatbotMessage {
