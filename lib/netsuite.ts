@@ -155,6 +155,8 @@ export async function createNetsuiteReservation(params: {
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
+  /** National ID or passport number — stored on the reservation + customer. */
+  idPassport?: string | null;
   totalAmount: number;
   notes?: string;
   /** Keep the DAILY cycle even for 30+ nights (Khareef has no monthly rentals). */

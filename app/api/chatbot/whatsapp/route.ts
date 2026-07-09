@@ -153,16 +153,33 @@ type BuildingInfoResult = {
   }[];
 };
 
-/** Native follow-ups after the text reply: gallery photos + location pin. */
+/**
+ * Native follow-ups after the text reply: gallery photos + location pin.
+ * Every successfully sent item is ALSO persisted as an ASSISTANT message so
+ * the admin transcript shows exactly what the customer received.
+ */
 async function sendMediaFollowUps(
   to: string,
   language: string,
   toolCalls: { name: string; result: unknown }[],
+  conversationId: string,
   senderPhoneNumberId?: string,
 ): Promise<void> {
   const isAr = language === "ar";
   let imagesSent = 0;
   let locationSent = false;
+
+  const persistSent = async (
+    content: string,
+    mediaUrl: string,
+    mediaType: string,
+  ) => {
+    await prisma.chatbotMessage
+      .create({
+        data: { conversationId, role: "ASSISTANT", content, mediaUrl, mediaType },
+      })
+      .catch((err) => console.error("[chatbot] persist sent media failed:", err));
+  };
 
   for (const call of toolCalls) {
     if (call.name === "get_unit_details" && imagesSent < MAX_GALLERY_IMAGES) {
@@ -171,8 +188,9 @@ async function sendMediaFollowUps(
       for (let i = 0; i < urls.length; i++) {
         const caption =
           i === 0 ? (isAr ? r.title_ar : r.title_en) ?? undefined : undefined;
-        await sendWhatsAppImage(to, urls[i], caption, senderPhoneNumberId);
+        const sent = await sendWhatsAppImage(to, urls[i], caption, senderPhoneNumberId);
         imagesSent++;
+        if (sent.ok) await persistSent(caption ?? "📷", urls[i], "image");
       }
     }
 
@@ -183,15 +201,23 @@ async function sendMediaFollowUps(
       if (r.buildings?.length === 1) {
         const b = r.buildings[0];
         if (b.latitude != null && b.longitude != null) {
-          await sendWhatsAppLocation(
+          const name = (isAr ? b.name_ar : b.name_en) ?? "";
+          const sent = await sendWhatsAppLocation(
             to,
             b.latitude,
             b.longitude,
-            isAr ? b.name_ar : b.name_en,
+            name,
             isAr ? b.location_ar : b.location_en,
             senderPhoneNumberId,
           );
           locationSent = true;
+          if (sent.ok) {
+            await persistSent(
+              `📍 ${name}`,
+              `https://maps.google.com/?q=${b.latitude},${b.longitude}`,
+              "location",
+            );
+          }
         }
       }
     }
@@ -261,7 +287,13 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
     return; // reply never reached the customer — skip media follow-ups
   }
 
-  await sendMediaFollowUps(msg.from, result.language, result.toolCalls, senderPhoneNumberId);
+  await sendMediaFollowUps(
+    msg.from,
+    result.language,
+    result.toolCalls,
+    result.conversationId,
+    senderPhoneNumberId,
+  );
 }
 
 export async function POST(req: NextRequest) {

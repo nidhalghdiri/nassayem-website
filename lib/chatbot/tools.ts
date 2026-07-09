@@ -26,6 +26,7 @@ import {
   isNetsuiteChatbotConfigured,
 } from "@/lib/netsuite";
 import { createNetsuitePaymentLink } from "@/lib/netsuitePaymentLink";
+import { sendChatbotEscalationTemplate } from "@/lib/whatsapp";
 import { getChatbotSettings } from "./config";
 
 export type ToolContext = {
@@ -340,13 +341,12 @@ function defineTool<S extends z.ZodType>(def: ToolDef<S>): ToolDef<z.ZodType> {
 const searchUnits = defineTool({
   name: "search_units",
   description:
-    "Search available apartments. Use whenever the customer describes what they need (type, dates, guests, building). With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only.",
+    "Search available apartments. Use whenever the customer describes what they need (type, dates, building). Group size NEVER restricts results — we welcome any group size in any apartment type; ask the customer which TYPE they prefer (studio / one / two / three bedrooms / villa) and search by that. With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only.",
   schema: z.object({
-    unit_type: z.enum(UNIT_TYPES).optional().describe("Filter by apartment type"),
+    unit_type: z.enum(UNIT_TYPES).optional().describe("Apartment type the CUSTOMER chose — always ask their preference instead of guessing from group size"),
     building_id: realId.optional().describe("Filter to one building (from get_building_info)"),
     check_in: dateString.optional().describe("Check-in date YYYY-MM-DD"),
     check_out: dateString.optional().describe("Check-out date YYYY-MM-DD"),
-    guests: z.number().int().min(1).max(20).optional().describe("Group size. Results also include units whose official capacity is ONE below this (capacity is a guideline — families with children often fit); such units carry a capacity_note. Present them honestly and let the customer decide."),
     rent_type: z.enum(["DAILY", "MONTHLY"]).optional().describe("DAILY for short stays, MONTHLY for 30+ nights"),
   }),
   execute: async (input, ctx) => {
@@ -366,14 +366,12 @@ const searchUnits = defineTool({
       };
     }
 
+    // Deliberately NO guest-count filtering: any group size may take any
+    // apartment type — the customer chooses the type; `sleeps` is shown as
+    // information only.
     const where: Prisma.UnitWhereInput = { isPublished: true };
     if (input.unit_type) where.unitType = input.unit_type as UnitType;
     if (input.building_id) where.buildingId = input.building_id;
-    // Capacity is a soft limit: include units officially sleeping ONE fewer
-    // than the group (families with children usually fit) — flagged with a
-    // capacity_note below so the bot presents them honestly instead of
-    // telling the customer "nothing fits you".
-    if (input.guests) where.guests = { gte: Math.max(1, input.guests - 1) };
     if (input.rent_type === "DAILY") where.rentType = { in: ["DAILY", "BOTH"] };
     if (input.rent_type === "MONTHLY") where.rentType = { in: ["MONTHLY", "BOTH"] };
 
@@ -387,11 +385,6 @@ const searchUnits = defineTool({
       take: 20,
     });
 
-    // Exact-capacity fits first; near-fits (one below) after.
-    if (input.guests) {
-      const g = input.guests;
-      units.sort((a, b) => Number(b.guests >= g) - Number(a.guests >= g));
-    }
 
     const hasDates = !!(input.check_in && input.check_out);
 
@@ -456,11 +449,6 @@ const searchUnits = defineTool({
         sleeps: unit.guests,
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
-        ...(input.guests && unit.guests < input.guests
-          ? {
-              capacity_note: `Official capacity is ${unit.guests} and the group is ${input.guests}. Usually fine when the extra guest is a child — mention the capacity honestly and let the customer decide. Never refuse on their behalf.`,
-            }
-          : {}),
         ...(hasDates
           ? { availability, price }
           : settings.show_prices
@@ -761,13 +749,14 @@ const createHold = defineTool({
 const createReservation = defineTool({
   name: "create_reservation",
   description:
-    "Create a REAL reservation in our reservation system and get a card-payment link for the customer. Only call after the customer has EXPLICITLY confirmed: the exact unit, check-in/check-out dates, full name and phone number — repeat these back and get a clear yes first. The reservation is confirmed once the customer pays the link.",
+    "Create a REAL reservation in our reservation system and get a card-payment link for 50% ADVANCE payment (the remaining 50% is collected at reception). Only call after the customer has EXPLICITLY confirmed: the exact unit, check-in/check-out dates, full name, phone number AND ID/passport number — repeat these back and get a clear yes first. The reservation is confirmed once the customer pays the advance.",
   schema: z.object({
     unit_id: realId,
     check_in: dateString,
     check_out: dateString,
     customer_name: z.string().min(2).max(120),
     customer_phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
+    id_passport: z.string().min(4).max(40).describe("National ID number or passport number — required for every reservation"),
     customer_email: z.string().email().optional(),
   }),
   execute: async (input, ctx) => {
@@ -837,6 +826,7 @@ const createReservation = defineTool({
       customerName: input.customer_name,
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
+      idPassport: input.id_passport,
       totalAmount: price.total_omr,
       notes: `AI chatbot reservation — ${unit.titleEn} (${price.nights} nights${forceDaily ? ", daily rate — Khareef" : ""})`,
       forceDaily,
@@ -853,7 +843,11 @@ const createReservation = defineTool({
       };
     }
 
-    // 2. Card-payment link (same machinery as receptionist-issued links).
+    // 2. Card-payment link for the 50% ADVANCE (same machinery as
+    // receptionist-issued links). The remaining 50% is paid at reception —
+    // the NetSuite reservation itself carries the full total.
+    const advance = Math.round(price.total_omr * 0.5 * 1000) / 1000;
+    const remaining = Math.round((price.total_omr - advance) * 1000) / 1000;
     const conversation = await prisma.chatbotConversation.findUnique({
       where: { id: ctx.conversationId },
       select: { language: true },
@@ -868,8 +862,8 @@ const createReservation = defineTool({
       customerName: input.customer_name,
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
-      amount: price.total_omr,
-      description: "Reservation created by the Nassayem AI assistant",
+      amount: advance,
+      description: `Advance payment (50%) — total ${price.total_omr} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
       locale: conversation?.language === "ar" ? "ar" : "en",
     });
 
@@ -883,7 +877,7 @@ const createReservation = defineTool({
         checkIn: startOfDay(parseISO(input.check_in)),
         checkOut: startOfDay(parseISO(input.check_out)),
         status: "CONTACTED",
-        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; payment link sent.`,
+        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${price.total_omr}).`,
       },
     });
     await prisma.chatbotConversation.update({
@@ -895,10 +889,12 @@ const createReservation = defineTool({
       reserved: true,
       reservation_ref: reservation.data.reservationRef ?? reservation.data.reservationId,
       total_omr: price.total_omr,
+      advance_paid_online_omr: advance,
+      remaining_at_reception_omr: remaining,
       nights: price.nights,
       payment_url: paymentLink.url,
       payment_link_expires_at: paymentLink.expiresAt.toISOString(),
-      next: "Tell the customer the reservation is held for them and becomes CONFIRMED once paid. Send the payment link (bare URL) and the total. Mention the link expiry.",
+      next: "Tell the customer: the reservation is held for them; they pay the 50% ADVANCE now via the link (bare URL) and the remaining 50% at reception on arrival; the reservation is CONFIRMED once the advance is paid. Mention the total, the advance amount, the remaining amount and the link expiry.",
     };
   },
 });
@@ -906,9 +902,15 @@ const createReservation = defineTool({
 const escalateToHuman = defineTool({
   name: "escalate_to_human",
   description:
-    "Flag this conversation for a human agent. Use when an escalation trigger applies (complaint, refund, group/corporate booking, explicit request for a human, or you cannot help). After calling, give the customer the call-center number and reassure them.",
+    "Flag this conversation for a human agent — the call center is notified on WhatsApp immediately. Use when an escalation trigger applies (complaint, refund, group/corporate booking, explicit request for a human, or you cannot help). Fill in every detail you know from the conversation (building, name, phone, dates, persons) — the team reads them in the notification. After calling, give the customer the call-center number and reassure them.",
   schema: z.object({
-    reason: z.string().min(3).max(300).describe("Short reason a staff member will read"),
+    reason: z.string().min(3).max(300).describe("Short summary a staff member will read (in Arabic)"),
+    building: z.string().max(120).optional().describe("Building name discussed, if any"),
+    customer_name: z.string().max(120).optional(),
+    customer_phone: z.string().max(24).optional(),
+    check_in: dateString.optional(),
+    check_out: dateString.optional(),
+    guests: z.number().int().min(1).max(50).optional().describe("Number of persons, if mentioned"),
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
@@ -916,6 +918,23 @@ const escalateToHuman = defineTool({
       where: { id: ctx.conversationId },
       data: { status: "ESCALATED", escalationReason: input.reason },
     });
+
+    // WhatsApp notification to the call center (template ns_reception_reminder_ar).
+    const customerPhone =
+      input.customer_phone ??
+      (conversation.channel === "WHATSAPP" ? `+${conversation.externalId}` : null);
+    sendChatbotEscalationTemplate({
+      to: settings.contact_numbers.whatsapp,
+      building: input.building ?? "غير محدد",
+      customer: input.customer_name ?? conversation.customerName ?? "غير محدد",
+      phone: customerPhone ?? "غير محدد",
+      dates:
+        input.check_in && input.check_out
+          ? `${input.check_in} - ${input.check_out}`
+          : "غير محدد",
+      persons: input.guests ? String(input.guests) : "غير محدد",
+      summary: input.reason,
+    }).catch((err) => console.error("[chatbot] escalation template failed:", err));
 
     // Best-effort staff notification — never fail the customer reply over it.
     if (settings.escalation_email && process.env.RESEND_API_KEY) {

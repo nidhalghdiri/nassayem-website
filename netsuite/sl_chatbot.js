@@ -77,6 +77,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           customerNameTxt: "custbody_ns_customer_name",
           customerPhone: "custbody_nass_customer_phone",
           customerEmail: "custbody_nass_customer_email",
+          idPassport: "custbody_ns_id_passport_num",
           unitCode: "custbody_nass_unit_code",
           cycle: "custbody_ns_reservation_cycle", // "1" daily · "2" monthly
           period: "custbody_ns_res_period",
@@ -101,6 +102,8 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
         // internal id here. The real guest name/phone still land on the
         // reservation's custbody fields. "" = no fallback (fail instead).
         fallbackCustomerId: "",
+        // Same field the reservation form searches customers by.
+        idPassportField: "custentity_ns_id_passport_num",
       },
     };
     // ── END CONFIG ───────────────────────────────────────────────────────────
@@ -225,11 +228,37 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       };
     }
 
-    /** Find a customer by phone in our subsidiary, or create one. */
-    function findOrCreateCustomer(name, phone, email) {
-      // Match on the last 8 digits so "+968 9912 3456" and "96899123456" agree.
-      var phoneTail = String(phone).replace(/\D/g, "").slice(-8);
+    /** Find a customer by ID/passport (like the reservation form) or phone, or create one. */
+    function findOrCreateCustomer(name, phone, email, idPassport) {
       var found = null;
+
+      // 1. ID/passport is the strongest identifier — same search the
+      //    reservation form runs on custentity_ns_id_passport_num.
+      if (idPassport && CONFIG.CUSTOMER.idPassportField) {
+        try {
+          search.create({
+            type: search.Type.CUSTOMER,
+            columns: ["internalid"],
+            filters: [
+              [CONFIG.CUSTOMER.idPassportField, "is", String(idPassport).trim()],
+              "and",
+              ["subsidiary", "anyof", CONFIG.CUSTOMER.subsidiary],
+              "and",
+              ["isinactive", "is", "F"],
+            ],
+          }).run().each(function (r) {
+            found = r.getValue({ name: "internalid" });
+            return false;
+          });
+        } catch (e) {
+          log.debug("customer passport search failed", e);
+        }
+      }
+      if (found) return { id: found, created: false };
+
+      // 2. Phone fallback — match on the last 8 digits so "+968 9912 3456"
+      //    and "96899123456" agree.
+      var phoneTail = String(phone).replace(/\D/g, "").slice(-8);
       if (phoneTail.length >= 6) {
         try {
           search.create({
@@ -266,6 +295,9 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       if (email) { try { cust.setValue({ fieldId: "email", value: email }); } catch (e) { /* ignore */ } }
       if (CONFIG.CUSTOMER.fullNameField) {
         try { cust.setValue({ fieldId: CONFIG.CUSTOMER.fullNameField, value: name }); } catch (e) { /* ignore */ }
+      }
+      if (idPassport && CONFIG.CUSTOMER.idPassportField) {
+        try { cust.setValue({ fieldId: CONFIG.CUSTOMER.idPassportField, value: String(idPassport).trim() }); } catch (e) { /* ignore */ }
       }
       try {
         var id = cust.save({ enableSourcing: true, ignoreMandatoryFields: true });
@@ -307,7 +339,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       var period = isMonthly ? Math.round(nights / 30) : nights;
 
       var customer = findOrCreateCustomer(
-        body.customerName, body.customerPhone, body.customerEmail,
+        body.customerName, body.customerPhone, body.customerEmail, body.idPassport,
       );
 
       var rec = record.create({ type: R.recordType, isDynamic: true });
@@ -325,6 +357,9 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
         try { rec.setValue({ fieldId: F.customerEmail, value: body.customerEmail }); } catch (e) { }
       }
       try { rec.setValue({ fieldId: F.unitCode, value: unit.code }); } catch (e) { }
+      if (body.idPassport && F.idPassport) {
+        try { rec.setValue({ fieldId: F.idPassport, value: String(body.idPassport).trim() }); } catch (e) { }
+      }
       try {
         rec.setValue({
           fieldId: F.memo,
@@ -399,6 +434,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           customerName: p.customerName,
           customerPhone: p.customerPhone,
           customerEmail: p.customerEmail,
+          idPassport: p.idPassport,
           totalAmount: p.totalAmount ? Number(p.totalAmount) : undefined,
           notes: p.notes,
           forceDaily: p.forceDaily,

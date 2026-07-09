@@ -215,6 +215,35 @@ export async function sendWhatsAppLocation(
   );
 }
 
+/**
+ * Notify the call center about a chatbot escalation.
+ * Template: ns_reception_reminder_ar (AR) — register in Meta Business Manager.
+ * Body params: {{1}} building, {{2}} customer, {{3}} phone, {{4}} dates,
+ *              {{5}} persons, {{6}} summary
+ * WhatsApp rejects newlines/tabs in template parameters — values are
+ * flattened to single-line strings here.
+ */
+export async function sendChatbotEscalationTemplate(params: {
+  to: string; // call-center WhatsApp number, digits only
+  building: string;
+  customer: string;
+  phone: string;
+  dates: string;
+  persons: string;
+  summary: string;
+}): Promise<void> {
+  const flat = (s: string) =>
+    (s || "غير محدد").replace(/\s+/g, " ").trim().slice(0, 200) || "غير محدد";
+  await sendTemplate(params.to, "ns_reception_reminder_ar", "ar", [
+    flat(params.building),
+    flat(params.customer),
+    flat(params.phone),
+    flat(params.dates),
+    flat(params.persons),
+    flat(params.summary),
+  ]);
+}
+
 /** Native contact card (e.g. the call-center number during handoff). */
 export async function sendWhatsAppContact(
   to: string,
