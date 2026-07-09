@@ -385,6 +385,16 @@ const searchUnits = defineTool({
       take: 20,
     });
 
+    // Featured building (admin config) floats to the top of results — the
+    // prompt's <sales_focus> tells the model to present it first when it fits.
+    const featured = settings.featured_building.trim().toLowerCase();
+    if (featured) {
+      const isFeatured = (u: (typeof units)[number]) =>
+        u.building.nameEn.toLowerCase().includes(featured) ||
+        u.building.nameAr.includes(settings.featured_building.trim());
+      units.sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
+    }
+
 
     const hasDates = !!(input.check_in && input.check_out);
 

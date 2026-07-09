@@ -22,6 +22,12 @@ export type ChatbotSettings = {
   escalation_triggers: string;
   /** Reference answers for common questions — the bot adapts them to the customer's language. */
   canned_replies: string;
+  /**
+   * Building to promote first when it fits the customer's request (exact
+   * English name as in the admin, e.g. "Awqad Building"). Empty = no featured
+   * building. Its units are also sorted first in search results.
+   */
+  featured_building: string;
   contact_numbers: { call_center: string; whatsapp: string };
   /**
    * WhatsApp numbers (digits only, comma-separated) that receive the
@@ -42,6 +48,7 @@ export const CHATBOT_CONFIG_KEYS = [
   "business_rules",
   "escalation_triggers",
   "canned_replies",
+  "featured_building",
   "contact_numbers",
   "escalation_whatsapp_numbers",
   "escalation_email",
@@ -81,6 +88,7 @@ export const CHATBOT_DEFAULTS: ChatbotSettings = {
     "Q: Where are you located? → Our buildings are in Salalah, Dhofar. I can send the exact location pin of any building.",
     "Q: Do you have airport pickup? → We don't provide airport transfer, but taxis are readily available at Salalah airport (about 15–20 minutes to our buildings).",
   ].join("\n"),
+  featured_building: "",
   contact_numbers: { call_center: "+968 99551237", whatsapp: "96899551237" },
   escalation_whatsapp_numbers: "",
   escalation_email: "",

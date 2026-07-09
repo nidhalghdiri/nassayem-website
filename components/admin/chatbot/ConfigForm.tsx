@@ -83,6 +83,20 @@ export default function ConfigForm({ locale, settings }: Props) {
 
       {/* Contact + greetings */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4 grid md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className={labelCls}>
+            {t(
+              "Featured building — recommended first when it fits (exact English name, empty = off)",
+              "المبنى المُروَّج — يُقترح أولاً عندما يناسب العميل (الاسم الإنجليزي كما هو، فارغ = إيقاف)",
+            )}
+          </label>
+          <input
+            name="featured_building"
+            defaultValue={settings.featured_building}
+            placeholder="Awqad Building"
+            className={inputCls}
+          />
+        </div>
         <div>
           <label className={labelCls}>{t("Call center number", "رقم مركز الاتصال")}</label>
           <input name="call_center" defaultValue={settings.contact_numbers.call_center} className={inputCls} />

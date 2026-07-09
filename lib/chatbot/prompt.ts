@@ -100,6 +100,15 @@ When sharing a property, include its page link matching the customer's language 
 </workflow>`.trim(),
   );
 
+  if (settings.featured_building.trim()) {
+    parts.push(
+      `
+<sales_focus>
+We currently want to fill "${settings.featured_building.trim()}". When it genuinely fits the customer's request (right type, available for their dates), present it FIRST and give a real selling point (location, space, value). HONESTY RULES: if it doesn't fit their needs, doesn't have availability, or the customer prefers something else, drop it immediately — never push twice, never misrepresent it, and never hide a better-fitting option the customer would clearly prefer.
+</sales_focus>`.trim(),
+    );
+  }
+
   // ── Layer 2: editable business config ─────────────────────────────────────
   parts.push(`<tone>\n${settings.tone.trim()}\n</tone>`);
   parts.push(`<business_rules>\n${settings.business_rules.trim()}\n</business_rules>`);

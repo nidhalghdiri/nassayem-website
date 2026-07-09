@@ -34,6 +34,7 @@ export async function saveChatbotSettings(formData: FormData) {
   await saveChatbotConfigKey("business_rules", text("business_rules"));
   await saveChatbotConfigKey("escalation_triggers", text("escalation_triggers"));
   await saveChatbotConfigKey("canned_replies", text("canned_replies"));
+  await saveChatbotConfigKey("featured_building", text("featured_building"));
   await saveChatbotConfigKey("contact_numbers", {
     call_center: text("call_center"),
     whatsapp: text("whatsapp").replace(/[^\d]/g, ""),
