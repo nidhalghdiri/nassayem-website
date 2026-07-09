@@ -93,6 +93,21 @@ export default function ConfigForm({ locale, settings }: Props) {
         </div>
         <div className="md:col-span-2">
           <label className={labelCls}>
+            {t(
+              "Escalation WhatsApp numbers (digits only, comma-separated — empty = call center number)",
+              "أرقام واتساب للتصعيد (أرقام فقط، مفصولة بفواصل — فارغ = رقم مركز الاتصال)",
+            )}
+          </label>
+          <input
+            name="escalation_whatsapp_numbers"
+            defaultValue={settings.escalation_whatsapp_numbers}
+            placeholder="96899551237,96898590405"
+            dir="ltr"
+            className={inputCls}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className={labelCls}>
             {t("Escalation email (staff notified on escalation — empty = off)", "بريد التصعيد (يُرسل إشعار للموظفين — فارغ = إيقاف)")}
           </label>
           <input name="escalation_email" type="email" defaultValue={settings.escalation_email} className={inputCls} />

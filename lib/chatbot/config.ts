@@ -23,6 +23,11 @@ export type ChatbotSettings = {
   /** Reference answers for common questions — the bot adapts them to the customer's language. */
   canned_replies: string;
   contact_numbers: { call_center: string; whatsapp: string };
+  /**
+   * WhatsApp numbers (digits only, comma-separated) that receive the
+   * escalation template. Empty = falls back to contact_numbers.whatsapp.
+   */
+  escalation_whatsapp_numbers: string;
   /** Staff email notified on escalation (empty = no email). */
   escalation_email: string;
   greeting_en: string;
@@ -38,6 +43,7 @@ export const CHATBOT_CONFIG_KEYS = [
   "escalation_triggers",
   "canned_replies",
   "contact_numbers",
+  "escalation_whatsapp_numbers",
   "escalation_email",
   "greeting_en",
   "greeting_ar",
@@ -76,6 +82,7 @@ export const CHATBOT_DEFAULTS: ChatbotSettings = {
     "Q: Do you have airport pickup? → We don't provide airport transfer, but taxis are readily available at Salalah airport (about 15–20 minutes to our buildings).",
   ].join("\n"),
   contact_numbers: { call_center: "+968 99551237", whatsapp: "96899551237" },
+  escalation_whatsapp_numbers: "",
   escalation_email: "",
   greeting_en: "Hello! Welcome to Nassayem Salalah 🌿 How can I help you today — looking for an apartment for the Khareef?",
   greeting_ar: "هلا وسهلا في نسائم صلالة 🌿 كيف أقدر أساعدك اليوم؟ تدور شقة لموسم الخريف؟",

@@ -919,22 +919,30 @@ const escalateToHuman = defineTool({
       data: { status: "ESCALATED", escalationReason: input.reason },
     });
 
-    // WhatsApp notification to the call center (template ns_reception_reminder_ar).
+    // WhatsApp notification (template ns_reception_reminder_ar) to every
+    // configured escalation recipient; falls back to the call-center number.
     const customerPhone =
       input.customer_phone ??
       (conversation.channel === "WHATSAPP" ? `+${conversation.externalId}` : null);
-    sendChatbotEscalationTemplate({
-      to: settings.contact_numbers.whatsapp,
-      building: input.building ?? "غير محدد",
-      customer: input.customer_name ?? conversation.customerName ?? "غير محدد",
-      phone: customerPhone ?? "غير محدد",
-      dates:
-        input.check_in && input.check_out
-          ? `${input.check_in} - ${input.check_out}`
-          : "غير محدد",
-      persons: input.guests ? String(input.guests) : "غير محدد",
-      summary: input.reason,
-    }).catch((err) => console.error("[chatbot] escalation template failed:", err));
+    const recipients = (settings.escalation_whatsapp_numbers || "")
+      .split(",")
+      .map((n) => n.replace(/\D/g, ""))
+      .filter((n) => n.length >= 8);
+    if (recipients.length === 0) recipients.push(settings.contact_numbers.whatsapp);
+    for (const to of recipients) {
+      sendChatbotEscalationTemplate({
+        to,
+        building: input.building ?? "غير محدد",
+        customer: input.customer_name ?? conversation.customerName ?? "غير محدد",
+        phone: customerPhone ?? "غير محدد",
+        dates:
+          input.check_in && input.check_out
+            ? `${input.check_in} - ${input.check_out}`
+            : "غير محدد",
+        persons: input.guests ? String(input.guests) : "غير محدد",
+        summary: input.reason,
+      }).catch((err) => console.error("[chatbot] escalation template failed:", err));
+    }
 
     // Best-effort staff notification — never fail the customer reply over it.
     if (settings.escalation_email && process.env.RESEND_API_KEY) {

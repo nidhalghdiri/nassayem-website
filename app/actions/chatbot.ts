@@ -38,6 +38,14 @@ export async function saveChatbotSettings(formData: FormData) {
     call_center: text("call_center"),
     whatsapp: text("whatsapp").replace(/[^\d]/g, ""),
   });
+  await saveChatbotConfigKey(
+    "escalation_whatsapp_numbers",
+    text("escalation_whatsapp_numbers")
+      .split(",")
+      .map((n) => n.replace(/\D/g, ""))
+      .filter((n) => n.length >= 8)
+      .join(","),
+  );
   await saveChatbotConfigKey("escalation_email", text("escalation_email"));
   await saveChatbotConfigKey("greeting_en", text("greeting_en"));
   await saveChatbotConfigKey("greeting_ar", text("greeting_ar"));
