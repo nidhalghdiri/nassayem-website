@@ -5,6 +5,7 @@ import type { Prisma, ChatLeadStatus } from "@prisma/client";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canViewChatbot } from "@/lib/chatbot/permissions";
 import LeadStatusSelect from "@/components/admin/chatbot/LeadStatusSelect";
+import LeadReservationNumber from "@/components/admin/chatbot/LeadReservationNumber";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,7 @@ export default async function ChatbotLeadsPage({ params, searchParams }: PagePro
                 <th className="px-4 py-3 text-start">{isEn ? "Interest" : "الاهتمام"}</th>
                 <th className="px-4 py-3 text-start">{isEn ? "Dates" : "التواريخ"}</th>
                 <th className="px-4 py-3 text-start">{isEn ? "Status" : "الحالة"}</th>
+                <th className="px-4 py-3 text-start">{isEn ? "Reservation #" : "رقم الحجز"}</th>
                 <th className="px-4 py-3 text-start">{isEn ? "Created" : "التاريخ"}</th>
                 <th className="px-4 py-3 text-start"></th>
               </tr>
@@ -95,7 +97,7 @@ export default async function ChatbotLeadsPage({ params, searchParams }: PagePro
             <tbody className="divide-y divide-gray-100">
               {leads.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                     {isEn ? "No leads yet." : "لا يوجد عملاء محتملون بعد."}
                   </td>
                 </tr>
@@ -130,6 +132,18 @@ export default async function ChatbotLeadsPage({ params, searchParams }: PagePro
                   </td>
                   <td className="px-4 py-3">
                     <LeadStatusSelect leadId={lead.id} status={lead.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <LeadReservationNumber
+                      leadId={lead.id}
+                      reservationNumber={lead.reservationNumber}
+                      isEn={isEn}
+                    />
+                    {lead.idNumber && (
+                      <div className="text-xs text-gray-400 mt-1" dir="ltr">
+                        {isEn ? "ID" : "الهوية"}: {lead.idNumber}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                     {lead.createdAt.toLocaleDateString(isEn ? "en-GB" : "ar-OM", { dateStyle: "medium" })}

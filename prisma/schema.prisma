@@ -894,6 +894,15 @@ model ChatbotLead {
   checkOut DateTime?
   guests   Int?
 
+  // National ID or passport number captured when the customer is ready to book.
+  // Stored in its own column so the admin inbox can search leads by it.
+  idNumber String?
+
+  // NetSuite reservation number a staff member records after they manually
+  // create the reservation (chatbot reservation creation is paused). Searchable
+  // from the admin inbox so a conversation can be found by its reservation.
+  reservationNumber String?
+
   status ChatLeadStatus @default(NEW)
   notes  String?        @db.Text
 
@@ -904,6 +913,7 @@ model ChatbotLead {
   updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
+  @@index([reservationNumber])
 }
 
 // Editable bot settings — single source of truth read live by the agent

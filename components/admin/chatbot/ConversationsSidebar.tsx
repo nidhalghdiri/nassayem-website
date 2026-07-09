@@ -85,7 +85,11 @@ export default function ConversationsSidebar({ locale }: { locale: string }) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={isEn ? "Search name or number…" : "بحث بالاسم أو الرقم…"}
+          placeholder={
+            isEn
+              ? "Search name, phone, ID or reservation #…"
+              : "بحث بالاسم أو الهاتف أو الهوية أو رقم الحجز…"
+          }
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-nassayem/50"
         />
         <div className="flex gap-1.5 overflow-x-auto">

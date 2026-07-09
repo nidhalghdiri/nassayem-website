@@ -55,6 +55,20 @@ export default function ConfigForm({ locale, settings }: Props) {
             )}
           </span>
         </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            name="reservations_enabled"
+            defaultChecked={settings.reservations_enabled}
+            className="w-4 h-4 accent-[#2a7475]"
+          />
+          <span className="text-sm font-medium text-gray-800">
+            {t(
+              "Let the bot create reservations — when OFF (recommended), a booking-ready customer is saved as a lead and the reservations team + building receptionist are notified on WhatsApp to finish the booking",
+              "السماح للبوت بإنشاء الحجوزات — عند الإيقاف (مُوصى به) يُحفظ العميل الجاهز للحجز كعميل محتمل ويُشعَر فريق الحجوزات وموظف الاستقبال عبر واتساب لإتمام الحجز",
+            )}
+          </span>
+        </label>
       </div>
 
       {/* Persona */}

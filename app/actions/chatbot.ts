@@ -29,6 +29,10 @@ export async function saveChatbotSettings(formData: FormData) {
 
   await saveChatbotConfigKey("enabled", formData.get("enabled") === "on");
   await saveChatbotConfigKey("show_prices", formData.get("show_prices") === "on");
+  await saveChatbotConfigKey(
+    "reservations_enabled",
+    formData.get("reservations_enabled") === "on",
+  );
   await saveChatbotConfigKey("system_prompt", text("system_prompt"));
   await saveChatbotConfigKey("tone", text("tone"));
   await saveChatbotConfigKey("business_rules", text("business_rules"));
@@ -249,6 +253,25 @@ export async function updateLeadStatus(leadId: string, status: ChatLeadStatus) {
   if (!user || !canViewChatbot(user.role)) throw new Error("Forbidden");
 
   await prisma.chatbotLead.update({ where: { id: leadId }, data: { status } });
+  revalidatePath("/", "layout");
+}
+
+/**
+ * Record (or clear) the NetSuite reservation number a staff member created for
+ * a lead by hand. Trimmed; empty string clears it back to null.
+ */
+export async function updateLeadReservationNumber(
+  leadId: string,
+  reservationNumber: string,
+) {
+  const user = await getCurrentAdminUser();
+  if (!user || !canViewChatbot(user.role)) throw new Error("Forbidden");
+
+  const trimmed = reservationNumber.trim();
+  await prisma.chatbotLead.update({
+    where: { id: leadId },
+    data: { reservationNumber: trimmed || null },
+  });
   revalidatePath("/", "layout");
 }
 

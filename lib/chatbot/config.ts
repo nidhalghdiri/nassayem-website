@@ -14,6 +14,13 @@ export type ChatbotSettings = {
   enabled: boolean;
   /** When false the bot NEVER quotes prices — it directs customers to the call center. */
   show_prices: boolean;
+  /**
+   * When false (the default), the bot does NOT create reservations itself: a
+   * booking-ready customer is saved as a lead and the reservations team +
+   * building receptionist are notified on WhatsApp to finish the booking. When
+   * true, the bot creates the reservation in NetSuite and returns a payment link.
+   */
+  reservations_enabled: boolean;
   /** Business persona layer appended to the hardcoded safety base prompt. */
   system_prompt: string;
   tone: string;
@@ -43,6 +50,7 @@ export type ChatbotSettings = {
 export const CHATBOT_CONFIG_KEYS = [
   "enabled",
   "show_prices",
+  "reservations_enabled",
   "system_prompt",
   "tone",
   "business_rules",
@@ -61,6 +69,9 @@ export const CHATBOT_CONFIG_KEYS = [
 export const CHATBOT_DEFAULTS: ChatbotSettings = {
   enabled: true,
   show_prices: true,
+  // Paused by default — chatbot-created reservations caused problems, so a
+  // booking-ready customer becomes a lead + WhatsApp escalation instead.
+  reservations_enabled: false,
   system_prompt: [
     "You are the virtual receptionist of Nassayem Salalah (نسائم صلالة), a furnished-apartment rental company in Salalah, Dhofar, Oman. You represent a professional, warm Omani hospitality brand.",
     "",

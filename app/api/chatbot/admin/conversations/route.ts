@@ -35,6 +35,21 @@ export async function GET(req: NextRequest) {
           OR: [
             { externalId: { contains: q, mode: "insensitive" } },
             { customerName: { contains: q, mode: "insensitive" } },
+            // Match by details captured on the conversation's leads so staff can
+            // find a chat by the customer's phone, ID/passport, the reservation
+            // number, or the name given while booking.
+            {
+              leads: {
+                some: {
+                  OR: [
+                    { phone: { contains: q, mode: "insensitive" } },
+                    { idNumber: { contains: q, mode: "insensitive" } },
+                    { reservationNumber: { contains: q, mode: "insensitive" } },
+                    { name: { contains: q, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
           ],
         }
       : {}),
