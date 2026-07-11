@@ -1118,9 +1118,23 @@ const escalateToHuman = defineTool({
     // WhatsApp escalation template to every configured recipient (Arabic call
     // center) plus, when the escalation names a matchable building, that
     // building's receptionists in their own language.
-    const customerPhone =
-      input.customer_phone ??
-      (conversation.channel === "WHATSAPP" ? `+${conversation.externalId}` : null);
+    //
+    // The model often passes "" for unknown name/phone, so treat blanks as
+    // missing (a nullish `??` alone would keep the empty string). When the
+    // customer reached us on WhatsApp we already know who they are: fall back
+    // to their profile name and the number they wrote from (externalId).
+    const clean = (s?: string | null) => {
+      const t = (s ?? "").trim();
+      return t.length > 0 ? t : undefined;
+    };
+    const waNumber =
+      conversation.channel === "WHATSAPP"
+        ? conversation.externalId.replace(/\D/g, "")
+        : "";
+    const waPhone = waNumber.length >= 8 ? `+${waNumber}` : undefined;
+    const customerName =
+      clean(input.customer_name) ?? clean(conversation.customerName) ?? waPhone ?? "غير محدد";
+    const customerPhone = clean(input.customer_phone) ?? waPhone ?? "غير محدد";
     const recipients = callCenterEscalationNumbers(settings);
     // Also notify the building's receptionists — but only when the escalation
     // names a building we can match unambiguously. General escalations (a
@@ -1141,8 +1155,8 @@ const escalateToHuman = defineTool({
         to: r.to,
         language: r.language,
         building: input.building ?? "غير محدد",
-        customer: input.customer_name ?? conversation.customerName ?? "غير محدد",
-        phone: customerPhone ?? "غير محدد",
+        customer: customerName,
+        phone: customerPhone,
         dates:
           input.check_in && input.check_out
             ? `${input.check_in} - ${input.check_out}`
