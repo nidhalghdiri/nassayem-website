@@ -343,10 +343,16 @@ function callCenterEscalationNumbers(settings: ChatbotSettings): string[] {
 
 /**
  * WhatsApp numbers of the receptionists responsible for a building. Prefer
- * receptionists scoped to that building; if none are assigned there, fall back
- * to every receptionist with a number so a booking request is never dropped.
+ * receptionists scoped to that building; if none are assigned there and
+ * `fallbackToAll` is set (default), fall back to every receptionist with a
+ * number so a booking request is never dropped. General escalations pass
+ * `fallbackToAll: false` so an unassigned building doesn't ping every desk.
  */
-async function receptionistNumbersForBuilding(buildingId: string): Promise<string[]> {
+async function receptionistNumbersForBuilding(
+  buildingId: string,
+  opts: { fallbackToAll?: boolean } = {},
+): Promise<string[]> {
+  const { fallbackToAll = true } = opts;
   const pick = (rows: { whatsappNumber: string | null }[]) =>
     rows
       .map((r) => (r.whatsappNumber ?? "").replace(/\D/g, ""))
@@ -362,12 +368,35 @@ async function receptionistNumbersForBuilding(buildingId: string): Promise<strin
   });
   const scopedNumbers = pick(scoped);
   if (scopedNumbers.length > 0) return scopedNumbers;
+  if (!fallbackToAll) return [];
 
   const all = await prisma.adminUser.findMany({
     where: { role: "RECEPTIONIST", whatsappNumber: { not: null } },
     select: { whatsappNumber: true },
   });
   return pick(all);
+}
+
+/**
+ * Resolve a free-text building name (as the model passes it) to a building id.
+ * Returns the id only when exactly one building matches — a name we can't match,
+ * or an ambiguous one, yields null so we never notify the wrong building's desk.
+ */
+async function resolveBuildingIdByName(name: string): Promise<string | null> {
+  const q = name.trim();
+  if (q.length < 2) return null;
+  const matches = await prisma.building.findMany({
+    where: {
+      OR: [
+        { nameAr: { contains: q, mode: "insensitive" } },
+        { nameEn: { contains: q, mode: "insensitive" } },
+        { shortName: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true },
+    take: 2,
+  });
+  return matches.length === 1 ? matches[0].id : null;
 }
 
 // ── Tool registry ─────────────────────────────────────────────────────────────
@@ -1066,8 +1095,25 @@ const escalateToHuman = defineTool({
       .split(",")
       .map((n) => n.replace(/\D/g, ""))
       .filter((n) => n.length >= 8);
-    if (recipients.length === 0) recipients.push(settings.contact_numbers.whatsapp);
-    for (const to of recipients) {
+    if (recipients.length === 0) {
+      const fallback = settings.contact_numbers.whatsapp.replace(/\D/g, "");
+      if (fallback.length >= 8) recipients.push(fallback);
+    }
+    // Also notify the building's receptionists — but only when the escalation
+    // names a building we can match unambiguously. General escalations (a
+    // complaint, "I want a human") often have no building, and we don't want to
+    // ping every desk, so there is no fall-back to all receptionists here.
+    if (input.building) {
+      const buildingId = await resolveBuildingIdByName(input.building);
+      if (buildingId) {
+        recipients.push(
+          ...(await receptionistNumbersForBuilding(buildingId, {
+            fallbackToAll: false,
+          })),
+        );
+      }
+    }
+    for (const to of [...new Set(recipients)]) {
       sendChatbotEscalationTemplate({
         to,
         building: input.building ?? "غير محدد",
