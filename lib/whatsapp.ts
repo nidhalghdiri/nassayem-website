@@ -216,15 +216,19 @@ export async function sendWhatsAppLocation(
 }
 
 /**
- * Notify the call center about a chatbot escalation.
- * Template: ns_reception_reminder_ar (AR) — register in Meta Business Manager.
+ * Notify a staff member about a chatbot escalation, in their language.
+ * Templates (register both in Meta Business Manager, same 6 body params):
+ *   ar → ns_reception_reminder_ar (lang "ar")
+ *   en → ns_reception_reminder_en (lang "en_US")
  * Body params: {{1}} building, {{2}} customer, {{3}} phone, {{4}} dates,
  *              {{5}} persons, {{6}} summary
+ * `language` defaults to "ar" so existing callers keep the Arabic template.
  * WhatsApp rejects newlines/tabs in template parameters — values are
  * flattened to single-line strings here.
  */
 export async function sendChatbotEscalationTemplate(params: {
-  to: string; // call-center WhatsApp number, digits only
+  to: string; // recipient WhatsApp number, digits only
+  language?: "ar" | "en";
   building: string;
   customer: string;
   phone: string;
@@ -234,7 +238,10 @@ export async function sendChatbotEscalationTemplate(params: {
 }): Promise<void> {
   const flat = (s: string) =>
     (s || "غير محدد").replace(/\s+/g, " ").trim().slice(0, 200) || "غير محدد";
-  await sendTemplate(params.to, "ns_reception_reminder_ar", "ar", [
+  const isEn = params.language === "en";
+  const templateName = isEn ? "ns_reception_reminder_en" : "ns_reception_reminder_ar";
+  const languageCode = isEn ? "en_US" : "ar";
+  await sendTemplate(params.to, templateName, languageCode, [
     flat(params.building),
     flat(params.customer),
     flat(params.phone),

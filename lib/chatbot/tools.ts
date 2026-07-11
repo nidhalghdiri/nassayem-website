@@ -327,9 +327,30 @@ async function priceForStay(
 
 // ── Escalation recipients ─────────────────────────────────────────────────────
 
+/** A WhatsApp escalation recipient and the template language they should get. */
+type EscalationRecipient = { to: string; language: "ar" | "en" };
+
+/** Coerce an AdminUser.preferredLanguage into the two languages we template. */
+function toTemplateLang(pref: string | null | undefined): "ar" | "en" {
+  return pref === "ar" ? "ar" : "en";
+}
+
+/** Merge recipient lists, keeping the first language seen for each number. */
+function dedupeRecipients(list: EscalationRecipient[]): EscalationRecipient[] {
+  const seen = new Set<string>();
+  const out: EscalationRecipient[] = [];
+  for (const r of list) {
+    if (!r.to || seen.has(r.to)) continue;
+    seen.add(r.to);
+    out.push(r);
+  }
+  return out;
+}
+
 /** Call-center escalation WhatsApp numbers (digits only), falling back to the
- * configured contact WhatsApp number when none are set. */
-function callCenterEscalationNumbers(settings: ChatbotSettings): string[] {
+ * configured contact WhatsApp number when none are set. These are notified in
+ * Arabic (the call center's language). */
+function callCenterEscalationNumbers(settings: ChatbotSettings): EscalationRecipient[] {
   const list = (settings.escalation_whatsapp_numbers || "")
     .split(",")
     .map((n) => n.replace(/\D/g, ""))
@@ -338,25 +359,31 @@ function callCenterEscalationNumbers(settings: ChatbotSettings): string[] {
     const fallback = settings.contact_numbers.whatsapp.replace(/\D/g, "");
     if (fallback.length >= 8) list.push(fallback);
   }
-  return list;
+  return list.map((to) => ({ to, language: "ar" }));
 }
 
 /**
- * WhatsApp numbers of the receptionists responsible for a building. Prefer
- * receptionists scoped to that building; if none are assigned there and
- * `fallbackToAll` is set (default), fall back to every receptionist with a
- * number so a booking request is never dropped. General escalations pass
- * `fallbackToAll: false` so an unassigned building doesn't ping every desk.
+ * Receptionists responsible for a building, each with their own template
+ * language (AdminUser.preferredLanguage). Prefer receptionists scoped to that
+ * building; if none are assigned there and `fallbackToAll` is set (default),
+ * fall back to every receptionist with a number so a booking request is never
+ * dropped. General escalations pass `fallbackToAll: false` so an unassigned
+ * building doesn't ping every desk.
  */
-async function receptionistNumbersForBuilding(
+async function receptionistRecipientsForBuilding(
   buildingId: string,
   opts: { fallbackToAll?: boolean } = {},
-): Promise<string[]> {
+): Promise<EscalationRecipient[]> {
   const { fallbackToAll = true } = opts;
-  const pick = (rows: { whatsappNumber: string | null }[]) =>
+  const pick = (
+    rows: { whatsappNumber: string | null; preferredLanguage: string }[],
+  ): EscalationRecipient[] =>
     rows
-      .map((r) => (r.whatsappNumber ?? "").replace(/\D/g, ""))
-      .filter((n) => n.length >= 8);
+      .map((r) => ({
+        to: (r.whatsappNumber ?? "").replace(/\D/g, ""),
+        language: toTemplateLang(r.preferredLanguage),
+      }))
+      .filter((r) => r.to.length >= 8);
 
   const scoped = await prisma.adminUser.findMany({
     where: {
@@ -364,15 +391,15 @@ async function receptionistNumbersForBuilding(
       whatsappNumber: { not: null },
       assignedBuildings: { some: { buildingId } },
     },
-    select: { whatsappNumber: true },
+    select: { whatsappNumber: true, preferredLanguage: true },
   });
-  const scopedNumbers = pick(scoped);
-  if (scopedNumbers.length > 0) return scopedNumbers;
+  const scopedRecipients = pick(scoped);
+  if (scopedRecipients.length > 0) return scopedRecipients;
   if (!fallbackToAll) return [];
 
   const all = await prisma.adminUser.findMany({
     where: { role: "RECEPTIONIST", whatsappNumber: { not: null } },
-    select: { whatsappNumber: true },
+    select: { whatsappNumber: true, preferredLanguage: true },
   });
   return pick(all);
 }
@@ -897,19 +924,21 @@ const createReservation = defineTool({
         },
       });
 
-      // WhatsApp escalation template → call center + building receptionist(s).
-      const [ccNumbers, receptionistNumbers] = await Promise.all([
+      // WhatsApp escalation template → call center + building receptionist(s),
+      // each in their own template language.
+      const [ccRecipients, receptionistRecipients] = await Promise.all([
         Promise.resolve(callCenterEscalationNumbers(settings)),
-        receptionistNumbersForBuilding(unit.buildingId),
+        receptionistRecipientsForBuilding(unit.buildingId),
       ]);
-      const recipients = [...new Set([...ccNumbers, ...receptionistNumbers])];
+      const recipients = dedupeRecipients([...ccRecipients, ...receptionistRecipients]);
       const summary =
         `طلب حجز جديد — ${unit.titleAr}. الهوية/الجواز ${input.id_passport}.` +
         (priced ? ` الإجمالي التقريبي ${priced.total_omr} ر.ع.` : "") +
         ` يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.`;
-      for (const to of recipients) {
+      for (const r of recipients) {
         sendChatbotEscalationTemplate({
-          to,
+          to: r.to,
+          language: r.language,
           building: unit.building.nameAr,
           customer: input.customer_name,
           phone: input.customer_phone,
@@ -1086,19 +1115,13 @@ const escalateToHuman = defineTool({
       data: { status: "ESCALATED", escalationReason: input.reason },
     });
 
-    // WhatsApp notification (template ns_reception_reminder_ar) to every
-    // configured escalation recipient; falls back to the call-center number.
+    // WhatsApp escalation template to every configured recipient (Arabic call
+    // center) plus, when the escalation names a matchable building, that
+    // building's receptionists in their own language.
     const customerPhone =
       input.customer_phone ??
       (conversation.channel === "WHATSAPP" ? `+${conversation.externalId}` : null);
-    const recipients = (settings.escalation_whatsapp_numbers || "")
-      .split(",")
-      .map((n) => n.replace(/\D/g, ""))
-      .filter((n) => n.length >= 8);
-    if (recipients.length === 0) {
-      const fallback = settings.contact_numbers.whatsapp.replace(/\D/g, "");
-      if (fallback.length >= 8) recipients.push(fallback);
-    }
+    const recipients = callCenterEscalationNumbers(settings);
     // Also notify the building's receptionists — but only when the escalation
     // names a building we can match unambiguously. General escalations (a
     // complaint, "I want a human") often have no building, and we don't want to
@@ -1107,15 +1130,16 @@ const escalateToHuman = defineTool({
       const buildingId = await resolveBuildingIdByName(input.building);
       if (buildingId) {
         recipients.push(
-          ...(await receptionistNumbersForBuilding(buildingId, {
+          ...(await receptionistRecipientsForBuilding(buildingId, {
             fallbackToAll: false,
           })),
         );
       }
     }
-    for (const to of [...new Set(recipients)]) {
+    for (const r of dedupeRecipients(recipients)) {
       sendChatbotEscalationTemplate({
-        to,
+        to: r.to,
+        language: r.language,
         building: input.building ?? "غير محدد",
         customer: input.customer_name ?? conversation.customerName ?? "غير محدد",
         phone: customerPhone ?? "غير محدد",
