@@ -108,6 +108,17 @@ export default function ConversationsSidebar({ locale }: { locale: string }) {
             </button>
           ))}
         </div>
+        {/* Export the current tab's conversations as one Markdown file (no AI /
+            tokens) — hand it to an external LLM for a performance report. Phone
+            numbers are masked. */}
+        <a
+          href={`/api/chatbot/admin/export?format=md&redact=1&status=${tab}`}
+          download
+          className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-nassayem-dark transition-colors"
+        >
+          <span>⬇</span>
+          {isEn ? "Export for analysis" : "تصدير للتحليل"}
+        </a>
       </div>
 
       {/* List */}
