@@ -36,6 +36,10 @@ export type ToolContext = {
 
 const HOLD_MINUTES = 30;
 const MAX_RESULTS = 6;
+// Building descriptions carry the area write-up (nearby landmarks / popular
+// places) the team maintains — give the model enough room to read it all,
+// bounded so a very long description can't blow up the tool payload.
+const BUILDING_DESC_CHARS = 900;
 
 function baseUrl(): string {
   return (
@@ -637,7 +641,7 @@ const searchUnits = defineTool({
 const getUnitDetails = defineTool({
   name: "get_unit_details",
   description:
-    "Full details of one apartment: description, amenities, photo gallery URLs, building location with Google Maps link, and the booking page link. Use when a customer asks about a specific unit.",
+    "Full details of one apartment: description, amenities, photo gallery URLs, and its building — location plus an area description covering nearby landmarks and popular places — with a Google Maps link and the booking page link. Use when a customer asks about a specific unit or what's around it.",
   schema: z.object({
     unit_id: realId.describe("Unit id from search_units"),
   }),
@@ -687,6 +691,8 @@ const getUnitDetails = defineTool({
         name_ar: unit.building.nameAr,
         location_en: unit.building.locationEn,
         location_ar: unit.building.locationAr,
+        description_en: unit.building.descriptionEn?.slice(0, BUILDING_DESC_CHARS) ?? null,
+        description_ar: unit.building.descriptionAr?.slice(0, BUILDING_DESC_CHARS) ?? null,
         latitude: unit.building.latitude,
         longitude: unit.building.longitude,
         maps_link: mapsLink(unit.building.latitude, unit.building.longitude),
@@ -783,7 +789,7 @@ const getActivePromotions = defineTool({
 const getBuildingInfo = defineTool({
   name: "get_building_info",
   description:
-    "Information about our buildings: location, Google Maps link, and available unit types. Call without building_id to list all buildings (e.g. when the customer asks 'where are you located?').",
+    "Information about our buildings: location, an area description covering nearby landmarks and popular places, Google Maps link, and available unit types. Call without building_id to list all buildings (e.g. when the customer asks 'where are you located?', 'what's nearby?', or which area suits them).",
   schema: z.object({
     building_id: realId.optional(),
   }),
@@ -807,7 +813,8 @@ const getBuildingInfo = defineTool({
         name_ar: b.nameAr,
         location_en: b.locationEn,
         location_ar: b.locationAr,
-        description_en: b.descriptionEn?.slice(0, 300) ?? null,
+        description_en: b.descriptionEn?.slice(0, BUILDING_DESC_CHARS) ?? null,
+        description_ar: b.descriptionAr?.slice(0, BUILDING_DESC_CHARS) ?? null,
         latitude: b.latitude,
         longitude: b.longitude,
         maps_link: mapsLink(b.latitude, b.longitude),
