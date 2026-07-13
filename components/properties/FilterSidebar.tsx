@@ -76,7 +76,7 @@ export default function FilterSidebar({ locale }: { locale: string }) {
 
   const unitTypeOptions = [
     { value: "studio", labelEn: "Studio", labelAr: "استوديو" },
-    { value: "1br", labelEn: "1 Bedroom", labelAr: "غرفة وصالة" },
+    { value: "1br", labelEn: "1 Bedroom", labelAr: "غرفة فقط" },
     { value: "2br", labelEn: "2 Bedrooms", labelAr: "غرفتين وصالة" },
     { value: "3br", labelEn: "3 Bedrooms", labelAr: "ثلاث غرف وصالة" },
     { value: "villa", labelEn: "Villa", labelAr: "فيلا" },

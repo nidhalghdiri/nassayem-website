@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 
 const UNIT_TYPE_LABELS: Record<string, { en: string; ar: string }> = {
   STUDIO: { en: "Studio", ar: "استوديو" },
-  ONE_BEDROOM: { en: "1 Bedroom", ar: "غرفة وصالة" },
+  ONE_BEDROOM: { en: "1 Bedroom", ar: "غرفة فقط" },
   TWO_BEDROOM: { en: "2 Bedrooms", ar: "غرفتين وصالة" },
   THREE_BEDROOM: { en: "3 Bedrooms", ar: "ثلاث غرف وصالة" },
   VILLA: { en: "Villa", ar: "فيلا" },

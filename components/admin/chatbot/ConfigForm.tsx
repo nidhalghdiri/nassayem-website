@@ -69,6 +69,20 @@ export default function ConfigForm({ locale, settings }: Props) {
             )}
           </span>
         </label>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            name="prioritize_vacant_buildings"
+            defaultChecked={settings.prioritize_vacant_buildings}
+            className="w-4 h-4 accent-[#2a7475]"
+          />
+          <span className="text-sm font-medium text-gray-800">
+            {t(
+              "Strong-salesman mode — automatically suggest units from the emptiest buildings first (based on live availability for the customer's dates) to help fill low-occupancy buildings",
+              "وضع البائع النشط — يقترح تلقائياً وحدات المباني الأكثر شغوراً أولاً (حسب التوفر الفعلي لتواريخ العميل) للمساعدة في ملء المباني منخفضة الإشغال",
+            )}
+          </span>
+        </label>
       </div>
 
       {/* Persona */}

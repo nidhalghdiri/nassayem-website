@@ -35,6 +35,13 @@ export type ChatbotSettings = {
    * building. Its units are also sorted first in search results.
    */
   featured_building: string;
+  /**
+   * When true, search results are automatically ordered to surface units from
+   * the buildings with the most vacancy for the customer's dates (real-time
+   * occupancy from NetSuite), so the bot proactively helps fill the emptiest
+   * buildings. A kill switch for the "strong salesman" strategy.
+   */
+  prioritize_vacant_buildings: boolean;
   contact_numbers: { call_center: string; whatsapp: string };
   /**
    * WhatsApp numbers (digits only, comma-separated) that receive the
@@ -57,6 +64,7 @@ export const CHATBOT_CONFIG_KEYS = [
   "escalation_triggers",
   "canned_replies",
   "featured_building",
+  "prioritize_vacant_buildings",
   "contact_numbers",
   "escalation_whatsapp_numbers",
   "escalation_email",
@@ -100,6 +108,7 @@ export const CHATBOT_DEFAULTS: ChatbotSettings = {
     "Q: Do you have airport pickup? → We don't provide airport transfer, but taxis are readily available at Salalah airport (about 15–20 minutes to our buildings).",
   ].join("\n"),
   featured_building: "",
+  prioritize_vacant_buildings: true,
   contact_numbers: { call_center: "+968 99551237", whatsapp: "96899551237" },
   escalation_whatsapp_numbers: "",
   escalation_email: "",

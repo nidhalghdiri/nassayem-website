@@ -57,11 +57,14 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
 
       // Website unit type → internal id(s) of the custitem_ns_item_unit_type
       // list values. Arrays: several NetSuite values may map to one website type.
+      // NOTE on Nassayem's inverted taxonomy: website STUDIO = a full apartment
+      // (room+living+kitchen), which NetSuite lists as "1bhk" (id 3); website
+      // ONE_BEDROOM = a single room only, which NetSuite lists as "A" (id 2).
       UNIT_TYPE_MAP: {
-        STUDIO: ["3"],
-        ONE_BEDROOM: ["2"],   // 1BHK
-        TWO_BEDROOM: ["1"],   // 2BHK
-        THREE_BEDROOM: ["4"], // 3BHK
+        STUDIO: ["3"],        // NetSuite "1bhk" — full apartment (room+living+kitchen)
+        ONE_BEDROOM: ["2"],   // NetSuite "A" — single room only (no living, no kitchen)
+        TWO_BEDROOM: ["1"],   // NetSuite "2bhk"
+        THREE_BEDROOM: ["4"], // NetSuite "3bhk"
         VILLA: ["5"],
       },
 

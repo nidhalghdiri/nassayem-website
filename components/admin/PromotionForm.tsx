@@ -36,7 +36,7 @@ type InitialPromotion = {
 
 const UNIT_TYPES: { value: string; en: string; ar: string }[] = [
   { value: "STUDIO", en: "Studio", ar: "استوديو" },
-  { value: "ONE_BEDROOM", en: "1 Bedroom", ar: "غرفة وصالة" },
+  { value: "ONE_BEDROOM", en: "1 Bedroom", ar: "غرفة فقط" },
   { value: "TWO_BEDROOM", en: "2 Bedrooms", ar: "غرفتين وصالة" },
   { value: "THREE_BEDROOM", en: "3 Bedrooms", ar: "ثلاث غرف وصالة" },
   { value: "VILLA", en: "Villa", ar: "فيلا" },

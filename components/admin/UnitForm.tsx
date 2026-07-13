@@ -183,7 +183,7 @@ export default function UnitForm({
             >
               <option value="STUDIO">{isEn ? "Studio" : "استوديو"}</option>
               <option value="ONE_BEDROOM">
-                {isEn ? "1 Bedroom" : "غرفة وصالة"}
+                {isEn ? "1 Bedroom" : "غرفة فقط"}
               </option>
               <option value="TWO_BEDROOM">
                 {isEn ? "2 Bedrooms" : "غرفتين وصالة"}

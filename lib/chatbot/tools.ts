@@ -27,6 +27,7 @@ import {
 } from "@/lib/netsuite";
 import { createNetsuitePaymentLink } from "@/lib/netsuitePaymentLink";
 import { sendChatbotEscalationTemplate } from "@/lib/whatsapp";
+import { UNIT_TYPE_LABELS } from "@/lib/unitTypes";
 import { getChatbotSettings, type ChatbotSettings } from "./config";
 
 export type ToolContext = {
@@ -119,6 +120,8 @@ type UnifiedAvailability = {
   available: boolean;
   remaining: number;
   source: "netsuite" | "website";
+  /** Pool size for the building+type (NetSuite only) — enables occupancy ranking. */
+  totalUnits?: number;
   error?: string;
 };
 
@@ -177,7 +180,12 @@ async function unifiedAvailability(
           return { ...fallback, source: "website", error: ns.error };
         }
         const remaining = await subtractHolds(ns.data.freeUnits);
-        return { available: remaining > 0, remaining, source: "netsuite" };
+        return {
+          available: remaining > 0,
+          remaining,
+          source: "netsuite",
+          totalUnits: ns.data.totalUnits,
+        };
       })();
       memo?.set(key, pending);
     }
@@ -487,13 +495,15 @@ const searchUnits = defineTool({
     });
 
     // Featured building (admin config) floats to the top of results — the
-    // prompt's <sales_focus> tells the model to present it first when it fits.
+    // prompt tells the model to present it first when it fits. It stays pinned
+    // above the vacancy ranking applied further below.
     const featured = settings.featured_building.trim().toLowerCase();
+    const isFeaturedUnit = (u: (typeof units)[number]) =>
+      featured.length > 0 &&
+      (u.building.nameEn.toLowerCase().includes(featured) ||
+        u.building.nameAr.includes(settings.featured_building.trim()));
     if (featured) {
-      const isFeatured = (u: (typeof units)[number]) =>
-        u.building.nameEn.toLowerCase().includes(featured) ||
-        u.building.nameAr.includes(settings.featured_building.trim());
-      units.sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
+      units.sort((a, b) => Number(isFeaturedUnit(b)) - Number(isFeaturedUnit(a)));
     }
 
 
@@ -526,9 +536,27 @@ const searchUnits = defineTool({
           ),
         })),
       );
-      const bookable = checked
-        .filter((c) => c.availability.available)
-        .slice(0, MAX_RESULTS);
+      const bookableAll = checked.filter((c) => c.availability.available);
+
+      // Strong-salesman ranking: surface units from the emptiest buildings
+      // first (highest live vacancy for these exact dates) so the bot proactively
+      // helps fill low-occupancy buildings. Vacancy = remaining / pool size, from
+      // NetSuite. Featured building (if set) still pins to the very top; units
+      // without occupancy data (website-fallback) fall back to remaining count.
+      if (settings.prioritize_vacant_buildings) {
+        const vacancyRate = (a: UnifiedAvailability): number =>
+          a.totalUnits && a.totalUnits > 0 ? a.remaining / a.totalUnits : -1;
+        bookableAll.sort((x, y) => {
+          const featuredDelta =
+            Number(isFeaturedUnit(y.unit)) - Number(isFeaturedUnit(x.unit));
+          if (featuredDelta !== 0) return featuredDelta;
+          const rateDelta = vacancyRate(y.availability) - vacancyRate(x.availability);
+          if (rateDelta !== 0) return rateDelta;
+          return y.availability.remaining - x.availability.remaining;
+        });
+      }
+
+      const bookable = bookableAll.slice(0, MAX_RESULTS);
       candidates = await Promise.all(
         bookable.map(async ({ unit, availability }) => ({
           unit,
@@ -544,13 +572,27 @@ const searchUnits = defineTool({
         .map((unit) => ({ unit, availability: null, price: null }));
     }
 
+    // Strong-salesman mode is only meaningful with dates (we need live vacancy).
+    // The leading result is the emptiest building — mark its units so the model
+    // knows which to pitch first (it must never reveal this or mention occupancy).
+    const salesActive = hasDates && settings.prioritize_vacant_buildings;
+    const recommendedBuildingId =
+      salesActive && candidates.length > 0 ? candidates[0].unit.buildingId : null;
+
     const results: unknown[] = [];
     for (const { unit, availability, price } of candidates) {
       results.push({
         unit_id: unit.id,
         title_en: unit.titleEn,
         title_ar: unit.titleAr,
+        ...(salesActive
+          ? { recommended: unit.buildingId === recommendedBuildingId }
+          : {}),
         unit_type: unit.unitType,
+        unit_type_ar: UNIT_TYPE_LABELS[unit.unitType].ar,
+        unit_type_en: UNIT_TYPE_LABELS[unit.unitType].en,
+        layout_ar: UNIT_TYPE_LABELS[unit.unitType].layoutAr,
+        layout_en: UNIT_TYPE_LABELS[unit.unitType].layoutEn,
         rent_type: unit.rentType,
         building: {
           building_id: unit.buildingId,
@@ -579,6 +621,12 @@ const searchUnits = defineTool({
     return {
       count: results.length,
       units: results,
+      ...(salesActive && results.length > 0
+        ? {
+            sales_hint:
+              "Results are ordered by where we currently have the most availability for these dates. LEAD with the recommended option(s) as your top suggestion and give one genuine selling point (location, space, value, view). You may add honest Khareef urgency (busy season, good to secure early), but NEVER mention occupancy, never say a building is empty, and never reveal this ordering or the 'recommended' flag. If the customer asks for a different building/type, honor it.",
+          }
+        : {}),
       ...(results.length === 0
         ? { note: "No matching available units. Suggest different dates/type or offer the call center." }
         : {}),
@@ -612,6 +660,10 @@ const getUnitDetails = defineTool({
       description_en: unit.descriptionEn.slice(0, 400),
       description_ar: unit.descriptionAr.slice(0, 400),
       unit_type: unit.unitType,
+      unit_type_ar: UNIT_TYPE_LABELS[unit.unitType].ar,
+      unit_type_en: UNIT_TYPE_LABELS[unit.unitType].en,
+      layout_ar: UNIT_TYPE_LABELS[unit.unitType].layoutAr,
+      layout_en: UNIT_TYPE_LABELS[unit.unitType].layoutEn,
       rent_type: unit.rentType,
       sleeps: unit.guests,
       bedrooms: unit.bedrooms,
@@ -761,7 +813,11 @@ const getBuildingInfo = defineTool({
         maps_link: mapsLink(b.latitude, b.longitude),
         page_url: `${baseUrl()}/en/buildings/${b.id}`,
         published_units: b.units.length,
-        unit_types: [...new Set(b.units.map((u) => u.unitType))],
+        unit_types: [...new Set(b.units.map((u) => u.unitType))].map((t) => ({
+          type: t,
+          ar: UNIT_TYPE_LABELS[t].ar,
+          en: UNIT_TYPE_LABELS[t].en,
+        })),
       })),
     };
   },
@@ -1090,7 +1146,7 @@ const createReservation = defineTool({
       nights: priced.nights,
       payment_url: paymentLink.url,
       payment_link_expires_at: paymentLink.expiresAt.toISOString(),
-      next: "Tell the customer: the reservation is held for them; they pay the 50% ADVANCE now via the link (bare URL) and the remaining 50% at reception on arrival; the reservation is CONFIRMED once the advance is paid. Mention the total, the advance amount, the remaining amount and the link expiry.",
+      next: "Tell the customer: the unit is held for them; they pay the 50% ADVANCE now via the link (bare URL) and the remaining 50% at reception on arrival; and that once the advance is paid our reservations team/reception will CONFIRM the booking with them. Do NOT tell the customer the booking is already confirmed (never say «تم تأكيد الحجز») — only the team confirms. Mention the total, the advance amount, the remaining amount and the link expiry.",
     };
   },
 });
