@@ -18,11 +18,13 @@ import { getChatbotSettings, type ChatbotSettings } from "./config";
 import { buildSystemPrompt, salalahTodayISO } from "./prompt";
 import { getAnthropicTools, executeChatbotTool } from "./tools";
 import { checkChatbotRateLimit } from "./rateLimit";
+import { isPrivateMedia, downloadPrivateImageBase64 } from "./media";
 
 const MAX_TOOL_ITERATIONS = 5;
 const HISTORY_MESSAGES = 30; // includes replayed tool results
 const MAX_INBOUND_CHARS = 2000;
 const TOOL_REPLAY_CHARS = 700; // per tool result, when replayed into history
+const MAX_VISION_IMAGES = 4; // images attached from the customer's latest turn
 
 export type ChatbotTurnResult = {
   conversationId: string;
@@ -269,6 +271,40 @@ async function generateReply(params: {
   const messages: Anthropic.MessageParam[] = turns.map(
     (t): Anthropic.MessageParam => ({ role: t.role, content: t.text }),
   );
+
+  // ── Vision: attach the images the customer sent in their LATEST turn ───────
+  // So the model can actually SEE them (e.g. read an ID/passport). Only the
+  // trailing user turn's private images, capped, to keep vision tokens bounded —
+  // older images stay as their text placeholder in history.
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage?.role === "user" && typeof lastMessage.content === "string") {
+    const trailingImageUrls: string[] = [];
+    for (let i = historyRows.length - 1; i >= 0; i--) {
+      const row = historyRows[i];
+      if (row.role !== "USER") break; // only the final consecutive user turn
+      if (row.mediaType?.startsWith("image") && isPrivateMedia(row.mediaUrl)) {
+        trailingImageUrls.unshift(row.mediaUrl);
+      }
+    }
+    if (trailingImageUrls.length > 0) {
+      const imageBlocks: Anthropic.ImageBlockParam[] = [];
+      for (const url of trailingImageUrls.slice(0, MAX_VISION_IMAGES)) {
+        const img = await downloadPrivateImageBase64(url);
+        if (img) {
+          imageBlocks.push({
+            type: "image",
+            source: { type: "base64", media_type: img.mediaType, data: img.base64 },
+          });
+        }
+      }
+      if (imageBlocks.length > 0) {
+        lastMessage.content = [
+          { type: "text", text: lastMessage.content },
+          ...imageBlocks,
+        ];
+      }
+    }
+  }
 
   const system = buildSystemPrompt(settings, {
     channel,

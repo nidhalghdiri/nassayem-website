@@ -127,7 +127,13 @@ function extractText(msg: WaMessage): string | null {
       return msg.location
         ? `[The customer shared their location pin: ${msg.location.latitude}, ${msg.location.longitude}]`
         : null;
-    case "image":
+    case "image": {
+      // The model CAN see images — they're attached to the turn as vision input.
+      const caption = mediaRefOf(msg)?.ref.caption;
+      return caption
+        ? `[The customer sent an image with this caption]: ${caption}`
+        : `[The customer sent an image.]`;
+    }
     case "video":
     case "audio":
     case "document":

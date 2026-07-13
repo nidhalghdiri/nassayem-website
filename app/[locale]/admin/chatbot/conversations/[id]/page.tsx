@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canViewChatbot } from "@/lib/chatbot/permissions";
 import ConversationActions from "@/components/admin/chatbot/ConversationActions";
+import { resolveMediaUrlForDisplay } from "@/lib/chatbot/media";
 import LiveTranscript, {
   type TranscriptMessage,
 } from "@/components/admin/chatbot/LiveTranscript";
@@ -35,18 +36,21 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
     0,
   );
 
-  const initialMessages: TranscriptMessage[] = conversation.messages.map((m) => ({
-    id: m.id,
-    role: m.role,
-    content: m.content,
-    mediaUrl: m.mediaUrl,
-    mediaType: m.mediaType,
-    toolName: m.toolName,
-    toolPayload: m.toolPayload,
-    inputTokens: m.inputTokens,
-    outputTokens: m.outputTokens,
-    createdAt: m.createdAt.toISOString(),
-  }));
+  const initialMessages: TranscriptMessage[] = await Promise.all(
+    conversation.messages.map(async (m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      // Private customer media resolves to a signed URL; public URLs pass through.
+      mediaUrl: await resolveMediaUrlForDisplay(m.mediaUrl),
+      mediaType: m.mediaType,
+      toolName: m.toolName,
+      toolPayload: m.toolPayload,
+      inputTokens: m.inputTokens,
+      outputTokens: m.outputTokens,
+      createdAt: m.createdAt.toISOString(),
+    })),
+  );
 
   return (
     <div className="h-full flex flex-col p-3 gap-3">

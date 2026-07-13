@@ -1,12 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Inbound WhatsApp media mirroring. Meta's media URLs are short-lived and
-// require the access token, so to SHOW customer photos/voice notes in the
-// admin transcript we download the binary once and store it in the public
-// Supabase bucket (same bucket the site already serves images from), then
-// keep that permanent URL on the ChatbotMessage row.
+// require the access token, so we download the binary once and store it so the
+// admin transcript can show it and the vision model can read it.
+//
+// Customer-sent media can be sensitive (ID/passport), so it goes in a PRIVATE
+// bucket — NOT the public site bucket — and the row keeps a `private:<path>`
+// marker (see lib/chatbot/media.ts) instead of a public URL.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  PRIVATE_MEDIA_BUCKET,
+  ensurePrivateBucket,
+  toPrivateMediaRef,
+} from "./media";
 
 const GRAPH_BASE = "https://graph.facebook.com/v19.0";
 const MAX_MEDIA_BYTES = 20 * 1024 * 1024; // 20 MB safety cap
@@ -62,23 +69,23 @@ export async function mirrorWhatsAppMedia(
     const buffer = Buffer.from(await binRes.arrayBuffer());
     if (buffer.byteLength > MAX_MEDIA_BYTES) return null;
 
-    // 3. Store in the public bucket
+    // 3. Store in the PRIVATE bucket (customer media may be an ID/passport).
     const mimeType = meta.mime_type || "application/octet-stream";
     const ext = EXT_BY_MIME[mimeType] || mimeType.split("/")[1] || "bin";
-    const path = `chatbot/${folderKey}/${Date.now()}-${mediaId.slice(-8)}.${ext}`;
+    const path = `${folderKey}/${Date.now()}-${mediaId.slice(-8)}.${ext}`;
 
+    await ensurePrivateBucket();
     const { error } = await supabaseAdmin.storage
-      .from("properties")
+      .from(PRIVATE_MEDIA_BUCKET)
       .upload(path, buffer, { contentType: mimeType, upsert: false });
     if (error) {
       console.error("[chatbot] media upload failed:", error.message);
       return null;
     }
-    const {
-      data: { publicUrl },
-    } = supabaseAdmin.storage.from("properties").getPublicUrl(path);
 
-    return { url: publicUrl, mimeType };
+    // No public URL — the row keeps a private marker; a signed URL is minted
+    // on demand for the admin transcript.
+    return { url: toPrivateMediaRef(path), mimeType };
   } catch (err) {
     console.error("[chatbot] media mirror failed:", err);
     return null;

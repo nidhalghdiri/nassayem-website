@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canViewChatbot } from "@/lib/chatbot/permissions";
+import { resolveMediaUrlForDisplay } from "@/lib/chatbot/media";
 
 export const dynamic = "force-dynamic";
 
@@ -45,17 +46,21 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     conversation,
-    messages: messages.map((m) => ({
-      id: m.id,
-      role: m.role,
-      content: m.content,
-      mediaUrl: m.mediaUrl,
-      mediaType: m.mediaType,
-      toolName: m.toolName,
-      toolPayload: m.toolPayload,
-      inputTokens: m.inputTokens,
-      outputTokens: m.outputTokens,
-      createdAt: m.createdAt.toISOString(),
-    })),
+    messages: await Promise.all(
+      messages.map(async (m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        // Private customer media (ID/passport) is stored as a `private:` marker;
+        // resolve it to a short-lived signed URL for display. Public URLs pass through.
+        mediaUrl: await resolveMediaUrlForDisplay(m.mediaUrl),
+        mediaType: m.mediaType,
+        toolName: m.toolName,
+        toolPayload: m.toolPayload,
+        inputTokens: m.inputTokens,
+        outputTokens: m.outputTokens,
+        createdAt: m.createdAt.toISOString(),
+      })),
+    ),
   });
 }
