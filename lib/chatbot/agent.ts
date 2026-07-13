@@ -35,6 +35,13 @@ export type ChatbotTurnResult = {
    * sent. Transports must send nothing when this is set.
    */
   aiPaused?: boolean;
+  /**
+   * True when this message was coalesced into a later message in the same burst
+   * (debounce): the customer sent several messages quickly, so a later
+   * invocation generates ONE reply covering all of them and this one bows out.
+   * Transports must send nothing when this is set.
+   */
+  superseded?: boolean;
   /** Detected customer language for this turn ("ar" | "en"). */
   language: string;
   /**
@@ -73,9 +80,27 @@ function rateLimitText(language: string, settings: ChatbotSettings): string {
     : `You've sent quite a few messages in a short time. Please wait a moment and try again, or call us at ${settings.contact_numbers.call_center}.`;
 }
 
-export async function runChatbotTurn(
-  opts: ChatbotTurnOptions,
-): Promise<ChatbotTurnResult> {
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+type IngestOutcome =
+  | { kind: "terminal"; result: ChatbotTurnResult }
+  | {
+      kind: "generate";
+      conversationId: string;
+      /** id of the USER row just stored — used by the debounce latest-wins check. */
+      storedMessageId: string;
+      language: string;
+      settings: ChatbotSettings;
+    };
+
+/**
+ * Rate-limit, find/create the conversation and PERSIST the customer's message —
+ * everything that must happen for every inbound message, whether or not this
+ * particular invocation ends up generating the reply. Splitting this out from
+ * reply generation is what lets us debounce bursts of quick messages: each
+ * message is stored here, but only the last one in a burst generates.
+ */
+async function ingestUserMessage(opts: ChatbotTurnOptions): Promise<IngestOutcome> {
   const settings = await getChatbotSettings();
   const message = opts.message.trim().slice(0, MAX_INBOUND_CHARS);
   const language = ARABIC_RE.test(message) ? "ar" : "en";
@@ -122,12 +147,15 @@ export async function runChatbotTurn(
       },
     });
     return {
-      conversationId: conversation.id,
-      text: "",
-      escalated: conversation.status === "ESCALATED",
-      aiPaused: true,
-      language,
-      toolCalls: [],
+      kind: "terminal",
+      result: {
+        conversationId: conversation.id,
+        text: "",
+        escalated: conversation.status === "ESCALATED",
+        aiPaused: true,
+        language,
+        toolCalls: [],
+      },
     };
   }
 
@@ -135,15 +163,54 @@ export async function runChatbotTurn(
     const text = rateLimitText(language, settings);
     opts.onTextDelta?.(text);
     return {
-      conversationId: conversation.id,
-      text,
-      escalated: false,
-      language,
-      toolCalls: [],
+      kind: "terminal",
+      result: {
+        conversationId: conversation.id,
+        text,
+        escalated: false,
+        language,
+        toolCalls: [],
+      },
     };
   }
 
-  // ── History — loaded BEFORE persisting this message ───────────────────────
+  const stored = await prisma.chatbotMessage.create({
+    data: {
+      conversationId: conversation.id,
+      role: "USER",
+      content: message,
+      waMessageId: opts.externalMessageId ?? null,
+      mediaUrl: opts.media?.url ?? null,
+      mediaType: opts.media?.type ?? null,
+    },
+    select: { id: true },
+  });
+
+  return {
+    kind: "generate",
+    conversationId: conversation.id,
+    storedMessageId: stored.id,
+    language,
+    settings,
+  };
+}
+
+/**
+ * Generate and persist the assistant reply from the conversation's stored
+ * history. The customer's message(s) are ALREADY stored (by ingestUserMessage),
+ * so consecutive user messages from a burst are naturally merged into one user
+ * turn here — the model sees the customer's full intent, not one fragment.
+ */
+async function generateReply(params: {
+  conversationId: string;
+  language: string;
+  settings: ChatbotSettings;
+  channel: ChatChannel;
+  onTextDelta?: (text: string) => void;
+}): Promise<ChatbotTurnResult> {
+  const { conversationId, language, settings, channel } = params;
+
+  // ── History (includes the message(s) just stored) ─────────────────────────
   // STAFF rows (human handoff) are included as assistant turns so a resumed
   // bot knows what the team already said. TOOL rows are replayed as compact
   // "[tool_result …]" assistant lines: without them the model loses the unit
@@ -151,7 +218,7 @@ export async function runChatbotTurn(
   // when the customer books a unit discussed a few turns ago.
   const historyRows = await prisma.chatbotMessage.findMany({
     where: {
-      conversationId: conversation.id,
+      conversationId,
       content: { not: "" },
     },
     orderBy: { createdAt: "desc" },
@@ -162,17 +229,6 @@ export async function runChatbotTurn(
   while (historyRows.length > 0 && historyRows[0].role !== "USER") {
     historyRows.shift();
   }
-
-  await prisma.chatbotMessage.create({
-    data: {
-      conversationId: conversation.id,
-      role: "USER",
-      content: message,
-      waMessageId: opts.externalMessageId ?? null,
-      mediaUrl: opts.media?.url ?? null,
-      mediaType: opts.media?.type ?? null,
-    },
-  });
 
   type Turn = { role: "user" | "assistant"; text: string };
   const turns: Turn[] = [];
@@ -195,7 +251,8 @@ export async function runChatbotTurn(
       }
     }
     if (!turn) continue;
-    // Merge consecutive same-role turns — keeps user/assistant alternation.
+    // Merge consecutive same-role turns — keeps user/assistant alternation AND
+    // fuses the burst's fragmented user messages into a single user turn.
     const last = turns[turns.length - 1];
     if (last && last.role === turn.role) {
       last.text += `\n\n${turn.text}`;
@@ -204,13 +261,9 @@ export async function runChatbotTurn(
     }
   }
 
-  // Append the current message through the same merge rule (history can end
-  // with user turns, e.g. messages that arrived while the AI was paused).
-  const lastTurn = turns[turns.length - 1];
-  if (lastTurn && lastTurn.role === "user") {
-    lastTurn.text += `\n\n${message}`;
-  } else {
-    turns.push({ role: "user", text: message });
+  // Nothing to answer (shouldn't happen — a USER row was just stored).
+  if (turns.length === 0 || turns[0].role !== "user") {
+    return { conversationId, text: "", escalated: false, language, toolCalls: [] };
   }
 
   const messages: Anthropic.MessageParam[] = turns.map(
@@ -218,17 +271,17 @@ export async function runChatbotTurn(
   );
 
   const system = buildSystemPrompt(settings, {
-    channel: opts.channel,
+    channel,
     todayISO: salalahTodayISO(),
   });
   const tools = getAnthropicTools();
 
   // ── Tool loop ──────────────────────────────────────────────────────────────
   let streamedText = "";
-  const onTextDelta = opts.onTextDelta
+  const onTextDelta = params.onTextDelta
     ? (delta: string) => {
         streamedText += delta;
-        opts.onTextDelta!(delta);
+        params.onTextDelta!(delta);
       }
     : undefined;
 
@@ -259,14 +312,14 @@ export async function runChatbotTurn(
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const call of toolUses) {
         const execution = await executeChatbotTool(call.name, call.input, {
-          conversationId: conversation.id,
+          conversationId,
         });
         if (!execution.isError) {
           executedToolCalls.push({ name: call.name, result: execution.result });
         }
         await prisma.chatbotMessage.create({
           data: {
-            conversationId: conversation.id,
+            conversationId,
             role: "TOOL",
             content: execution.isError
               ? `${call.name} → error`
@@ -299,19 +352,19 @@ export async function runChatbotTurn(
     if (!finalText.trim()) {
       // Model produced no text (refusal / max-iteration edge) — safe fallback.
       finalText = fallbackText(language, settings);
-      opts.onTextDelta?.(finalText);
+      params.onTextDelta?.(finalText);
     }
   } catch (err) {
     console.error("[chatbot] turn failed:", err);
     finalText = fallbackText(language, settings);
     // Stream the fallback only if nothing was streamed yet (avoid garbled UX).
-    if (!streamedText) opts.onTextDelta?.(finalText);
+    if (!streamedText) params.onTextDelta?.(finalText);
   }
 
   // ── Persist the assistant turn ─────────────────────────────────────────────
   await prisma.chatbotMessage.create({
     data: {
-      conversationId: conversation.id,
+      conversationId,
       role: "ASSISTANT",
       content: finalText,
       inputTokens: totalInputTokens || null,
@@ -319,20 +372,85 @@ export async function runChatbotTurn(
     },
   });
   await prisma.chatbotConversation.update({
-    where: { id: conversation.id },
+    where: { id: conversationId },
     data: { lastMessageAt: new Date() },
   });
 
-  const after = await prisma.chatbotConversation.findUnique({
-    where: { id: conversation.id },
+  const fresh = await prisma.chatbotConversation.findUnique({
+    where: { id: conversationId },
     select: { status: true },
   });
 
   return {
-    conversationId: conversation.id,
+    conversationId,
     text: finalText,
-    escalated: after?.status === "ESCALATED",
+    escalated: fresh?.status === "ESCALATED",
     language,
     toolCalls: executedToolCalls,
   };
+}
+
+/**
+ * One customer turn: store the message, then generate the reply. Used by the
+ * web widget and admin playground (no debounce — those channels send one
+ * message at a time).
+ */
+export async function runChatbotTurn(
+  opts: ChatbotTurnOptions,
+): Promise<ChatbotTurnResult> {
+  const ingest = await ingestUserMessage(opts);
+  if (ingest.kind === "terminal") return ingest.result;
+  return generateReply({
+    conversationId: ingest.conversationId,
+    language: ingest.language,
+    settings: ingest.settings,
+    channel: opts.channel,
+    onTextDelta: opts.onTextDelta,
+  });
+}
+
+/**
+ * Debounced turn for chat transports where a customer often splits one thought
+ * across several quick messages (WhatsApp). Every message is stored immediately,
+ * then we wait `debounceMs`; only the invocation whose message is still the most
+ * recent one generates a reply (which, thanks to history merging, covers the
+ * whole burst). Earlier invocations return `superseded` so the transport sends
+ * nothing for them. Net effect: one coherent reply per burst, sent `debounceMs`
+ * after the customer's last message.
+ */
+export async function runChatbotTurnDebounced(
+  opts: ChatbotTurnOptions,
+  debounceMs: number,
+): Promise<ChatbotTurnResult> {
+  const ingest = await ingestUserMessage(opts);
+  if (ingest.kind === "terminal") return ingest.result;
+
+  if (debounceMs > 0) {
+    await sleep(debounceMs);
+    // Latest-message-wins: if a newer USER message landed during the wait,
+    // its own invocation will produce the coalesced reply — bow out here.
+    const latest = await prisma.chatbotMessage.findFirst({
+      where: { conversationId: ingest.conversationId, role: "USER" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
+    if (latest && latest.id !== ingest.storedMessageId) {
+      return {
+        conversationId: ingest.conversationId,
+        text: "",
+        escalated: false,
+        superseded: true,
+        language: ingest.language,
+        toolCalls: [],
+      };
+    }
+  }
+
+  return generateReply({
+    conversationId: ingest.conversationId,
+    language: ingest.language,
+    settings: ingest.settings,
+    channel: opts.channel,
+    onTextDelta: opts.onTextDelta,
+  });
 }

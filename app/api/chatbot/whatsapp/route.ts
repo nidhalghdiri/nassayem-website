@@ -14,10 +14,10 @@
 // return 200 after basic validation and rely on wamid dedupe for replays.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
-import { runChatbotTurn } from "@/lib/chatbot/agent";
+import { runChatbotTurnDebounced } from "@/lib/chatbot/agent";
 import { getChatbotSettings } from "@/lib/chatbot/config";
 import {
   sendWhatsAppText,
@@ -31,6 +31,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const MAX_GALLERY_IMAGES = 3;
+
+// Debounce window: customers often split one thought across several quick
+// messages. We wait this long after each message and only reply to the LAST one
+// in a burst, so the bot answers the whole intent once instead of per fragment.
+// Tunable via env (ms). Runs in an after() background task, acked to Meta first.
+const DEBOUNCE_MS = Number(process.env.CHATBOT_WHATSAPP_DEBOUNCE_MS) || 8000;
 
 // ── GET: verification handshake ───────────────────────────────────────────────
 
@@ -249,20 +255,27 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
     if (mirrored) media = { url: mirrored.url, type: mediaRef.type };
   }
 
-  const result = await runChatbotTurn({
-    channel: "WHATSAPP",
-    externalId: msg.from,
-    message: text,
-    customerName: profileName,
-    externalMessageId: msg.id,
-    media,
-  });
+  const result = await runChatbotTurnDebounced(
+    {
+      channel: "WHATSAPP",
+      externalId: msg.from,
+      message: text,
+      customerName: profileName,
+      externalMessageId: msg.id,
+      media,
+    },
+    DEBOUNCE_MS,
+  );
 
   // "Stop AI" is on for this conversation: message stored, nothing sent.
   // Deliberately no read-receipt either — a human is handling the chat.
   if (result.aiPaused) return;
 
   markWhatsAppMessageRead(msg.id, senderPhoneNumberId).catch(() => {});
+
+  // This message was coalesced into a later one in the same burst — a sibling
+  // invocation sends the single combined reply. Mark read (above) but send nothing.
+  if (result.superseded) return;
 
   const delivery = await sendWhatsAppText(msg.from, result.text, senderPhoneNumberId);
   if (!delivery.ok) {
@@ -303,35 +316,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const settings = await getChatbotSettings();
+  // Acknowledge Meta immediately, then do the work (including the debounce wait)
+  // in a background task — a slow 2xx makes Meta redeliver the whole batch, and
+  // the per-message wamid dedupe keeps any redelivery harmless.
+  after(async () => {
+    try {
+      const settings = await getChatbotSettings();
+      if (!settings.enabled) return; // bot disabled from admin config
 
-  try {
-    const body = JSON.parse(rawBody) as {
-      entry?: { changes?: { field?: string; value?: WaValue }[] }[];
-    };
+      const body = JSON.parse(rawBody) as {
+        entry?: { changes?: { field?: string; value?: WaValue }[] }[];
+      };
 
-    for (const entry of body.entry ?? []) {
-      for (const change of entry.changes ?? []) {
-        if (change.field !== "messages") continue;
-        const value = change.value ?? {};
-        // Delivery/read receipts arrive on the same field — nothing to do.
-        if (!value.messages?.length) continue;
-        if (!settings.enabled) continue; // bot disabled from admin config
+      for (const entry of body.entry ?? []) {
+        for (const change of entry.changes ?? []) {
+          if (change.field !== "messages") continue;
+          const value = change.value ?? {};
+          // Delivery/read receipts arrive on the same field — nothing to do.
+          if (!value.messages?.length) continue;
 
-        for (const msg of value.messages) {
-          try {
-            await handleInboundMessage(msg, value);
-          } catch (err) {
-            // Per-message isolation: one bad message must not fail the batch
-            // (a non-2xx would make Meta redeliver everything).
-            console.error("[chatbot/whatsapp] message handling failed:", err);
-          }
+          // Process a payload's messages CONCURRENTLY so their debounce windows
+          // overlap and the latest-message-wins check can coalesce them into a
+          // single reply (sequential awaits would each think they were the last).
+          // Per-message isolation: one bad message must not fail the batch.
+          await Promise.all(
+            value.messages.map((msg) =>
+              handleInboundMessage(msg, value).catch((err) =>
+                console.error("[chatbot/whatsapp] message handling failed:", err),
+              ),
+            ),
+          );
         }
       }
+    } catch (err) {
+      console.error("[chatbot/whatsapp] webhook processing failed:", err);
     }
-  } catch (err) {
-    console.error("[chatbot/whatsapp] webhook parse failed:", err);
-  }
+  });
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
