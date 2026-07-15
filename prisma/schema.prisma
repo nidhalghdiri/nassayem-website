@@ -948,6 +948,47 @@ model ChatbotHold {
 }
 
 // ------------------------------------------------------
+// MODELS — Outbound WhatsApp log
+// ------------------------------------------------------
+
+// One row per outbound WhatsApp send, written inside lib/whatsapp.ts at the two
+// chokepoints every send passes through (sendTemplate + postWhatsAppPayload).
+// Read-only audit trail for /admin/whatsapp-log — nothing reads it back at
+// runtime, so logging failures are swallowed and never break a send.
+// Read receipts are not messages and are not logged.
+model WhatsAppMessageLog {
+  id String @id @default(uuid())
+
+  // Recipient, digits only (e.g. "96890960071") — matches AdminUser.whatsappNumber
+  // and ChatbotConversation.externalId, which is how the admin page resolves who
+  // a row was sent to without denormalising a name here.
+  to String
+
+  // template | text | image | location | contact
+  kind   String
+  // SENT | FAILED | SKIPPED (SKIPPED = missing credentials, no API call made)
+  status String
+
+  // Template sends only
+  templateName String?
+  language     String? // "ar" | "en_US"
+  bodyParams   Json? // ordered template body params — carries the escalation detail
+
+  // Free-form sends only
+  body     String? @db.Text // text body, or image caption
+  mediaUrl String?
+
+  waMessageId String? // wamid returned by Meta on success
+  error       String? @db.Text // Meta error payload / network error on failure
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([to, createdAt])
+  @@index([status, createdAt])
+}
+
+// ------------------------------------------------------
 // MODELS — Recommendations (Salalah Khareef guide)
 // ------------------------------------------------------
 

@@ -17,6 +17,7 @@ type Props = {
     status: string;
     building?: string;
     createdBy?: string;
+    kind?: string;
   };
   /** Base path of the Excel export route, e.g. "/api/admin/bookings/export". */
   exportPath: string;
@@ -24,13 +25,29 @@ type Props = {
   buildingOptions?: SelectOption[];
   /** Optional "Created By" dropdown (NetSuite Payments list). */
   createdByOptions?: SelectOption[];
+  /** Optional message-kind dropdown (WhatsApp Log list). */
+  kindOptions?: SelectOption[];
+  /**
+   * What the date range filters on. Defaults to payment date, which is what
+   * Bookings and NetSuite Payments filter by; the WhatsApp log passes its own.
+   */
+  dateLabels?: { fromEn: string; fromAr: string; toEn: string; toAr: string; hintEn: string; hintAr: string };
+};
+
+const PAYMENT_DATE_LABELS = {
+  fromEn: "Payment from",
+  fromAr: "الدفع من",
+  toEn: "Payment to",
+  toAr: "الدفع إلى",
+  hintEn: "Date range filters by payment date.",
+  hintAr: "نطاق التاريخ يُصفّي حسب تاريخ الدفع.",
 };
 
 /**
- * Reusable admin list filter bar: free-text search + a payment-date range
- * (from / to) + an "Export to Excel" button. Status (set by the tab strip on
- * the page) is preserved across navigations. Used by both the Bookings and
- * NetSuite Payments admin lists.
+ * Reusable admin list filter bar: free-text search + a date range (from / to) +
+ * an "Export to Excel" button. Status (set by the tab strip on the page) is
+ * preserved across navigations. Used by the Bookings, NetSuite Payments and
+ * WhatsApp Log admin lists.
  */
 export default function ListFilterBar({
   isEn,
@@ -39,6 +56,8 @@ export default function ListFilterBar({
   exportPath,
   buildingOptions,
   createdByOptions,
+  kindOptions,
+  dateLabels = PAYMENT_DATE_LABELS,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,9 +68,10 @@ export default function ListFilterBar({
   const [to, setTo] = useState(current.to);
   const [building, setBuilding] = useState(current.building ?? "");
   const [createdBy, setCreatedBy] = useState(current.createdBy ?? "");
+  const [kind, setKind] = useState(current.kind ?? "");
 
   const buildParams = (overrides?: Partial<Props["current"]>) => {
-    const values = { q, from, to, status: current.status, building, createdBy, ...overrides };
+    const values = { q, from, to, status: current.status, building, createdBy, kind, ...overrides };
     const params = new URLSearchParams();
     if (values.status && values.status !== "ALL")
       params.set("status", values.status);
@@ -60,6 +80,7 @@ export default function ListFilterBar({
     if (values.to) params.set("to", values.to);
     if (values.building) params.set("buildingId", values.building);
     if (values.createdBy) params.set("createdBy", values.createdBy);
+    if (values.kind) params.set("kind", values.kind);
     return params;
   };
 
@@ -76,10 +97,11 @@ export default function ListFilterBar({
     setTo("");
     setBuilding("");
     setCreatedBy("");
-    apply({ q: "", from: "", to: "", building: "", createdBy: "" });
+    setKind("");
+    apply({ q: "", from: "", to: "", building: "", createdBy: "", kind: "" });
   };
 
-  const hasFilters = !!(q || from || to || building || createdBy);
+  const hasFilters = !!(q || from || to || building || createdBy || kind);
   const exportHref = `${exportPath}${buildParams().toString() ? `?${buildParams()}` : ""}`;
 
   return (
@@ -163,10 +185,32 @@ export default function ListFilterBar({
           </div>
         )}
 
+        {/* Message kind */}
+        {kindOptions && (
+          <div className="w-full lg:w-44">
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              {isEn ? "Type" : "النوع"}
+            </label>
+            <select
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value);
+                apply({ kind: e.target.value });
+              }}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-nassayem/50 focus:border-nassayem transition-all"
+            >
+              <option value="">{isEn ? "All types" : "كل الأنواع"}</option>
+              {kindOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* From date */}
         <div className="w-full lg:w-44">
           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            {isEn ? "Payment from" : "الدفع من"}
+            {isEn ? dateLabels.fromEn : dateLabels.fromAr}
           </label>
           <input
             type="date"
@@ -183,7 +227,7 @@ export default function ListFilterBar({
         {/* To date */}
         <div className="w-full lg:w-44">
           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-            {isEn ? "Payment to" : "الدفع إلى"}
+            {isEn ? dateLabels.toEn : dateLabels.toAr}
           </label>
           <input
             type="date"
@@ -231,9 +275,7 @@ export default function ListFilterBar({
       {hasFilters && (
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-gray-400">
-            {isEn
-              ? "Date range filters by payment date."
-              : "نطاق التاريخ يُصفّي حسب تاريخ الدفع."}
+            {isEn ? dateLabels.hintEn : dateLabels.hintAr}
           </p>
           <button
             type="button"

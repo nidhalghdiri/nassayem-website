@@ -13,14 +13,14 @@ type Props = {
 };
 
 // ── Which nav items each role can see ──────────────────────────────────────────
-// MANAGER      : everything (incl. Promotions)
+// MANAGER      : everything (incl. Promotions, WhatsApp Log)
 // SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Laundry
 // HOUSEKEEPING : Dashboard, Tasks
 // MAINTENANCE  : Dashboard, Tasks
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "chatbot", "blog", "recommendations", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "chatbot", "whatsappLog", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry", "chatbot"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks"],
@@ -115,6 +115,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/chatbot`,
       exact: false,
       icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+    },
+    {
+      key: "whatsappLog",
+      nameEn: "WhatsApp Log",
+      nameAr: "سجل واتساب",
+      href: `/${locale}/admin/whatsapp-log`,
+      exact: false,
+      icon: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8",
     },
     {
       key: "blog",

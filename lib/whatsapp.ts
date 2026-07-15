@@ -1,6 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WhatsApp Cloud API — template messaging service
 //
+// Every outbound send is mirrored into WhatsAppMessageLog (see logSend below)
+// and listed read-only at /admin/whatsapp-log.
+//
 // Env vars required (add to .env):
 //   WHATSAPP_ACCESS_TOKEN      — permanent or long-lived token from Meta Business
 //   WHATSAPP_PHONE_NUMBER_ID   — the phone number ID from WhatsApp Cloud API
@@ -105,7 +108,87 @@
 //   {{4}} = "Ready for collection" / "جاهز للاستلام".
 // ─────────────────────────────────────────────────────────────────────────────
 
+import prisma from "@/lib/prisma";
+
 const BASE_URL = "https://graph.facebook.com/v19.0";
+
+// ── Outbound audit log ───────────────────────────────────────────────────────
+// Every send in this file passes through either postWhatsAppPayload (free-form)
+// or sendTemplate (templates), so logging at those two points captures all
+// outbound traffic. Surfaced read-only at /admin/whatsapp-log.
+
+type LogSendInput = {
+  to: string;
+  kind: string; // template | text | image | location | contact
+  status: "SENT" | "FAILED" | "SKIPPED";
+  templateName?: string;
+  language?: string;
+  bodyParams?: string[];
+  body?: string;
+  mediaUrl?: string;
+  waMessageId?: string;
+  error?: unknown;
+};
+
+/**
+ * Append one row to the outbound log. Never throws and is always awaited:
+ * losing a row must not break the send it describes, but the write has to
+ * finish before a serverless invocation is frozen.
+ */
+async function logSend(input: LogSendInput): Promise<void> {
+  try {
+    await prisma.whatsAppMessageLog.create({
+      data: {
+        to: input.to,
+        kind: input.kind,
+        status: input.status,
+        templateName: input.templateName ?? null,
+        language: input.language ?? null,
+        bodyParams: input.bodyParams ?? undefined,
+        body: input.body ?? null,
+        mediaUrl: input.mediaUrl ?? null,
+        waMessageId: input.waMessageId ?? null,
+        error:
+          input.error === undefined
+            ? null
+            : typeof input.error === "string"
+              ? input.error
+              : JSON.stringify(input.error),
+      },
+    });
+  } catch (e) {
+    console.error("[WhatsApp] Failed to write send log:", e);
+  }
+}
+
+/** Pull the loggable columns out of a raw Graph payload. */
+function describePayload(payload: object): {
+  to: string;
+  kind: string;
+  body?: string;
+  mediaUrl?: string;
+} {
+  const p = payload as Record<string, any>;
+  const to = String(p.to ?? "");
+  switch (p.type) {
+    case "text":
+      return { to, kind: "text", body: p.text?.body };
+    case "image":
+      return { to, kind: "image", body: p.image?.caption, mediaUrl: p.image?.link };
+    case "location": {
+      const l = p.location ?? {};
+      const label = [l.name, l.address].filter(Boolean).join(" — ");
+      return { to, kind: "location", body: label || `${l.latitude}, ${l.longitude}` };
+    }
+    case "contacts": {
+      const c = p.contacts?.[0];
+      const label = [c?.name?.formatted_name, c?.phones?.[0]?.phone].filter(Boolean).join(" — ");
+      return { to, kind: "contact", body: label || undefined };
+    }
+    default:
+      return { to, kind: String(p.type ?? "unknown") };
+  }
+}
 
 // ── Shared low-level POST (free-form chatbot messages) ───────────────────────
 // Free-form (non-template) messages are allowed inside WhatsApp's 24-hour
@@ -126,12 +209,15 @@ async function postWhatsAppPayload(
 ): Promise<WhatsAppSendResult> {
   const phoneNumberId = senderPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  // Read receipts are acknowledgements, not messages — nothing worth logging.
+  const meta = (payload as Record<string, unknown>).status === "read" ? null : describePayload(payload);
+
   if (!phoneNumberId || !token) {
     console.warn("[WhatsApp] Missing WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN — skipping send.");
-    return {
-      ok: false,
-      error: "WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN env var is missing/empty on this server",
-    };
+    const error =
+      "WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN env var is missing/empty on this server";
+    if (meta) await logSend({ ...meta, status: "SKIPPED", error });
+    return { ok: false, error };
   }
   try {
     const res = await fetch(`${BASE_URL}/${phoneNumberId}/messages`, {
@@ -145,11 +231,17 @@ async function postWhatsAppPayload(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("[WhatsApp] Send failed:", JSON.stringify(err));
+      if (meta) await logSend({ ...meta, status: "FAILED", error: err });
       return { ok: false, error: err };
+    }
+    const data = await res.json().catch(() => ({}) as Record<string, any>);
+    if (meta) {
+      await logSend({ ...meta, status: "SENT", waMessageId: data?.messages?.[0]?.id });
     }
     return { ok: true };
   } catch (e) {
     console.error("[WhatsApp] Network error:", e);
+    if (meta) await logSend({ ...meta, status: "FAILED", error: String(e) });
     return { ok: false, error: String(e) };
   }
 }
@@ -303,13 +395,29 @@ async function sendTemplate(
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
 
+  // Strip any non-digit characters just in case
+  const cleanTo = to.replace(/\D/g, "");
+
+  const logBase = {
+    to: cleanTo,
+    kind: "template",
+    templateName,
+    language: languageCode,
+    bodyParams,
+  } as const;
+
   if (!phoneNumberId || !token) {
     console.warn("[WhatsApp] Missing WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN — skipping notification.");
+    if (cleanTo) {
+      await logSend({
+        ...logBase,
+        status: "SKIPPED",
+        error: "WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN env var is missing/empty on this server",
+      });
+    }
     return;
   }
 
-  // Strip any non-digit characters just in case
-  const cleanTo = to.replace(/\D/g, "");
   if (!cleanTo) return;
 
   const components: object[] = [
@@ -353,9 +461,14 @@ async function sendTemplate(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("[WhatsApp] Send failed:", err);
+      await logSend({ ...logBase, status: "FAILED", error: err });
+      return;
     }
+    const data = await res.json().catch(() => ({}) as Record<string, any>);
+    await logSend({ ...logBase, status: "SENT", waMessageId: data?.messages?.[0]?.id });
   } catch (e) {
     console.error("[WhatsApp] Network error:", e);
+    await logSend({ ...logBase, status: "FAILED", error: String(e) });
   }
 }
 
