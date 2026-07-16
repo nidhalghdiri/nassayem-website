@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import PropertyCard from "@/components/properties/PropertyCard";
 import Link from "next/link";
+import { CONTACT_PHONE_E164 } from "@/lib/contact";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -201,7 +202,7 @@ export default async function BuildingDetailsPage({ params }: PageProps) {
               </div>
               <div className="space-y-4">
                 <a
-                  href="tel:+96812345678"
+                  href={`tel:${CONTACT_PHONE_E164}`}
                   className="w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-nassayem hover:text-white text-gray-900 py-3 rounded-xl font-bold transition-colors border border-gray-200 hover:border-nassayem"
                 >
                   <svg

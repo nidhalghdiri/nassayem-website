@@ -1,13 +1,13 @@
 "use client";
 
-const WHATSAPP_NUMBER = "96899551237"; // Nassayem phone number (no + or spaces)
+import { whatsappLink } from "@/lib/contact";
 
 export default function WhatsAppButton({ locale }: { locale: string }) {
   const isEn = locale === "en";
   const message = isEn
     ? "Hello Nassayem! I would like to inquire about furnished apartments in Salalah."
     : "مرحباً نسائم! أود الاستفسار عن الشقق المفروشة في صلالة.";
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  const href = whatsappLink(message);
 
   return (
     <a

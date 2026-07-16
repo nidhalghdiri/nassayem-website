@@ -1,4 +1,12 @@
 import { Metadata } from "next";
+import {
+  CONTACT_ADDRESS_AR,
+  CONTACT_ADDRESS_EN,
+  CONTACT_EMAIL,
+  CONTACT_MAPS_URL,
+  CONTACT_PHONE_DISPLAY,
+  CONTACT_PHONE_E164,
+} from "@/lib/contact";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -39,15 +47,43 @@ export default async function ContactPage({
           </p>
           <p>
             <strong>{isEn ? "Email Address:" : "البريد الإلكتروني:"}</strong>{" "}
-            support@nassayem.com
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              dir="ltr"
+              className="text-nassayem underline underline-offset-4"
+            >
+              {CONTACT_EMAIL}
+            </a>
           </p>
           <p>
-            <strong>{isEn ? "Phone Number:" : "رقم الهاتف:"}</strong> +968 1234
-            5678
+            <strong>{isEn ? "Phone Number:" : "رقم الهاتف:"}</strong>{" "}
+            <a
+              href={`tel:${CONTACT_PHONE_E164}`}
+              dir="ltr"
+              className="text-nassayem underline underline-offset-4"
+            >
+              {CONTACT_PHONE_DISPLAY}
+            </a>
           </p>
           <p>
-            <strong>{isEn ? "Address:" : "العنوان:"}</strong> Salalah, Dhofar
-            Governorate, Sultanate of Oman
+            <strong>{isEn ? "WhatsApp:" : "واتساب:"}</strong>{" "}
+            <a
+              href={`/${locale}/whatsapp`}
+              className="text-nassayem underline underline-offset-4"
+            >
+              {isEn ? "Message us on WhatsApp" : "راسلنا عبر واتساب"}
+            </a>
+          </p>
+          <p>
+            <strong>{isEn ? "Address:" : "العنوان:"}</strong>{" "}
+            <a
+              href={CONTACT_MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-nassayem underline underline-offset-4"
+            >
+              {isEn ? CONTACT_ADDRESS_EN : CONTACT_ADDRESS_AR}
+            </a>
           </p>
         </div>
       </div>
