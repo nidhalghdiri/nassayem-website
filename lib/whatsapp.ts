@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WhatsApp Cloud API — template messaging service
 //
-// Every outbound send is mirrored into WhatsAppMessageLog (see logSend below)
-// and listed read-only at /admin/whatsapp-log.
+// Template sends are mirrored into WhatsAppMessageLog (see logSend below) and
+// listed read-only at /admin/whatsapp-log. Free-form chatbot replies to
+// customers are not logged there — see the note above logSend.
 //
 // Env vars required (add to .env):
 //   WHATSAPP_ACCESS_TOKEN      — permanent or long-lived token from Meta Business
@@ -112,20 +113,20 @@ import prisma from "@/lib/prisma";
 
 const BASE_URL = "https://graph.facebook.com/v19.0";
 
-// ── Outbound audit log ───────────────────────────────────────────────────────
-// Every send in this file passes through either postWhatsAppPayload (free-form)
-// or sendTemplate (templates), so logging at those two points captures all
-// outbound traffic. Surfaced read-only at /admin/whatsapp-log.
+// ── Outbound template log ────────────────────────────────────────────────────
+// Only template sends are logged — these go to staff numbers and carry the
+// escalation detail worth auditing. The chatbot's free-form replies to
+// customers are deliberately NOT logged here: that conversation already lives
+// in the chatbot conversation history, and mirroring every customer message
+// into this table was not the intent. Surfaced read-only at /admin/whatsapp-log.
 
 type LogSendInput = {
   to: string;
-  kind: string; // template | text | image | location | contact
+  kind: string; // always "template" — free-form sends are not logged
   status: "SENT" | "FAILED" | "SKIPPED";
   templateName?: string;
   language?: string;
   bodyParams?: string[];
-  body?: string;
-  mediaUrl?: string;
   waMessageId?: string;
   error?: unknown;
 };
@@ -145,8 +146,6 @@ async function logSend(input: LogSendInput): Promise<void> {
         templateName: input.templateName ?? null,
         language: input.language ?? null,
         bodyParams: input.bodyParams ?? undefined,
-        body: input.body ?? null,
-        mediaUrl: input.mediaUrl ?? null,
         waMessageId: input.waMessageId ?? null,
         error:
           input.error === undefined
@@ -158,35 +157,6 @@ async function logSend(input: LogSendInput): Promise<void> {
     });
   } catch (e) {
     console.error("[WhatsApp] Failed to write send log:", e);
-  }
-}
-
-/** Pull the loggable columns out of a raw Graph payload. */
-function describePayload(payload: object): {
-  to: string;
-  kind: string;
-  body?: string;
-  mediaUrl?: string;
-} {
-  const p = payload as Record<string, any>;
-  const to = String(p.to ?? "");
-  switch (p.type) {
-    case "text":
-      return { to, kind: "text", body: p.text?.body };
-    case "image":
-      return { to, kind: "image", body: p.image?.caption, mediaUrl: p.image?.link };
-    case "location": {
-      const l = p.location ?? {};
-      const label = [l.name, l.address].filter(Boolean).join(" — ");
-      return { to, kind: "location", body: label || `${l.latitude}, ${l.longitude}` };
-    }
-    case "contacts": {
-      const c = p.contacts?.[0];
-      const label = [c?.name?.formatted_name, c?.phones?.[0]?.phone].filter(Boolean).join(" — ");
-      return { to, kind: "contact", body: label || undefined };
-    }
-    default:
-      return { to, kind: String(p.type ?? "unknown") };
   }
 }
 
@@ -209,14 +179,11 @@ async function postWhatsAppPayload(
 ): Promise<WhatsAppSendResult> {
   const phoneNumberId = senderPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  // Read receipts are acknowledgements, not messages — nothing worth logging.
-  const meta = (payload as Record<string, unknown>).status === "read" ? null : describePayload(payload);
 
   if (!phoneNumberId || !token) {
     console.warn("[WhatsApp] Missing WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN — skipping send.");
     const error =
       "WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN env var is missing/empty on this server";
-    if (meta) await logSend({ ...meta, status: "SKIPPED", error });
     return { ok: false, error };
   }
   try {
@@ -231,17 +198,11 @@ async function postWhatsAppPayload(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("[WhatsApp] Send failed:", JSON.stringify(err));
-      if (meta) await logSend({ ...meta, status: "FAILED", error: err });
       return { ok: false, error: err };
-    }
-    const data = await res.json().catch(() => ({}) as Record<string, any>);
-    if (meta) {
-      await logSend({ ...meta, status: "SENT", waMessageId: data?.messages?.[0]?.id });
     }
     return { ok: true };
   } catch (e) {
     console.error("[WhatsApp] Network error:", e);
-    if (meta) await logSend({ ...meta, status: "FAILED", error: String(e) });
     return { ok: false, error: String(e) };
   }
 }
