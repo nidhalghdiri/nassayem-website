@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Volume2 } from "lucide-react";
 import { resetPlaygroundConversation } from "@/app/actions/chatbot";
 
 type ChatMessage = { role: "user" | "assistant"; text: string; audioBase64?: string };
@@ -136,12 +137,19 @@ export default function Playground({ locale }: { locale: string }) {
                   </span>
                 )}
                 {m.audioBase64 && (
-                  <audio
-                    controls
-                    autoPlay
-                    src={`data:audio/mp3;base64,${m.audioBase64}`}
-                    className="mt-3 h-8 w-full min-w-[240px]"
-                  />
+                  <button
+                    onClick={() => {
+                      const audio = new Audio(`data:audio/mp3;base64,${m.audioBase64}`);
+                      audio.play();
+                    }}
+                    className="mt-3 flex items-center gap-1.5 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition-colors border border-blue-100 w-fit"
+                    title={isEn ? "Play Voice Note" : "تشغيل المقطع الصوتي"}
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    <span className="text-xs font-medium">
+                      {isEn ? "Play Audio" : "تشغيل الصوت"}
+                    </span>
+                  </button>
                 )}
               </div>
             </div>
