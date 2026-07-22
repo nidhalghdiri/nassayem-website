@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
           message: body.message,
           onTextDelta: (text) => send({ type: "delta", text }),
         });
+
+        if (result.language === "ar") {
+          const { generateAudioFromText } = await import("@/lib/elevenlabs");
+          const audioBuffer = await generateAudioFromText(result.text);
+          if (audioBuffer) {
+            send({ type: "audio", base64: audioBuffer.toString("base64") });
+          }
+        }
+
         send({ type: "done", escalated: result.escalated });
       } catch (err) {
         console.error("[chatbot/playground] failed:", err);

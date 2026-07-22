@@ -21,6 +21,13 @@ export function getAnthropicClient(): Anthropic {
   if (!globalForAI.anthropicClient) {
     globalForAI.anthropicClient = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
+      // Rate limits and overload are our dominant failure mode: customer bursts
+      // at peak hours (~11am/9pm Oman) push us past the per-minute token limit
+      // and the API answers 429/529. The SDK backs off honouring `retry-after`,
+      // but its default of 2 retries only spans ~1.5s — far shorter than a
+      // rate-limit window — so the turn gave up and apologised to the customer.
+      // 5 retries spans ~30s, comfortably inside the callers' 120s maxDuration.
+      maxRetries: 5,
     });
   }
   return globalForAI.anthropicClient;

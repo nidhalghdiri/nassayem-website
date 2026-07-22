@@ -10,7 +10,9 @@
 // number — errors are logged, never thrown to the transport.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type Anthropic from "@anthropic-ai/sdk";
+// Value import (not `import type`): the catch below needs Anthropic.APIError
+// at runtime to classify failures. The namespace still supplies the types.
+import Anthropic from "@anthropic-ai/sdk";
 import prisma from "@/lib/prisma";
 import type { ChatChannel } from "@prisma/client";
 import { runModelTurn } from "@/lib/ai/provider";
@@ -69,6 +71,24 @@ export type ChatbotTurnOptions = {
 };
 
 const ARABIC_RE = /[؀-ۿ]/;
+
+/**
+ * One-line summary of a failed turn, logged next to the raw error. Every
+ * failure reaches the customer as the same generic apology, so without the
+ * status/type/request id in the log there is no way to tell a rate limit from
+ * a bad request after the fact.
+ */
+function describeTurnError(err: unknown): string {
+  if (err instanceof Anthropic.APIError) {
+    const parts = [`anthropic status=${err.status ?? "none"}`];
+    if (err.type) parts.push(`type=${err.type}`);
+    if (err.requestID) parts.push(`request_id=${err.requestID}`);
+    return parts.join(" ");
+  }
+  // Connection resets, aborts and our own bugs land here — the name is the
+  // only thing that distinguishes them, since APIError fields are absent.
+  return `non-api name=${err instanceof Error ? err.name : typeof err}`;
+}
 
 function fallbackText(language: string, settings: ChatbotSettings): string {
   return language === "ar"
@@ -391,7 +411,7 @@ async function generateReply(params: {
       params.onTextDelta?.(finalText);
     }
   } catch (err) {
-    console.error("[chatbot] turn failed:", err);
+    console.error("[chatbot] turn failed:", describeTurnError(err), err);
     finalText = fallbackText(language, settings);
     // Stream the fallback only if nothing was streamed yet (avoid garbled UX).
     if (!streamedText) params.onTextDelta?.(finalText);

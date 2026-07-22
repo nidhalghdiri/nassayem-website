@@ -226,6 +226,62 @@ export async function sendWhatsAppText(
   );
 }
 
+/** Upload media to Meta to get a media ID. */
+export async function uploadWhatsAppMedia(
+  buffer: Buffer,
+  mimeType: string,
+  filename: string,
+  senderPhoneNumberId?: string
+): Promise<string | null> {
+  const phoneNumberId = senderPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !token) return null;
+
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("file", new Blob([buffer], { type: mimeType }), filename);
+
+  try {
+    const res = await fetch(`${BASE_URL}/${phoneNumberId}/media`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+    
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[WhatsApp] Media upload failed:", JSON.stringify(err));
+      return null;
+    }
+    const data = await res.json() as { id: string };
+    return data.id;
+  } catch (e) {
+    console.error("[WhatsApp] Media upload network error:", e);
+    return null;
+  }
+}
+
+/** Audio by media ID. */
+export async function sendWhatsAppAudio(
+  to: string,
+  mediaId: string,
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo || !mediaId) return { ok: false, error: "empty recipient or mediaId" };
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "audio",
+      audio: { id: mediaId },
+    },
+    senderPhoneNumberId,
+  );
+}
+
 /** Image by public URL with optional caption (unit gallery photos). */
 export async function sendWhatsAppImage(
   to: string,

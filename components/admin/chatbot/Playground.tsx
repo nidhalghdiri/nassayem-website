@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { resetPlaygroundConversation } from "@/app/actions/chatbot";
 
-type ChatMessage = { role: "user" | "assistant"; text: string };
+type ChatMessage = { role: "user" | "assistant"; text: string; audioBase64?: string };
 
 export default function Playground({ locale }: { locale: string }) {
   const isEn = locale === "en";
@@ -57,6 +57,16 @@ export default function Playground({ locale }: { locale: string }) {
           try {
             const event = JSON.parse(line);
             if (event.type === "delta" && typeof event.text === "string") appendDelta(event.text);
+            if (event.type === "audio" && typeof event.base64 === "string") {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = { ...last, audioBase64: event.base64 };
+                }
+                return next;
+              });
+            }
             if (event.type === "done" && event.escalated) setEscalated(true);
           } catch {
             /* ignore malformed line */
@@ -124,6 +134,14 @@ export default function Playground({ locale }: { locale: string }) {
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
                   </span>
+                )}
+                {m.audioBase64 && (
+                  <audio
+                    controls
+                    autoPlay
+                    src={`data:audio/mp3;base64,${m.audioBase64}`}
+                    className="mt-3 h-8 w-full min-w-[240px]"
+                  />
                 )}
               </div>
             </div>
