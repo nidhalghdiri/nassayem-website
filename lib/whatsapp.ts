@@ -239,7 +239,7 @@ export async function uploadWhatsAppMedia(
 
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
-  form.append("file", new Blob([buffer], { type: mimeType }), filename);
+  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
 
   try {
     const res = await fetch(`${BASE_URL}/${phoneNumberId}/media`, {
