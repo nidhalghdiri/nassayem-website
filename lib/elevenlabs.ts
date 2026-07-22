@@ -40,6 +40,6 @@ export async function generateAudioFromText(text: string): Promise<Buffer | null
     return Buffer.from(arrayBuffer);
   } catch (error) {
     console.error("[elevenlabs] Network error during TTS:", error);
-    return null;
+    throw error;
   }
 }
