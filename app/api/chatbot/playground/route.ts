@@ -43,10 +43,14 @@ export async function POST(req: NextRequest) {
         });
 
         if (result.language === "ar") {
-          const { generateAudioFromText } = await import("@/lib/elevenlabs");
-          const audioBuffer = await generateAudioFromText(result.text);
-          if (audioBuffer) {
-            send({ type: "audio", base64: audioBuffer.toString("base64") });
+          try {
+            const { generateAudioFromText } = await import("@/lib/elevenlabs");
+            const audioBuffer = await generateAudioFromText(result.text);
+            if (audioBuffer) {
+              send({ type: "audio", base64: audioBuffer.toString("base64") });
+            }
+          } catch (e: any) {
+            send({ type: "delta", text: `\n\n[⚠️ Audio Generation Failed: ${e.message}]` });
           }
         }
 

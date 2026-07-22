@@ -9,7 +9,7 @@ export async function generateAudioFromText(text: string): Promise<Buffer | null
 
   if (!apiKey || !voiceId) {
     console.warn("[elevenlabs] Missing ELEVENLABS_API_KEY or ELEVENLABS_VOICE_ID. Skipping TTS.");
-    return null;
+    throw new Error("Missing ELEVENLABS_API_KEY or ELEVENLABS_VOICE_ID in Vercel environment (Did you redeploy after adding them?)");
   }
 
   try {
@@ -33,7 +33,7 @@ export async function generateAudioFromText(text: string): Promise<Buffer | null
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("[elevenlabs] API Error:", JSON.stringify(err));
-      return null;
+      throw new Error(`ElevenLabs API rejected the request (${res.status}): ${JSON.stringify(err)}`);
     }
 
     const arrayBuffer = await res.arrayBuffer();
