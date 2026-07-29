@@ -218,6 +218,7 @@ export default async function NetsuitePaymentsAdminPage({
         baseUrl={baseUrl}
         isEn={isEn}
         isManager={isManager}
+        adminEmail={adminUser.email}
       />
     </div>
   );

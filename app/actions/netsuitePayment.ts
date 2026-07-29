@@ -3,7 +3,8 @@
 import prisma from "@/lib/prisma";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { revalidatePath } from "next/cache";
-import { requireManager } from "@/lib/adminAuth";
+import { requireManager, getCurrentAdminUser } from "@/lib/adminAuth";
+import { notifyNetsuitePaymentSucceeded } from "@/lib/netsuite";
 
 /**
  * Confirms the customer details on the public payment page and prepares the
@@ -153,6 +154,47 @@ export async function reactivateNetsuitePayment(id: string) {
     where: { id },
     data: { isActive: true },
   });
-  revalidatePath("/en/admin/netsuite-payments");
+  revalidatePath("/admin/netsuite-payments");
   revalidatePath("/ar/admin/netsuite-payments");
+  revalidatePath("/en/admin/netsuite-payments");
+}
+
+export async function simulateAdminPayment(id: string) {
+  const admin = await getCurrentAdminUser();
+  if (!admin || admin.email !== "ghdiri.nidhal@gmail.com") {
+    throw new Error("Unauthorized: Only authorized admin can simulate payments.");
+  }
+
+  const payment = await prisma.netsuitePayment.findUnique({
+    where: { id },
+  });
+
+  if (!payment) throw new Error("Payment not found");
+  if (payment.status === "PAID") throw new Error("Payment already paid");
+
+  const syncResult = await notifyNetsuitePaymentSucceeded({
+    netsuiteReservationId: payment.netsuiteReservationId,
+    netsuiteReservationRef: payment.netsuiteReservationRef,
+    amount: Number(payment.amount),
+    currency: "OMR",
+    paidAt: new Date().toISOString(),
+    smartpayOrderId: "SIM-ORD-" + Date.now(),
+    customerEmail: payment.customerEmail,
+    customerName: payment.customerName,
+    paymentLinkId: payment.id,
+  });
+
+  await prisma.netsuitePayment.update({
+    where: { id },
+    data: {
+      status: "PAID",
+      paidAt: new Date(),
+      smartpayOrderId: "SIM-ORD-" + Date.now(),
+      netsuiteSyncError: syncResult.ok ? null : syncResult.error,
+    },
+  });
+
+  revalidatePath("/admin/netsuite-payments");
+  revalidatePath("/ar/admin/netsuite-payments");
+  revalidatePath("/en/admin/netsuite-payments");
 }

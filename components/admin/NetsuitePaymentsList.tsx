@@ -17,6 +17,7 @@ import { extractSmartpayFields } from "@/lib/smartpayFields";
 import {
   deactivateNetsuitePayment,
   reactivateNetsuitePayment,
+  simulateAdminPayment,
 } from "@/app/actions/netsuitePayment";
 
 /** Compact labeled line used inside the "Bank details" cell. */
@@ -38,6 +39,7 @@ type Props = {
   baseUrl: string;
   isEn: boolean;
   isManager: boolean;
+  adminEmail?: string;
 };
 
 const statusStyles: Record<string, string> = {
@@ -159,8 +161,11 @@ export default function NetsuitePaymentsList({
   baseUrl,
   isEn,
   isManager,
+  adminEmail,
 }: Props) {
   const dateLocale = isEn ? enUS : ar;
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [isSimulating, startSimulateTransition] = useTransition();
   const [selected, setSelected] =
     useState<NetsuitePaymentWithBuilding | null>(null);
 
@@ -363,6 +368,27 @@ export default function NetsuitePaymentsList({
                         <ViewButton onClick={() => setSelected(p)} isEn={isEn} />
                         {p.status === "PENDING" && p.isActive && (
                           <>
+                            {adminEmail === "ghdiri.nidhal@gmail.com" && (
+                              <button
+                                type="button"
+                                disabled={isSimulating}
+                                onClick={() => {
+                                  if (confirm("Simulate payment for this link?")) {
+                                    startSimulateTransition(async () => {
+                                      try {
+                                        await simulateAdminPayment(p.id);
+                                        alert("Simulation triggered successfully!");
+                                      } catch (err: any) {
+                                        alert(err.message || "Failed to simulate");
+                                      }
+                                    });
+                                  }
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold rounded-lg text-purple-700 bg-purple-100 hover:bg-purple-200 transition-colors disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {isSimulating ? "Simulating..." : "Simulate Pay"}
+                              </button>
+                            )}
                             <CopyLinkButton url={url} isEn={isEn} />
                             <VoidNetsuitePaymentButton
                               paymentId={p.id}
