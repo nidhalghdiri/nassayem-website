@@ -26,7 +26,11 @@ import {
   isNetsuiteChatbotConfigured,
 } from "@/lib/netsuite";
 import { createNetsuitePaymentLink } from "@/lib/netsuitePaymentLink";
-import { sendChatbotEscalationTemplate } from "@/lib/whatsapp";
+import {
+  sendChatbotEscalationTemplate,
+  sendWhatsAppText,
+  sendWhatsAppDocument,
+} from "../whatsapp";
 import { UNIT_TYPE_LABELS } from "@/lib/unitTypes";
 import { getChatbotSettings, type ChatbotSettings } from "./config";
 
@@ -1098,6 +1102,16 @@ const createReservation = defineTool({
         // this to the customer.
         system_error: String(reservation.error).slice(0, 400),
       };
+    }
+    
+    // 1.5 Send the generated PDF Reservation document to the customer
+    if (reservation.data.reservationPdfUrl) {
+      await sendWhatsAppDocument(
+        input.customer_phone,
+        reservation.data.reservationPdfUrl,
+        `Reservation_${reservation.data.reservationRef ?? reservation.data.reservationId}.pdf`,
+        "Here is your official reservation document."
+      ).catch((err) => console.error("[chatbot] failed to send reservation PDF:", err));
     }
 
     // 2. Card-payment link for the 50% ADVANCE (same machinery as

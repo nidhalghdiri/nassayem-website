@@ -41,8 +41,8 @@
  * @NScriptType Suitelet
  * @NModuleScope SameAccount
  */
-define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
-  function (record, search, runtime, format, log) {
+define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N/file"],
+  function (record, search, runtime, format, log, render, file) {
 
     // ── CONFIG (matches the live schema used by reservation_script.js) ──────
     var CONFIG = {
@@ -441,7 +441,38 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
         " customer=" + customer.id + (customer.created ? " (new)" : ""),
       );
 
-      return { ok: true, reservationId: String(id), reservationRef: ref, unitCode: unit.code };
+      var reservationPdfUrl = null;
+      try {
+        // Internal IDs for PDF generation and storage
+        var RESERVATION_PDF_TEMPLATE_ID = 131;
+        var FILE_CABINET_FOLDER_ID = 17410;
+
+        var pdfRenderer = render.create();
+        pdfRenderer.setTemplateById(RESERVATION_PDF_TEMPLATE_ID);
+        var resRecord = record.load({ type: R.recordType, id: id });
+        pdfRenderer.addCustomRecord({ templateName: 'record', record: resRecord });
+        
+        var pdf = pdfRenderer.renderAsPdf();
+        pdf.name = "Reservation_" + ref + ".pdf";
+        pdf.folder = FILE_CABINET_FOLDER_ID;
+        pdf.isOnline = true;
+        
+        var fileId = pdf.save();
+        var savedFile = file.load({ id: fileId });
+        reservationPdfUrl = savedFile.url;
+        
+        log.audit("PDF generated", "File ID=" + fileId + " URL=" + reservationPdfUrl);
+      } catch (e) {
+        log.error("Failed to generate reservation PDF", e);
+      }
+
+      return { 
+        ok: true, 
+        reservationId: String(id), 
+        reservationRef: ref, 
+        unitCode: unit.code,
+        reservationPdfUrl: reservationPdfUrl 
+      };
     }
 
     /**

@@ -5,6 +5,7 @@ import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { revalidatePath } from "next/cache";
 import { requireManager, getCurrentAdminUser } from "@/lib/adminAuth";
 import { notifyNetsuitePaymentSucceeded } from "@/lib/netsuite";
+import { sendWhatsAppDocument } from "@/lib/whatsapp";
 
 /**
  * Confirms the customer details on the public payment page and prepares the
@@ -193,6 +194,15 @@ export async function simulateAdminPayment(id: string) {
       netsuiteSyncError: syncResult.ok ? null : syncResult.error,
     },
   });
+
+  if (syncResult.ok && syncResult.paymentPdfUrl && payment.customerPhone) {
+    await sendWhatsAppDocument(
+      payment.customerPhone,
+      syncResult.paymentPdfUrl,
+      `PaymentReceipt_SIM.pdf`,
+      "Thank you! Your payment has been received. Here is your receipt."
+    ).catch((err) => console.error("[whatsapp] failed to send simulate payment PDF:", err));
+  }
 
   revalidatePath("/admin/netsuite-payments");
   revalidatePath("/ar/admin/netsuite-payments");

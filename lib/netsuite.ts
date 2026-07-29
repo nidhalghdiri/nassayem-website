@@ -138,6 +138,7 @@ export type NetsuiteReservationCreated = {
   reservationId: string;
   reservationRef?: string;
   unitCode?: string;
+  reservationPdfUrl?: string;
 };
 
 /**
@@ -177,7 +178,7 @@ export async function createNetsuiteReservation(params: {
  */
 export async function notifyNetsuitePaymentSucceeded(
   payload: NetsuitePaymentSyncPayload,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; paymentPdfUrl?: string; error?: string }> {
   const outboundUrl = process.env.NETSUITE_OUTBOUND_URL || "";
   const token = process.env.NETSUITE_M2M_TOKEN || "";
 
@@ -208,7 +209,10 @@ export async function notifyNetsuitePaymentSucceeded(
         error: `NetSuite responded ${res.status}: ${text.slice(0, 500)}`,
       };
     }
-    return { ok: true };
+    
+    // Parse the response to extract the PDF URL
+    const json = await res.json().catch(() => ({}));
+    return { ok: true, paymentPdfUrl: json.paymentPdfUrl };
   } catch (err) {
     return {
       ok: false,

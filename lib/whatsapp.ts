@@ -285,22 +285,54 @@ export async function sendWhatsAppAudio(
 /** Image by public URL with optional caption (unit gallery photos). */
 export async function sendWhatsAppImage(
   to: string,
-  imageUrl: string,
+  urlOrMediaId: string,
   caption?: string,
   senderPhoneNumberId?: string,
 ): Promise<WhatsAppSendResult> {
   const cleanTo = to.replace(/\D/g, "");
   if (!cleanTo) return { ok: false, error: "empty recipient" };
+  const isUrl = urlOrMediaId.startsWith("http");
   return postWhatsAppPayload(
     {
       messaging_product: "whatsapp",
       to: cleanTo,
       type: "image",
-      image: { link: imageUrl, ...(caption ? { caption: caption.slice(0, 1024) } : {}) },
+      image: {
+        ...(isUrl ? { link: urlOrMediaId } : { id: urlOrMediaId }),
+        ...(caption ? { caption } : {}),
+      },
     },
     senderPhoneNumberId,
   );
 }
+
+/** Document (e.g. PDF receipt). */
+export async function sendWhatsAppDocument(
+  to: string,
+  urlOrMediaId: string,
+  filename?: string,
+  caption?: string,
+  senderPhoneNumberId?: string,
+): Promise<WhatsAppSendResult> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return { ok: false, error: "empty recipient" };
+  const isUrl = urlOrMediaId.startsWith("http");
+  return postWhatsAppPayload(
+    {
+      messaging_product: "whatsapp",
+      to: cleanTo,
+      type: "document",
+      document: {
+        ...(isUrl ? { link: urlOrMediaId } : { id: urlOrMediaId }),
+        ...(filename ? { filename } : {}),
+        ...(caption ? { caption } : {}),
+      },
+    },
+    senderPhoneNumberId,
+  );
+}
+
+
 
 /** Native location pin (building position). */
 export async function sendWhatsAppLocation(

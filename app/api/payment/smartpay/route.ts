@@ -4,6 +4,7 @@ import { decryptSmartPayResponse } from "@/lib/smartpay";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { sendNetsuitePaymentReceipt } from "@/lib/email/sendNetsuitePaymentReceipt";
+import { sendWhatsAppDocument } from "@/lib/whatsapp";
 import { notifyNetsuitePaymentSucceeded } from "@/lib/netsuite";
 
 export async function POST(req: NextRequest) {
@@ -255,6 +256,15 @@ async function handleNetsuitePayment(args: {
             netsuiteSyncError: result.ok ? null : (result.error ?? "Unknown"),
           },
         });
+        
+        if (result.ok && result.paymentPdfUrl && updated.customerPhone) {
+          await sendWhatsAppDocument(
+            updated.customerPhone,
+            result.paymentPdfUrl,
+            `PaymentReceipt_${updated.smartpayOrderId}.pdf`,
+            "Thank you! Your payment has been received. Here is your receipt."
+          ).catch((err) => console.error("[whatsapp] failed to send payment PDF:", err));
+        }
       })
       .catch((err) =>
         console.error("[netsuite] callback failed unexpectedly:", err),
