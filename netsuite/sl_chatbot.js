@@ -57,14 +57,11 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
 
       // Website unit type → internal id(s) of the custitem_ns_item_unit_type
       // list values. Arrays: several NetSuite values may map to one website type.
-      // NOTE on Nassayem's inverted taxonomy: website STUDIO = a full apartment
-      // (room+living+kitchen), which NetSuite lists as "1bhk" (id 3); website
-      // ONE_BEDROOM = a single room only, which NetSuite lists as "A" (id 2).
       UNIT_TYPE_MAP: {
-        STUDIO: ["3"],        // NetSuite "1bhk" — full apartment (room+living+kitchen)
-        ONE_BEDROOM: ["2"],   // NetSuite "A" — single room only (no living, no kitchen)
-        TWO_BEDROOM: ["1"],   // NetSuite "2bhk"
-        THREE_BEDROOM: ["4"], // NetSuite "3bhk"
+        STUDIO: ["3"],
+        ONE_BEDROOM: ["2"],   // 1BHK
+        TWO_BEDROOM: ["1"],   // 2BHK
+        THREE_BEDROOM: ["4"], // 3BHK
         VILLA: ["5"],
       },
 
@@ -85,6 +82,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           cycle: "custbody_ns_reservation_cycle", // "1" daily · "2" monthly
           period: "custbody_ns_res_period",
           memo: "memo",
+          conversationId: "custbody_nass_chatbot_conv_id",
         },
         cycleDaily: "1",
         cycleMonthly: "2",
@@ -335,6 +333,30 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
 
       var R = CONFIG.RESERVATION;
       var F = R.fields;
+
+      // Idempotency check: if we already have a reservation for this conversationId,
+      // return it immediately instead of creating a duplicate.
+      if (body.conversationId && F.conversationId) {
+        var existing = null;
+        search.create({
+          type: R.recordType,
+          columns: ["internalid", "tranid", F.unitCode],
+          filters: [[F.conversationId, "is", String(body.conversationId)]]
+        }).run().each(function (r) {
+          existing = {
+            id: r.getValue({ name: "internalid" }),
+            ref: r.getValue({ name: "tranid" }),
+            unitCode: r.getValue({ name: F.unitCode })
+          };
+          return false;
+        });
+
+        if (existing) {
+          log.audit("chatbot reservation idempotent hit", "conversationId=" + body.conversationId + " returned existing res=" + existing.id);
+          return { ok: true, reservationId: String(existing.id), reservationRef: String(existing.ref), unitCode: String(existing.unitCode) };
+        }
+      }
+
       // forceDaily: Khareef stays are always daily-cycle, even at 30+ nights
       // (monthly rentals are not offered during Khareef).
       var forceDaily = String(body.forceDaily) === "true" || body.forceDaily === true;
@@ -369,6 +391,9 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           value: body.notes || "Created by AI chatbot (unpaid — payment link sent)",
         });
       } catch (e) { }
+      if (body.conversationId && F.conversationId) {
+        try { rec.setValue({ fieldId: F.conversationId, value: String(body.conversationId) }); } catch (e) { }
+      }
 
       // Item line — same shape onAddUnits() builds: unit item, quantity =
       // period, UOM 86 (day) / 87 (month). Rate comes from the website's
@@ -441,6 +466,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
           totalAmount: p.totalAmount ? Number(p.totalAmount) : undefined,
           notes: p.notes,
           forceDaily: p.forceDaily,
+          conversationId: p.conversationId,
         };
       }
       return JSON.parse(request.body || "{}");

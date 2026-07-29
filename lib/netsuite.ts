@@ -161,6 +161,7 @@ export async function createNetsuiteReservation(params: {
   notes?: string;
   /** Keep the DAILY cycle even for 30+ nights (Khareef has no monthly rentals). */
   forceDaily?: boolean;
+  conversationId: string;
 }): Promise<
   { ok: true; data: NetsuiteReservationCreated } | { ok: false; error: string }
 > {

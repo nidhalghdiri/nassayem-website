@@ -1086,6 +1086,7 @@ const createReservation = defineTool({
       totalAmount: priced.total_omr,
       notes: `AI chatbot reservation — ${unit.titleEn} (${priced.nights} nights${forceDaily ? ", daily rate — Khareef" : ""})`,
       forceDaily,
+      conversationId: ctx.conversationId,
     });
     if (!reservation.ok) {
       console.error("[chatbot] NetSuite reservation failed:", reservation.error);
