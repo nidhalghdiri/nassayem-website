@@ -51,11 +51,10 @@ export function verifyNetsuiteInboundSecret(
 // isNetsuiteChatbotConfigured() is false and the chatbot falls back to
 // website-side availability — deploy-safe before the RESTlet exists.
 
-const NETSUITE_CHATBOT_RESTLET_URL = process.env.NETSUITE_CHATBOT_RESTLET_URL || "";
 const RESTLET_TIMEOUT_MS = 20_000; // NetSuite RESTlets can be slow
 
 export function isNetsuiteChatbotConfigured(): boolean {
-  return !!(NETSUITE_CHATBOT_RESTLET_URL && NETSUITE_M2M_TOKEN);
+  return !!(process.env.NETSUITE_CHATBOT_RESTLET_URL && process.env.NETSUITE_M2M_TOKEN);
 }
 
 async function callChatbotRestlet<T>(
@@ -72,13 +71,13 @@ async function callChatbotRestlet<T>(
     // Authorization header must NOT be sent, because NetSuite intercepts it
     // and tries to validate it as a NetSuite OAuth token before the Suitelet
     // runs — failing with an HTML error page.
-    const url = new URL(NETSUITE_CHATBOT_RESTLET_URL);
+    const url = new URL(process.env.NETSUITE_CHATBOT_RESTLET_URL || "");
     for (const [key, value] of Object.entries(body)) {
       if (value !== undefined && value !== null && value !== "") {
         url.searchParams.set(key, String(value));
       }
     }
-    url.searchParams.set("token", NETSUITE_M2M_TOKEN);
+    url.searchParams.set("token", process.env.NETSUITE_M2M_TOKEN || "");
 
     const res = await fetch(url.toString(), {
       method: "GET",
