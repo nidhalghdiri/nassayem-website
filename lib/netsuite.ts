@@ -8,8 +8,7 @@
  *     token (env: NETSUITE_M2M_TOKEN) sent as a Bearer token.
  */
 
-const NETSUITE_OUTBOUND_URL = process.env.NETSUITE_OUTBOUND_URL || "";
-const NETSUITE_M2M_TOKEN = process.env.NETSUITE_M2M_TOKEN || "";
+// Top-level reads removed to avoid build-time inlining issues
 
 export type NetsuitePaymentSyncPayload = {
   netsuiteReservationId: string;
@@ -180,7 +179,10 @@ export async function createNetsuiteReservation(params: {
 export async function notifyNetsuitePaymentSucceeded(
   payload: NetsuitePaymentSyncPayload,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!NETSUITE_OUTBOUND_URL || !NETSUITE_M2M_TOKEN) {
+  const outboundUrl = process.env.NETSUITE_OUTBOUND_URL || "";
+  const token = process.env.NETSUITE_M2M_TOKEN || "";
+
+  if (!outboundUrl || !token) {
     return {
       ok: false,
       error: "NetSuite outbound URL or M2M token not configured",
@@ -188,17 +190,18 @@ export async function notifyNetsuitePaymentSucceeded(
   }
 
   try {
-    const url = new URL(NETSUITE_OUTBOUND_URL);
+    const url = new URL(outboundUrl);
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         url.searchParams.append(key, String(value));
       }
     });
+    url.searchParams.append("token", token);
 
     const res = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${NETSUITE_M2M_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
