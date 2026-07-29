@@ -340,20 +340,19 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
         var existing = null;
         search.create({
           type: R.recordType,
-          columns: ["internalid", "tranid", F.unitCode],
+          columns: ["internalid", "tranid"],
           filters: [[F.conversationId, "is", String(body.conversationId)]]
         }).run().each(function (r) {
           existing = {
             id: r.getValue({ name: "internalid" }),
-            ref: r.getValue({ name: "tranid" }),
-            unitCode: r.getValue({ name: F.unitCode })
+            ref: r.getValue({ name: "tranid" })
           };
           return false;
         });
 
         if (existing) {
           log.audit("chatbot reservation idempotent hit", "conversationId=" + body.conversationId + " returned existing res=" + existing.id);
-          return { ok: true, reservationId: String(existing.id), reservationRef: String(existing.ref), unitCode: String(existing.unitCode) };
+          return { ok: true, reservationId: String(existing.id), reservationRef: String(existing.ref), unitCode: null };
         }
       }
 
