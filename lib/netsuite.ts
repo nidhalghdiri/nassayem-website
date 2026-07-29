@@ -199,9 +199,6 @@ export async function notifyNetsuitePaymentSucceeded(
 
     const res = await fetch(url.toString(), {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!res.ok) {
