@@ -188,13 +188,18 @@ export async function notifyNetsuitePaymentSucceeded(
   }
 
   try {
-    const res = await fetch(NETSUITE_OUTBOUND_URL, {
-      method: "POST",
+    const url = new URL(NETSUITE_OUTBOUND_URL);
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${NETSUITE_M2M_TOKEN}`,
       },
-      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {

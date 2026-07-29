@@ -41,8 +41,8 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
       var request = context.request;
       var response = context.response;
 
-      if (request.method !== "POST") {
-        return json(response, { ok: false, error: "POST only" });
+      if (request.method !== "GET") {
+        return json(response, { ok: false, error: "GET only" });
       }
 
       if (!authorized(request)) {
@@ -50,12 +50,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log"],
         return json(response, { ok: false, error: "Unauthorized" });
       }
 
-      var body;
-      try {
-        body = JSON.parse(request.body || "{}");
-      } catch (e) {
-        return json(response, { ok: false, error: "Invalid JSON payload" });
-      }
+      var body = request.parameters || {};
 
       try {
         if (!body.netsuiteReservationId || !body.amount) {
