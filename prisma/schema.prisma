@@ -793,8 +793,12 @@ model ChatbotConversation {
   // is stored as "ar" — the model mirrors the customer's script when replying.
   language     String                 @default("ar")
   status       ChatConversationStatus @default(ACTIVE)
-  // Why the bot escalated (tool call reason) — shown in the admin panel.
   escalationReason String?
+  // Follow-up status for escalated conversations
+  escalatedAt      DateTime?
+  // "NONE" | "PENDING" | "ASKED" | "CONTACTED" | "NOT_CONTACTED"
+  followUpStatus   String @default("NONE")
+
   // "Stop AI" switch (admin panel). When true, inbound customer messages are
   // still stored for the team to read, but the model is never called and no
   // reply is sent — zero token spend while a human handles the chat.

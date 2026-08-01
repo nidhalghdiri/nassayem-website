@@ -261,6 +261,64 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
     if (mirrored) media = { url: mirrored.url, type: mediaRef.type };
   }
 
+  // --- ESCALATION FOLLOW-UP INTERCEPTION ---
+  const existingConv = await prisma.chatbotConversation.findUnique({
+    where: { channel_externalId: { channel: "WHATSAPP", externalId: msg.from } },
+    select: { id: true, followUpStatus: true, language: true },
+  });
+
+  if (existingConv && existingConv.followUpStatus === "ASKED") {
+    const isAr = existingConv.language === "ar";
+    const lowerText = text.toLowerCase();
+    
+    // Naive matching for yes/no
+    const isYes = /(yes|نعم|contacted|did|ok|تم|اتصل|ايوا|yep|yeah)/i.test(lowerText);
+    const isNo = /(no|not|لا|لم|ما|wait|haven't|nope|didn't)/i.test(lowerText);
+
+    let newStatus = "ASKED";
+    let replyMessage = "";
+
+    if (isYes && !isNo) {
+      newStatus = "CONTACTED";
+      replyMessage = isAr ? "شكراً لإعلامنا! نتمنى لك يوماً سعيداً." : "Thank you for letting us know! Have a great day.";
+    } else if (isNo && !isYes) {
+      newStatus = "NOT_CONTACTED";
+      replyMessage = isAr ? "نعتذر عن التأخير. سنقوم بتذكير الفريق فوراً ليتواصلوا معك." : "We apologize for the delay. We will remind the team immediately to contact you.";
+    }
+
+    if (newStatus !== "ASKED") {
+      // 1. Store the user's message
+      await prisma.chatbotMessage.create({
+        data: {
+          conversationId: existingConv.id,
+          role: "USER",
+          content: text,
+          waMessageId: msg.id,
+          mediaUrl: media?.url,
+          mediaType: media?.type,
+        },
+      });
+
+      // 2. Update status
+      await prisma.chatbotConversation.update({
+        where: { id: existingConv.id },
+        data: { followUpStatus: newStatus },
+      });
+
+      // 3. Send reply and store it
+      const delivery = await sendWhatsAppText(msg.from, replyMessage, senderPhoneNumberId);
+      if (delivery.ok) {
+        await prisma.chatbotMessage.create({
+          data: { conversationId: existingConv.id, role: "ASSISTANT", content: replyMessage },
+        });
+      }
+
+      markWhatsAppMessageRead(msg.id, senderPhoneNumberId).catch(() => {});
+      return; // Stop processing, bypass AI
+    }
+  }
+  // --- END ESCALATION FOLLOW-UP INTERCEPTION ---
+
   const result = await runChatbotTurnDebounced(
     {
       channel: "WHATSAPP",

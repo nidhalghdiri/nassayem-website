@@ -86,6 +86,23 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
                 ⚠ {conversation.escalationReason}
               </p>
             )}
+            {conversation.status === "ESCALATED" && conversation.followUpStatus !== "NONE" && (
+              <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold">
+                <span className="text-gray-500">{isEn ? "Follow-up:" : "المتابعة:"}</span>
+                {conversation.followUpStatus === "PENDING" && (
+                  <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{isEn ? "Pending" : "قيد الانتظار"}</span>
+                )}
+                {conversation.followUpStatus === "ASKED" && (
+                  <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{isEn ? "Asked Customer" : "تم سؤال العميل"}</span>
+                )}
+                {conversation.followUpStatus === "CONTACTED" && (
+                  <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✓ {isEn ? "Contacted" : "تم التواصل"}</span>
+                )}
+                {conversation.followUpStatus === "NOT_CONTACTED" && (
+                  <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">✕ {isEn ? "Not Contacted" : "لم يتم التواصل"}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <ConversationActions

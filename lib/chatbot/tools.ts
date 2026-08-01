@@ -1190,7 +1190,12 @@ const escalateToHuman = defineTool({
     const settings = await getChatbotSettings();
     const conversation = await prisma.chatbotConversation.update({
       where: { id: ctx.conversationId },
-      data: { status: "ESCALATED", escalationReason: input.reason },
+      data: {
+        status: "ESCALATED",
+        escalationReason: input.reason,
+        escalatedAt: new Date(),
+        followUpStatus: "PENDING",
+      },
     });
 
     // WhatsApp escalation template to every configured recipient (Arabic call
