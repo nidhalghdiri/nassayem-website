@@ -124,7 +124,24 @@ type IngestOutcome =
  */
 async function ingestUserMessage(opts: ChatbotTurnOptions): Promise<IngestOutcome> {
   const settings = await getChatbotSettings();
-  const message = opts.message.trim().slice(0, MAX_INBOUND_CHARS);
+  let message = opts.message.trim().slice(0, MAX_INBOUND_CHARS);
+
+  if (!message) {
+    if (opts.media) {
+      if (opts.media.type.startsWith("image")) {
+        message = "[Image attached]";
+      } else if (opts.media.type.startsWith("audio")) {
+        message = "[Voice note attached]";
+      } else if (opts.media.type.startsWith("video")) {
+        message = "[Video attached]";
+      } else {
+        message = "[File attached]";
+      }
+    } else {
+      message = "[Empty message]";
+    }
+  }
+
   const language = ARABIC_RE.test(message) ? "ar" : "en";
 
   // ── Rate limit (before persisting, so the message doesn't count itself) ────
@@ -288,6 +305,12 @@ async function generateReply(params: {
     return { conversationId, text: "", escalated: false, language, toolCalls: [] };
   }
 
+  // Anthropic requires the conversation to end with a user turn.
+  if (turns[turns.length - 1].role !== "user") {
+    console.warn(`[chatbot] trailing assistant turn found for conv ${conversationId}, appending fallback user turn`);
+    turns.push({ role: "user", text: "[System: User resumed the conversation]" });
+  }
+
   const messages: Anthropic.MessageParam[] = turns.map(
     (t): Anthropic.MessageParam => ({ role: t.role, content: t.text }),
   );
@@ -408,13 +431,15 @@ async function generateReply(params: {
     if (!finalText.trim()) {
       // Model produced no text (refusal / max-iteration edge) — safe fallback.
       finalText = fallbackText(language, settings);
-      params.onTextDelta?.(finalText);
+      if (!streamedText) params.onTextDelta?.(finalText);
     }
   } catch (err) {
     console.error("[chatbot] turn failed:", describeTurnError(err), err);
-    finalText = fallbackText(language, settings);
-    // Stream the fallback only if nothing was streamed yet (avoid garbled UX).
-    if (!streamedText) params.onTextDelta?.(finalText);
+    if (!finalText.trim()) {
+      finalText = fallbackText(language, settings);
+      // Stream the fallback only if nothing was streamed yet (avoid garbled UX).
+      if (!streamedText) params.onTextDelta?.(finalText);
+    }
   }
 
   // ── Persist the assistant turn ─────────────────────────────────────────────
