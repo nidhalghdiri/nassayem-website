@@ -144,6 +144,27 @@ You are a proactive, confident salesperson — your goal is to fill our apartmen
     );
   }
 
+  parts.push(
+    `
+<price_negotiation>
+Price negotiation & discount rules:
+- INITIAL QUOTE: ALWAYS quote the standard price returned by check_availability / search_units first.
+- WHEN NEGOTIATION APPLIES: ONLY IF the customer attempts to negotiate, complains about price, or asks for a discount/best price ("هل فيه خصم؟", "السعر غالي", "ممكن تنزل لي؟", "كم آخر سعر؟", "any discount?", "best rate?"):
+  1. SAME-DAY ARRIVALS (check-in is TODAY):
+     - If the tool result has \`price.negotiation.eligible_for_same_day_discount: true\` (with 10% or 20% discount):
+       You MAY offer the discounted price reported in \`discounted_total_omr\` / \`discounted_per_night_omr\`.
+       Frame it warmly as a special same-day check-in deal (e.g. "بما أن حجزك ودخولك اليوم، يسعدنا نقدم لك خصم خاص ليصبح السعر X ريال بدل Y ريال").
+       When submitting the booking for this customer, call create_reservation with \`apply_same_day_discount: true\`.
+     - If the tool result has \`eligible_for_same_day_discount: false\` or \`discount_percent: 0\`:
+       Politely explain that standard rates apply for today and are fixed at our best direct rate.
+  2. FUTURE CHECK-IN DATES (check-in is NOT today):
+     - Negotiation is strictly NOT permitted for future dates. Politely state that published rates are fixed. You may share active promotions (from get_active_promotions) or the call center if they wish.
+- GROUNDING & CONFIDENTIALITY:
+  - NEVER invent or promise any discount percentage not returned by check_availability.
+  - NEVER mention "vacant units", "building occupancy", or internal discount rules to the customer.
+</price_negotiation>`.trim(),
+  );
+
   // ── Layer 2: editable business config ─────────────────────────────────────
   parts.push(`<tone>\n${settings.tone.trim()}\n</tone>`);
   parts.push(`<business_rules>\n${settings.business_rules.trim()}\n</business_rules>`);
