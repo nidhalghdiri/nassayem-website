@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { createClient } from "@/utils/supabase/server";
 import UserManagement from "@/components/admin/UserManagement";
 
 type PageProps = {
@@ -17,12 +16,6 @@ export default async function AdminUsersPage({ params }: PageProps) {
   if (!currentAdmin || currentAdmin.role !== "MANAGER") {
     redirect(`/${locale}/admin`);
   }
-
-  // Get session user to mark "You"
-  const supabase = await createClient();
-  const {
-    data: { user: sessionUser },
-  } = await supabase.auth.getUser();
 
   const [adminUsers, buildings] = await Promise.all([
     prisma.adminUser.findMany({
@@ -58,7 +51,7 @@ export default async function AdminUsersPage({ params }: PageProps) {
         }))}
         buildings={buildings}
         currentAdminId={currentAdmin.id}
-        currentSupabaseId={sessionUser?.id ?? ""}
+        currentSupabaseId={currentAdmin.supabaseId ?? ""}
         locale={locale}
       />
     </div>

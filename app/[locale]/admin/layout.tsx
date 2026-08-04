@@ -1,6 +1,5 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminLocaleSwitcher from "@/components/admin/AdminLocaleSwitcher";
-import { createClient } from "@/utils/supabase/server";
 import { logoutAdmin } from "@/app/actions/auth";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 
@@ -16,28 +15,27 @@ export default async function AdminLayout({
   const { locale } = await params;
   const isEn = locale === "en";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Fetch the current authenticated AdminUser record from database
+  const adminUser = await getCurrentAdminUser();
 
-  // No user means the middleware is sending them to /admin/login.
+  // No admin user session means on /admin/login.
   // Render children bare (no sidebar) so the login page gets a clean full-screen layout.
-  if (!user) {
+  if (!adminUser) {
     return <>{children}</>;
   }
 
-  // Fetch the AdminUser record to get the role for sidebar filtering
-  const adminUser = await getCurrentAdminUser();
-  const userRole = adminUser?.role ?? "MANAGER";
-
-  // The first character of the email as the avatar letter
-  const avatarLetter = user.email?.charAt(0).toUpperCase() ?? "A";
+  const userRole = adminUser.role ?? "MANAGER";
+  const avatarLetter =
+    (adminUser.name || adminUser.email)?.charAt(0).toUpperCase() ?? "A";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 font-english">
       {/* Sidebar */}
-      <AdminSidebar locale={locale} userEmail={user.email ?? undefined} userRole={userRole} />
+      <AdminSidebar
+        locale={locale}
+        userEmail={adminUser.email}
+        userRole={userRole}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -51,7 +49,7 @@ export default async function AdminLayout({
 
           {/* User email */}
           <span className="text-sm font-medium text-gray-600">
-            {user.email}
+            {adminUser.email}
           </span>
 
           {/* Avatar */}
