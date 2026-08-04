@@ -19,8 +19,8 @@
  * @NScriptType Suitelet
  * @NModuleScope SameAccount
  */
-define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N/file"],
-  function (record, search, runtime, format, log, render, file) {
+define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N/file", "N/url"],
+  function (record, search, runtime, format, log, render, file, url) {
 
     function json(response, body) {
       response.setHeader({ name: "Content-Type", value: "application/json" });
@@ -79,12 +79,12 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         var resLookup = search.lookupFields({
           type: "customsale_ns_reservations",
           id: body.netsuiteReservationId,
-          columns: ["custbody_ns_reservation_customer", RESERVATION_PAYMENTS_FIELD_ID]
+          columns: ["entity", RESERVATION_PAYMENTS_FIELD_ID]
         });
         
         var customerId = null;
-        if (resLookup.custbody_ns_reservation_customer && resLookup.custbody_ns_reservation_customer.length > 0) {
-          customerId = resLookup.custbody_ns_reservation_customer[0].value;
+        if (resLookup.entity && resLookup.entity.length > 0) {
+          customerId = resLookup.entity[0].value;
         }
 
         if (customerId) {
@@ -114,7 +114,8 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
             
             var fileId = pdf.save();
             var savedFile = file.load({ id: fileId });
-            paymentPdfUrl = savedFile.url;
+            var accountDomain = url.resolveDomain({ hostType: url.HostType.APPLICATION });
+            paymentPdfUrl = "https://" + accountDomain + savedFile.url;
             log.audit("Payment PDF generated", "URL=" + paymentPdfUrl);
           } catch (pdfErr) {
             log.error("Failed to generate Payment PDF", pdfErr);

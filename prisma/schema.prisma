@@ -450,8 +450,9 @@ model NetsuitePayment {
 
 model AdminUser {
   id                String    @id @default(uuid())
-  supabaseId        String    @unique
+  supabaseId        String?   @unique
   email             String    @unique
+  passwordHash      String?
   name              String?
   role              StaffRole @default(MANAGER)
   whatsappNumber    String? // e.g. "96898590405" — no + or spaces

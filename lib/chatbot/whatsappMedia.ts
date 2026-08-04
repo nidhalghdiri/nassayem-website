@@ -31,10 +31,9 @@ const EXT_BY_MIME: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
-export async function mirrorWhatsAppMedia(
+export async function downloadWhatsAppMediaToBuffer(
   mediaId: string,
-  folderKey: string, // customer phone — groups a customer's media in storage
-): Promise<{ url: string; mimeType: string } | null> {
+): Promise<{ buffer: Buffer; mimeType: string } | null> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!token || !mediaId) return null;
 
@@ -69,8 +68,25 @@ export async function mirrorWhatsAppMedia(
     const buffer = Buffer.from(await binRes.arrayBuffer());
     if (buffer.byteLength > MAX_MEDIA_BYTES) return null;
 
-    // 3. Store in the PRIVATE bucket (customer media may be an ID/passport).
     const mimeType = meta.mime_type || "application/octet-stream";
+    return { buffer, mimeType };
+  } catch (err) {
+    console.error("[chatbot] media fetch failed:", err);
+    return null;
+  }
+}
+
+export async function mirrorWhatsAppMedia(
+  mediaId: string,
+  folderKey: string, // customer phone — groups a customer's media in storage
+): Promise<{ url: string; mimeType: string } | null> {
+  const downloaded = await downloadWhatsAppMediaToBuffer(mediaId);
+  if (!downloaded) return null;
+
+  try {
+    const { buffer, mimeType } = downloaded;
+    
+    // 3. Store in the PRIVATE bucket (customer media may be an ID/passport).
     const ext = EXT_BY_MIME[mimeType] || mimeType.split("/")[1] || "bin";
     const path = `${folderKey}/${Date.now()}-${mediaId.slice(-8)}.${ext}`;
 

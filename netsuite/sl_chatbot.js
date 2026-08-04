@@ -41,8 +41,8 @@
  * @NScriptType Suitelet
  * @NModuleScope SameAccount
  */
-define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N/file"],
-  function (record, search, runtime, format, log, render, file) {
+define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N/file", "N/url"],
+  function (record, search, runtime, format, log, render, file, url) {
 
     // ── CONFIG (matches the live schema used by reservation_script.js) ──────
     var CONFIG = {
@@ -450,7 +450,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         var pdfRenderer = render.create();
         pdfRenderer.setTemplateById(RESERVATION_PDF_TEMPLATE_ID);
         var resRecord = record.load({ type: R.recordType, id: id });
-        pdfRenderer.addCustomRecord({ templateName: 'record', record: resRecord });
+        pdfRenderer.addRecord({ templateName: 'record', record: resRecord });
         
         var pdf = pdfRenderer.renderAsPdf();
         pdf.name = "Reservation_" + ref + ".pdf";
@@ -459,7 +459,8 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         
         var fileId = pdf.save();
         var savedFile = file.load({ id: fileId });
-        reservationPdfUrl = savedFile.url;
+        var accountDomain = url.resolveDomain({ hostType: url.HostType.APPLICATION });
+        reservationPdfUrl = "https://" + accountDomain + savedFile.url;
         
         log.audit("PDF generated", "File ID=" + fileId + " URL=" + reservationPdfUrl);
       } catch (e) {

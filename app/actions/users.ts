@@ -1,9 +1,9 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase";
-import { createClient } from "@/utils/supabase/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { hashPassword } from "@/lib/authSession";
+import { supabaseAdmin } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import type { StaffRole } from "@prisma/client";
 
@@ -12,7 +12,7 @@ function revalidateUsers() {
   revalidatePath("/ar/admin/users");
 }
 
-// ── Create a new admin user (email + password, no email invite) ───────────────
+// ── Create a new admin user (Direct Database) ─────────────────────────────────
 // MANAGER only.
 export async function createAdminUser(
   formData: FormData,
@@ -26,8 +26,11 @@ export async function createAdminUser(
   const password = (formData.get("password") as string)?.trim();
   const name = (formData.get("name") as string)?.trim() || null;
   const role = (formData.get("role") as StaffRole) || "MANAGER";
-  const whatsappNumber = (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") || null;
-  const preferredLanguage = (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
+  const whatsappNumber =
+    (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") ||
+    null;
+  const preferredLanguage =
+    (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
 
   if (!email || !password) {
     return { error: "Email and password are required.", success: false };
@@ -36,29 +39,55 @@ export async function createAdminUser(
     return { error: "Password must be at least 8 characters.", success: false };
   }
 
-  const existing = await prisma.adminUser.findUnique({ where: { email } });
+  const existing = await prisma.adminUser.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   if (existing) {
     return { error: "A user with this email already exists.", success: false };
   }
 
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true, // skip verification — user can sign in immediately
-    user_metadata: { name },
-  });
+  // 1. Hash password cryptographically
+  const passwordHash = await hashPassword(password);
 
-  if (error) return { error: error.message, success: false };
+  // 2. Optional Supabase Auth mirror (non-blocking)
+  let supabaseId: string | null = null;
+  try {
+    const { data } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name },
+    });
+    if (data?.user?.id) {
+      supabaseId = data.user.id;
+    }
+  } catch {
+    // Ignore Supabase errors if quota is reached
+  }
 
+  // 3. Create user in PostgreSQL
   const newUser = await prisma.adminUser.create({
-    data: { supabaseId: data.user.id, email, name, role, whatsappNumber, preferredLanguage },
+    data: {
+      supabaseId,
+      email,
+      passwordHash,
+      name,
+      role,
+      whatsappNumber,
+      preferredLanguage,
+    },
   });
 
   if (role === "RECEPTIONIST") {
-    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(Boolean);
+    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(
+      Boolean,
+    );
     if (buildingIds.length > 0) {
       await prisma.adminUserBuilding.createMany({
-        data: buildingIds.map((bId) => ({ adminUserId: newUser.id, buildingId: bId })),
+        data: buildingIds.map((bId) => ({
+          adminUserId: newUser.id,
+          buildingId: bId,
+        })),
         skipDuplicates: true,
       });
     }
@@ -83,8 +112,11 @@ export async function updateAdminUser(
   const name = (formData.get("name") as string)?.trim() || null;
   const role = formData.get("role") as StaffRole;
   const newPassword = (formData.get("password") as string)?.trim();
-  const whatsappNumber = (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") || null;
-  const preferredLanguage = (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
+  const whatsappNumber =
+    (formData.get("whatsappNumber") as string)?.trim().replace(/\D/g, "") ||
+    null;
+  const preferredLanguage =
+    (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
 
   // Prevent manager from changing their own role
   if (adminUserId === currentUser.id && role !== "MANAGER") {
@@ -92,21 +124,41 @@ export async function updateAdminUser(
   }
 
   if (newPassword && newPassword.length < 8) {
-    return { error: "New password must be at least 8 characters.", success: false };
+    return {
+      error: "New password must be at least 8 characters.",
+      success: false,
+    };
+  }
+
+  const updateData: {
+    name: string | null;
+    role: StaffRole;
+    whatsappNumber: string | null;
+    preferredLanguage: string;
+    passwordHash?: string;
+  } = { name, role, whatsappNumber, preferredLanguage };
+
+  if (newPassword) {
+    updateData.passwordHash = await hashPassword(newPassword);
   }
 
   await prisma.adminUser.update({
     where: { id: adminUserId },
-    data: { name, role, whatsappNumber, preferredLanguage },
+    data: updateData,
   });
 
   // Sync building assignments (only meaningful for RECEPTIONIST; clear for other roles)
   if (role === "RECEPTIONIST") {
-    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(Boolean);
+    const buildingIds = (formData.getAll("buildingIds") as string[]).filter(
+      Boolean,
+    );
     await prisma.adminUserBuilding.deleteMany({ where: { adminUserId } });
     if (buildingIds.length > 0) {
       await prisma.adminUserBuilding.createMany({
-        data: buildingIds.map((bId) => ({ adminUserId, buildingId: bId })),
+        data: buildingIds.map((bId) => ({
+          adminUserId,
+          buildingId: bId,
+        })),
         skipDuplicates: true,
       });
     }
@@ -114,11 +166,15 @@ export async function updateAdminUser(
     await prisma.adminUserBuilding.deleteMany({ where: { adminUserId } });
   }
 
-  if (newPassword) {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(supabaseId, {
-      password: newPassword,
-    });
-    if (error) return { error: `Password update failed: ${error.message}`, success: false };
+  // Optional Supabase update (non-blocking)
+  if (newPassword && supabaseId) {
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(supabaseId, {
+        password: newPassword,
+      });
+    } catch {
+      // Ignore Supabase sync failure
+    }
   }
 
   revalidateUsers();
@@ -135,13 +191,15 @@ export async function deleteAdminUser(formData: FormData) {
   const supabaseId = formData.get("supabaseId") as string;
 
   // Prevent self-deletion
-  const supabase = await createClient();
-  const {
-    data: { user: sessionUser },
-  } = await supabase.auth.getUser();
-  if (sessionUser?.id === supabaseId) return;
+  if (currentUser.id === adminUserId) return;
 
-  await supabaseAdmin.auth.admin.deleteUser(supabaseId);
+  if (supabaseId) {
+    try {
+      await supabaseAdmin.auth.admin.deleteUser(supabaseId);
+    } catch {
+      // Ignore Supabase error
+    }
+  }
   await prisma.adminUser.delete({ where: { id: adminUserId } });
 
   revalidateUsers();

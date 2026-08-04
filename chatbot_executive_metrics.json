@@ -1,0 +1,189 @@
+{
+  "generatedAt": "2026-08-04T07:13:49.986Z",
+  "executiveSummary": {
+    "totalSpendUSD": 150.59,
+    "totalSpendOMR": 57.98,
+    "maxCeilingSpendUSD": 159.44,
+    "maxCeilingSpendOMR": 61.38,
+    "totalConversations": 5960,
+    "totalMessages": 105128,
+    "totalLeads": 441,
+    "totalTokens": 14561069,
+    "totalInputTokens": 4914683,
+    "totalOutputTokens": 9646386,
+    "avgMessagesPerConversation": 17.6,
+    "avgUserTurnsPerConversation": 6.8,
+    "avgCostPerConversationUSD": 0.0253,
+    "avgCostPerConversationOMR": 0.0097,
+    "avgCostPerMessageUSD": 0.0014,
+    "avgCostPerMessageOMR": 0.0006,
+    "avgCostPerLeadUSD": 0.34,
+    "avgCostPerLeadOMR": 0.13
+  },
+  "businessImpactAndROI": {
+    "estimatedHumanLaborCostUSD": 6794.4,
+    "estimatedHumanLaborCostOMR": 2615.84,
+    "netSavingsUSD": 6643.81,
+    "netSavingsOMR": 2557.87,
+    "roiPercentage": "4412%"
+  },
+  "channelBreakdown": {
+    "WEB": 60,
+    "WHATSAPP": 5900
+  },
+  "languageBreakdown": {
+    "ar": 5662,
+    "en": 298
+  },
+  "statusBreakdown": {
+    "ACTIVE": 5420,
+    "ESCALATED": 540
+  },
+  "followUpBreakdown": {
+    "ASKED": 26,
+    "CONTACTED": 11,
+    "NONE": 467,
+    "NOT_CONTACTED": 31,
+    "PENDING": 5
+  },
+  "messagesByRole": {
+    "STAFF": 67,
+    "TOOL": 18352,
+    "ASSISTANT": 46099,
+    "USER": 40610
+  },
+  "dailyTrends": [
+    {
+      "date": "2026-08-04",
+      "count": 78
+    },
+    {
+      "date": "2026-08-03",
+      "count": 645
+    },
+    {
+      "date": "2026-08-02",
+      "count": 273
+    },
+    {
+      "date": "2026-08-01",
+      "count": 178
+    },
+    {
+      "date": "2026-07-31",
+      "count": 131
+    },
+    {
+      "date": "2026-07-30",
+      "count": 99
+    },
+    {
+      "date": "2026-07-29",
+      "count": 508
+    },
+    {
+      "date": "2026-07-28",
+      "count": 275
+    },
+    {
+      "date": "2026-07-27",
+      "count": 135
+    },
+    {
+      "date": "2026-07-26",
+      "count": 484
+    },
+    {
+      "date": "2026-07-25",
+      "count": 385
+    },
+    {
+      "date": "2026-07-24",
+      "count": 164
+    },
+    {
+      "date": "2026-07-23",
+      "count": 108
+    },
+    {
+      "date": "2026-07-22",
+      "count": 254
+    },
+    {
+      "date": "2026-07-21",
+      "count": 204
+    },
+    {
+      "date": "2026-07-20",
+      "count": 152
+    },
+    {
+      "date": "2026-07-19",
+      "count": 129
+    },
+    {
+      "date": "2026-07-18",
+      "count": 165
+    },
+    {
+      "date": "2026-07-17",
+      "count": 136
+    },
+    {
+      "date": "2026-07-16",
+      "count": 148
+    },
+    {
+      "date": "2026-07-15",
+      "count": 153
+    },
+    {
+      "date": "2026-07-14",
+      "count": 291
+    },
+    {
+      "date": "2026-07-13",
+      "count": 147
+    },
+    {
+      "date": "2026-07-12",
+      "count": 131
+    },
+    {
+      "date": "2026-07-11",
+      "count": 131
+    },
+    {
+      "date": "2026-07-10",
+      "count": 116
+    },
+    {
+      "date": "2026-07-09",
+      "count": 190
+    },
+    {
+      "date": "2026-07-08",
+      "count": 85
+    },
+    {
+      "date": "2026-07-07",
+      "count": 10
+    },
+    {
+      "date": "2026-07-06",
+      "count": 42
+    }
+  ],
+  "auditOutcomes": {
+    "info_only": 1,
+    "lead_captured": 38,
+    "escalated": 11,
+    "abandoned": 33
+  },
+  "auditSentiments": {
+    "negative": 3,
+    "positive": 5,
+    "neutral": 67,
+    "frustrated": 8
+  }
+}

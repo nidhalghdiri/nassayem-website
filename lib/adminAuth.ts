@@ -1,25 +1,33 @@
-import { createClient } from "@/utils/supabase/server";
+import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { AdminUser } from "@prisma/client";
+import {
+  verifyAdminSessionToken,
+  ADMIN_COOKIE_NAME,
+} from "@/lib/authSession";
 
 /**
- * Resolves the currently authenticated Supabase user → AdminUser record.
+ * Resolves the currently authenticated session → AdminUser record from PostgreSQL.
  * Returns null if not authenticated or no matching AdminUser exists.
- * Used in API route handlers to gate access and read the caller's role.
+ * Used in Server Components, Server Actions, and API route handlers.
  */
 export async function getCurrentAdminUser(): Promise<AdminUser | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(ADMIN_COOKIE_NAME);
+    if (!sessionCookie?.value) return null;
 
-  if (!user) return null;
+    const payload = await verifyAdminSessionToken(sessionCookie.value);
+    if (!payload?.id) return null;
 
-  const adminUser = await prisma.adminUser.findUnique({
-    where: { supabaseId: user.id },
-  });
+    const adminUser = await prisma.adminUser.findUnique({
+      where: { id: payload.id },
+    });
 
-  return adminUser;
+    return adminUser;
+  } catch {
+    return null;
+  }
 }
 
 /**

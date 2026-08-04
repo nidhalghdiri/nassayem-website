@@ -1,0 +1,3037 @@
+{
+  "exportedAt": "2026-08-04T06:03:51.636Z",
+  "outageWindowStart": "2026-08-03T12:00:00.000Z",
+  "totalAffected": 118,
+  "conversations": [
+    {
+      "conversationId": "af063ed1-fc83-4a57-8f35-494c5ad10a4e",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896083676",
+      "externalId": "96896083676",
+      "customerName": "اللهم صلى وسلم على نبينا",
+      "language": "ar",
+      "status": "ESCALATED",
+      "lastMessageAt": "2026-08-04T05:50:07.851Z",
+      "isLastMessageFallback": false,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "ممكن صور للموقع و الاستيديو",
+      "lastCustomerQuestionTime": "2026-08-04T05:49:42.850Z",
+      "recentUserQueries": [
+        {
+          "text": "رد عليه على الاستيديو",
+          "time": "2026-08-04T05:47:53.144Z"
+        },
+        {
+          "text": "طيب إذا توفر طلبي ثبت الحجز \nاسمي / عبدالكريم البلوشي \nرقم / 96083676",
+          "time": "2026-08-04T05:49:17.139Z"
+        },
+        {
+          "text": "ممكن صور للموقع و الاستيديو",
+          "time": "2026-08-04T05:49:42.850Z"
+        }
+      ],
+      "totalMessagesInConversation": 35
+    },
+    {
+      "conversationId": "fa17d592-d81a-4f0c-9966-f31ff66e5d60",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899719914",
+      "externalId": "96899719914",
+      "customerName": "Eman Al Abri",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:18:53.484Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T05:18:42.127Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T05:18:42.127Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "5c9ec3f5-963a-4547-8f6a-ca793aab1892",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966502873073",
+      "externalId": "966502873073",
+      "customerName": "عاشقه الجنان",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:16:31.056Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T05:16:19.881Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T05:16:19.881Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "5634ae29-24d2-4421-8f35-ed09e72eb851",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895770787",
+      "externalId": "96895770787",
+      "customerName": "ميم",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:14:25.637Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "لم يتواصل معي احد",
+      "lastCustomerQuestionTime": "2026-08-04T05:14:14.059Z",
+      "recentUserQueries": [
+        {
+          "text": "تغلب السيابي \n٩٥٧٧٠٧٨٧",
+          "time": "2026-08-03T10:12:06.945Z"
+        },
+        {
+          "text": "نعم",
+          "time": "2026-08-03T10:13:03.106Z"
+        },
+        {
+          "text": "لم يتواصل معي احد",
+          "time": "2026-08-04T05:14:14.059Z"
+        }
+      ],
+      "totalMessagesInConversation": 33
+    },
+    {
+      "conversationId": "02233f6a-8584-45df-a1c2-ca291a2e6ca5",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899604804",
+      "externalId": "96899604804",
+      "customerName": "Ltaief",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:13:25.448Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "الاسعار",
+      "lastCustomerQuestionTime": "2026-08-04T05:13:14.056Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T05:13:05.237Z"
+        },
+        {
+          "text": "الاسعار",
+          "time": "2026-08-04T05:13:14.056Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "270b9903-957a-440a-bbcb-fd7545cdbbcc",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895113005",
+      "externalId": "96895113005",
+      "customerName": "𝐒𝐚𝐧𝐚.",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:10:26.459Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "[The customer sent a video. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+      "lastCustomerQuestionTime": "2026-08-04T05:10:15.340Z",
+      "recentUserQueries": [
+        {
+          "text": "سلام عليكم ورحمة",
+          "time": "2026-08-04T05:10:04.905Z"
+        },
+        {
+          "text": "[The customer sent a video. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-04T05:10:15.340Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "1431bf1c-3441-477c-a150-f4346456ed08",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971506565817",
+      "externalId": "971506565817",
+      "customerName": "Ali",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:08:09.791Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "استفسر عن شقة ل 4 اشخاص \nتاريخ 22/8 لين 30/8",
+      "lastCustomerQuestionTime": "2026-08-04T05:07:58.421Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:35:45.722Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T04:38:07.390Z"
+        },
+        {
+          "text": "استفسر عن شقة ل 4 اشخاص \nتاريخ 22/8 لين 30/8",
+          "time": "2026-08-04T05:07:58.421Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "434d27bb-8301-4f7e-8fa2-19ef03ec6596",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966500889801",
+      "externalId": "966500889801",
+      "customerName": "محمد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:08:06.474Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "عندكم شقق في سعاده او صنحوت",
+      "lastCustomerQuestionTime": "2026-08-04T05:07:55.347Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T05:07:35.724Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T05:07:41.378Z"
+        },
+        {
+          "text": "عندكم شقق في سعاده او صنحوت",
+          "time": "2026-08-04T05:07:55.347Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "1ddc98b6-c72d-4590-9b6e-a446aeecfd15",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96891424145",
+      "externalId": "96891424145",
+      "customerName": "Finance Dept",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:06:09.739Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "اهلا وسهلا",
+      "lastCustomerQuestionTime": "2026-08-04T05:05:58.089Z",
+      "recentUserQueries": [
+        {
+          "text": "الحصيلة ثلاث غرف من ٢٩/٧ \nلمدة خمس ليالي كم السعر وهل متوفر",
+          "time": "2026-07-27T16:09:28.480Z"
+        },
+        {
+          "text": "الحصيلة ثلاث غرف من ٢٧/٧ الى ٦/٨ \nبكم",
+          "time": "2026-07-27T17:02:27.658Z"
+        },
+        {
+          "text": "اهلا وسهلا",
+          "time": "2026-08-04T05:05:58.089Z"
+        }
+      ],
+      "totalMessagesInConversation": 29
+    },
+    {
+      "conversationId": "6e1d0023-d7fa-4a71-b701-d7033a7b32ed",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895123123",
+      "externalId": "96895123123",
+      "customerName": "Saleh al mujaini",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T05:00:50.257Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "وكم",
+      "lastCustomerQuestionTime": "2026-08-04T05:00:39.035Z",
+      "recentUserQueries": [
+        {
+          "text": "في شقه من غرفتين وصاله ومطبخ وحمامين",
+          "time": "2026-08-04T05:00:21.759Z"
+        },
+        {
+          "text": "تاريخ 12 لغايه 21",
+          "time": "2026-08-04T05:00:36.356Z"
+        },
+        {
+          "text": "وكم",
+          "time": "2026-08-04T05:00:39.035Z"
+        }
+      ],
+      "totalMessagesInConversation": 25
+    },
+    {
+      "conversationId": "e29d6b42-f754-46db-a887-f0bb0f7d8ad1",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96871528181",
+      "externalId": "96871528181",
+      "customerName": "‏﴿وَاللَّهُ خَيْرُ الرَّا",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:57:51.189Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "كيف الحال",
+      "lastCustomerQuestionTime": "2026-08-04T04:57:40.132Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T04:57:38.294Z"
+        },
+        {
+          "text": "كيف الحال",
+          "time": "2026-08-04T04:57:40.132Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "b0d172df-d916-476b-811c-384d4acfbec9",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892828520",
+      "externalId": "96892828520",
+      "customerName": "ام محمد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:57:18.350Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "ع كم الشقه الليله",
+      "lastCustomerQuestionTime": "2026-08-04T04:57:06.946Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:56:59.808Z"
+        },
+        {
+          "text": "ع كم الشقه الليله",
+          "time": "2026-08-04T04:57:06.946Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "0cb0144c-6437-4e5c-8d7e-f2b6bd2845b4",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892593160",
+      "externalId": "96892593160",
+      "customerName": "Saqer Alabri",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:55:34.594Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "محد يرد",
+      "lastCustomerQuestionTime": "2026-08-04T04:55:23.478Z",
+      "recentUserQueries": [
+        {
+          "text": "كيف الحال",
+          "time": "2026-08-04T04:31:05.687Z"
+        },
+        {
+          "text": "هل يتوفر حجز",
+          "time": "2026-08-04T04:31:13.373Z"
+        },
+        {
+          "text": "محد يرد",
+          "time": "2026-08-04T04:55:23.478Z"
+        }
+      ],
+      "totalMessagesInConversation": 7
+    },
+    {
+      "conversationId": "46d44f18-d7bf-4cc9-b6d8-b04451696fd6",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899115528",
+      "externalId": "96899115528",
+      "customerName": "….",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:55:04.270Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "فيه شقة متوفرة اليوم",
+      "lastCustomerQuestionTime": "2026-08-04T04:54:53.139Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:54:44.952Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T04:54:48.500Z"
+        },
+        {
+          "text": "فيه شقة متوفرة اليوم",
+          "time": "2026-08-04T04:54:53.139Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "33d40477-e2d4-4f79-928f-526465bb982a",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895571981",
+      "externalId": "96895571981",
+      "customerName": "Abdullah Mohmad",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:50:57.714Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T04:50:46.564Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:50:46.564Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "0a98a7af-529a-4f03-823d-baece1ca87f9",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971544357032",
+      "externalId": "971544357032",
+      "customerName": "Hadawi",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:45:52.965Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم حابه اعرف الاسعار",
+      "lastCustomerQuestionTime": "2026-08-04T04:45:41.552Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:45:35.153Z"
+        },
+        {
+          "text": "السلام عليكم حابه اعرف الاسعار",
+          "time": "2026-08-04T04:45:41.552Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "d76ae194-9c2f-4857-a4e7-e0c41978812d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899360755",
+      "externalId": "96899360755",
+      "customerName": "AbuShEhAb",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:30:57.745Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "شقة 3 غرف بكم \nمن تاريخ 5/8/2026 ولمدة اسبوع",
+      "lastCustomerQuestionTime": "2026-08-04T04:30:46.460Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:30:20.494Z"
+        },
+        {
+          "text": "شقة 3 غرف بكم \nمن تاريخ 5/8/2026 ولمدة اسبوع",
+          "time": "2026-08-04T04:30:46.460Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "dd25c76e-aae3-427e-aad1-d38ce800bc2a",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892545595",
+      "externalId": "96892545595",
+      "customerName": "⚽🥇 اللهم صل وسلم على محمد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:30:00.572Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 4,
+      "lastCustomerQuestion": "أغسطس",
+      "lastCustomerQuestionTime": "2026-08-04T04:29:49.306Z",
+      "recentUserQueries": [
+        {
+          "text": "موجود عندكم شقق",
+          "time": "2026-08-04T04:26:33.253Z"
+        },
+        {
+          "text": "تاريخ من ١٠ الى ١٧ \n١٨ صبح اطلع",
+          "time": "2026-08-04T04:29:35.604Z"
+        },
+        {
+          "text": "أغسطس",
+          "time": "2026-08-04T04:29:49.306Z"
+        }
+      ],
+      "totalMessagesInConversation": 8
+    },
+    {
+      "conversationId": "9873db02-0e55-43d5-883a-377788b03137",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899006304",
+      "externalId": "96899006304",
+      "customerName": "😃",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:29:43.123Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T04:29:31.767Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:29:31.767Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "cbb372fa-4cb6-453c-8f2e-5d4c6c982dac",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897947405",
+      "externalId": "96897947405",
+      "customerName": "Issa Ahmed",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:27:18.901Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "لو سمحت شي عندك شقق غرفتين متوفرة كن تاريخ ٦ - ١٤",
+      "lastCustomerQuestionTime": "2026-08-04T04:27:06.694Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم ورحمة الله وبركاته",
+          "time": "2026-08-04T04:26:43.618Z"
+        },
+        {
+          "text": "لو سمحت شي عندك شقق غرفتين متوفرة كن تاريخ ٦ - ١٤",
+          "time": "2026-08-04T04:27:06.694Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "9d246b15-d7bb-4e10-9fab-5f7875bd7895",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895419666",
+      "externalId": "96895419666",
+      "customerName": "يحيى السليماني",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:25:19.618Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليمم",
+      "lastCustomerQuestionTime": "2026-08-04T04:25:08.301Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليمم",
+          "time": "2026-08-04T04:25:08.301Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "d358ebd8-ee05-4d1c-a42e-99678f382f24",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896611191",
+      "externalId": "96896611191",
+      "customerName": "Yk",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:23:59.451Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T04:23:48.086Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:23:48.086Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "4b231588-713f-4401-8d07-6a4f36cf2d25",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971505766499",
+      "externalId": "971505766499",
+      "customerName": "نائل الحرازين",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:22:27.982Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "من يوم 10 ل 15",
+      "lastCustomerQuestionTime": "2026-08-04T04:22:16.849Z",
+      "recentUserQueries": [
+        {
+          "text": "كم الاسعار",
+          "time": "2026-08-03T19:36:45.060Z"
+        },
+        {
+          "text": "ثلاث غرف",
+          "time": "2026-08-04T04:21:58.973Z"
+        },
+        {
+          "text": "من يوم 10 ل 15",
+          "time": "2026-08-04T04:22:16.849Z"
+        }
+      ],
+      "totalMessagesInConversation": 7
+    },
+    {
+      "conversationId": "a3c20d04-eac2-40fb-9c3f-ad2574604377",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96872008872",
+      "externalId": "96872008872",
+      "customerName": "ha471",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:21:18.968Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "٤/ ٨. إلى ٧/ ٨",
+      "lastCustomerQuestionTime": "2026-08-04T04:21:07.395Z",
+      "recentUserQueries": [
+        {
+          "text": "بكم",
+          "time": "2026-08-04T00:07:22.567Z"
+        },
+        {
+          "text": "٣ اشخاص",
+          "time": "2026-08-04T00:07:32.659Z"
+        },
+        {
+          "text": "٤/ ٨. إلى ٧/ ٨",
+          "time": "2026-08-04T04:21:07.395Z"
+        }
+      ],
+      "totalMessagesInConversation": 9
+    },
+    {
+      "conversationId": "2e46e229-940d-48bc-8efa-d06b44792300",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898105066",
+      "externalId": "96898105066",
+      "customerName": "الحارثي خالد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:12:58.400Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "ابحث عن شقه غرفه وصاله من اليوم الى تاريخ ١١",
+      "lastCustomerQuestionTime": "2026-08-04T04:12:46.916Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:12:26.820Z"
+        },
+        {
+          "text": "ابحث عن شقه غرفه وصاله من اليوم الى تاريخ ١١",
+          "time": "2026-08-04T04:12:46.916Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "e518a436-f166-4ad4-b463-3ede07582a9d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892588896",
+      "externalId": "96892588896",
+      "customerName": "Almamari",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:11:30.882Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "للحجز من اليوم لحد ثمان ايام",
+      "lastCustomerQuestionTime": "2026-08-04T04:11:19.645Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:10:47.635Z"
+        },
+        {
+          "text": "لو سمحت فيه عندكم فيلا جديدة من ثلاث غرف في موقع مميز",
+          "time": "2026-08-04T04:11:08.482Z"
+        },
+        {
+          "text": "للحجز من اليوم لحد ثمان ايام",
+          "time": "2026-08-04T04:11:19.645Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "2fc25915-5b5c-4b4f-889c-fb3904e2783d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971521363818",
+      "externalId": "971521363818",
+      "customerName": "احبك يا رسول الله",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:09:37.546Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "كم سعر شقه 3 غرف و صاله من 7 الى 16 اغسطس",
+      "lastCustomerQuestionTime": "2026-08-04T04:09:26.130Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T04:07:00.454Z"
+        },
+        {
+          "text": "كم سعر شقه 3 غرف و صاله",
+          "time": "2026-08-04T04:07:47.349Z"
+        },
+        {
+          "text": "كم سعر شقه 3 غرف و صاله من 7 الى 16 اغسطس",
+          "time": "2026-08-04T04:09:26.130Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "41cc088b-ba6a-45e5-a625-e04b79f95af8",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898278899",
+      "externalId": "96898278899",
+      "customerName": "khulood2223",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:03:56.389Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "غرفتين وصاله",
+      "lastCustomerQuestionTime": "2026-08-04T04:03:45.092Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبا كم سعر الايجار",
+          "time": "2026-08-03T17:58:51.685Z"
+        },
+        {
+          "text": "غرفتين وصاله",
+          "time": "2026-08-04T04:03:45.092Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "cd2fcfbc-4c03-41ee-a956-a1a714b5bd90",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898197184",
+      "externalId": "96898197184",
+      "customerName": "سبحان الله .. .",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T04:00:11.988Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "بتاريخ ١٧",
+      "lastCustomerQuestionTime": "2026-08-04T04:00:00.857Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:59:39.941Z"
+        },
+        {
+          "text": "أريد شقه غرفتين",
+          "time": "2026-08-04T03:59:49.821Z"
+        },
+        {
+          "text": "بتاريخ ١٧",
+          "time": "2026-08-04T04:00:00.857Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "704ac08f-9d72-401c-83ea-a719f5e500bf",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892726688",
+      "externalId": "96892726688",
+      "customerName": "الحمدلله دائما وابدا",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:58:59.377Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "[The customer sent a video. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+      "lastCustomerQuestionTime": "2026-08-04T03:58:48.085Z",
+      "recentUserQueries": [
+        {
+          "text": "صباح الخير",
+          "time": "2026-08-04T03:58:10.043Z"
+        },
+        {
+          "text": "كم السعر",
+          "time": "2026-08-04T03:58:44.867Z"
+        },
+        {
+          "text": "[The customer sent a video. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-04T03:58:48.085Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "53970b46-12af-43e8-a98b-d58ca327561f",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892392319",
+      "externalId": "96892392319",
+      "customerName": "الحمدلله على كل حال ،🌹",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:57:53.788Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "صباح الورد",
+      "lastCustomerQuestionTime": "2026-08-04T03:57:42.310Z",
+      "recentUserQueries": [
+        {
+          "text": "صباح الورد",
+          "time": "2026-08-04T03:57:42.310Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "2d9d252a-3d4e-4193-a145-05681ca3662e",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892432344",
+      "externalId": "96892432344",
+      "customerName": "ANWAR DS",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:50:34.529Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "هل تتوفر غرفه وصاله",
+      "lastCustomerQuestionTime": "2026-08-04T03:50:23.205Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:50:02.159Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T03:50:05.500Z"
+        },
+        {
+          "text": "هل تتوفر غرفه وصاله",
+          "time": "2026-08-04T03:50:23.205Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "69cf1503-e201-41cb-9ac4-6374f1fe5055",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895393667",
+      "externalId": "96895393667",
+      "customerName": "أبو اليزن",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:43:07.595Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T03:42:56.408Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:42:56.408Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "934e6c09-14b7-4460-8b49-fe77b645c064",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892414549",
+      "externalId": "96892414549",
+      "customerName": "🌷",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:42:23.674Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "بكم غرفتين ومطبخ",
+      "lastCustomerQuestionTime": "2026-08-04T03:42:12.179Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:41:53.164Z"
+        },
+        {
+          "text": "بكم غرفتين ومطبخ",
+          "time": "2026-08-04T03:42:12.179Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "164776ad-6a31-4075-9e42-2cd3a6aab9af",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897660011",
+      "externalId": "96897660011",
+      "customerName": "Hala",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:41:43.270Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "فيه معكم شقة من ٣ غرف\nمن تاريخ ٥ اغسطس الى ١٤ اغسطس",
+      "lastCustomerQuestionTime": "2026-08-04T03:41:32.036Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T03:41:29.820Z"
+        },
+        {
+          "text": "فيه معكم شقة من ٣ غرف\nمن تاريخ ٥ اغسطس الى ١٤ اغسطس",
+          "time": "2026-08-04T03:41:32.036Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "d8d4297a-d45d-429f-8ec2-ad9f80e3ddb3",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898889123",
+      "externalId": "96898889123",
+      "customerName": "Sophy",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:40:20.151Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "هل متوفر تاريخ ٥ /٨ و ٦/ ٨",
+      "lastCustomerQuestionTime": "2026-08-04T03:40:08.589Z",
+      "recentUserQueries": [
+        {
+          "text": "ممكن تفاصيل اكثر عن الموقع الغرف والاسعار",
+          "time": "2026-07-26T09:08:03.591Z"
+        },
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:39:32.630Z"
+        },
+        {
+          "text": "هل متوفر تاريخ ٥ /٨ و ٦/ ٨",
+          "time": "2026-08-04T03:40:08.589Z"
+        }
+      ],
+      "totalMessagesInConversation": 13
+    },
+    {
+      "conversationId": "38d63704-74e5-4de9-ad70-80eac51cedde",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899234894",
+      "externalId": "96899234894",
+      "customerName": "Salam",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:38:34.858Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "صباح الخير",
+      "lastCustomerQuestionTime": "2026-08-04T03:38:23.402Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:38:16.053Z"
+        },
+        {
+          "text": "صباح الخير",
+          "time": "2026-08-04T03:38:23.402Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "2ac20368-9592-4df6-a74b-b7371f54ee69",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896002803",
+      "externalId": "96896002803",
+      "customerName": "Mohammed Alhajri⚜️~",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:36:56.896Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم",
+      "lastCustomerQuestionTime": "2026-08-04T03:36:45.528Z",
+      "recentUserQueries": [
+        {
+          "text": "متوفر عندك شقة غرفتين وصالة وحمامين",
+          "time": "2026-08-04T03:36:43.754Z"
+        },
+        {
+          "text": "اليوم",
+          "time": "2026-08-04T03:36:43.984Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T03:36:45.528Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "4f16e78a-47c5-4541-94c3-38085c60446c",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895655483",
+      "externalId": "96895655483",
+      "customerName": "Abu Tamara",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:33:40.066Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T03:33:28.326Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:33:28.326Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "f91a519c-e854-4f87-b01d-a5bdc231ff25",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966507130214",
+      "externalId": "966507130214",
+      "customerName": "Saad Ent.",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:31:31.827Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 4,
+      "lastCustomerQuestion": "Hi 😊, Kindly Visit & Join the above Facebook group #JEDDAH of more than 48k (48,100) Community members. Thanks 🙏",
+      "lastCustomerQuestionTime": "2026-08-04T03:31:20.505Z",
+      "recentUserQueries": [
+        {
+          "text": "+https://www.facebook.com/share/g/1Gp4scbkqf/",
+          "time": "2026-08-04T03:30:27.042Z"
+        },
+        {
+          "text": "+",
+          "time": "2026-08-04T03:30:29.699Z"
+        },
+        {
+          "text": "Hi 😊, Kindly Visit & Join the above Facebook group #JEDDAH of more than 48k (48,100) Community members. Thanks 🙏",
+          "time": "2026-08-04T03:31:20.505Z"
+        }
+      ],
+      "totalMessagesInConversation": 9
+    },
+    {
+      "conversationId": "3bb21542-4384-4ca8-b8d1-f3382c4e7bf9",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895126103",
+      "externalId": "96895126103",
+      "customerName": "ام محمد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:28:26.660Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "كم سعر الشقه ثلاث ايام",
+      "lastCustomerQuestionTime": "2026-08-04T03:28:15.411Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات",
+          "time": "2026-08-04T03:27:44.124Z"
+        },
+        {
+          "text": "كم سعر الشقه ثلاث ايام",
+          "time": "2026-08-04T03:28:15.411Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "c8de7a7d-1897-42b7-894c-19e585308439",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899847595",
+      "externalId": "96899847595",
+      "customerName": "jokaamor02",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:24:38.486Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "الشقه جميله جدا\n\n\nزين تساعدنا في السعر\nيناسبنا ٣٥",
+      "lastCustomerQuestionTime": "2026-08-04T03:24:26.985Z",
+      "recentUserQueries": [
+        {
+          "text": "وكم السعر؟؟",
+          "time": "2026-08-03T17:44:03.977Z"
+        },
+        {
+          "text": "ارسل صور وحده من ٣ غرف نشوف",
+          "time": "2026-08-03T17:50:10.024Z"
+        },
+        {
+          "text": "الشقه جميله جدا\n\n\nزين تساعدنا في السعر\nيناسبنا ٣٥",
+          "time": "2026-08-04T03:24:26.985Z"
+        }
+      ],
+      "totalMessagesInConversation": 29
+    },
+    {
+      "conversationId": "62a50402-d985-4aeb-aa5f-f965d56a508c",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895511585",
+      "externalId": "96895511585",
+      "customerName": "عبدالله الذهلي",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:23:40.929Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "معك غرفه",
+      "lastCustomerQuestionTime": "2026-08-04T03:23:29.656Z",
+      "recentUserQueries": [
+        {
+          "text": "معك غرفه",
+          "time": "2026-08-04T03:23:29.656Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "70d62040-df97-4915-a66f-1c6d06203230",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892727515",
+      "externalId": "96892727515",
+      "customerName": "HAMED",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:08:11.469Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "غرفتين وصاله \nمن 10 إلى 15",
+      "lastCustomerQuestionTime": "2026-08-04T03:07:59.979Z",
+      "recentUserQueries": [
+        {
+          "text": "نعم",
+          "time": "2026-07-24T16:33:34.057Z"
+        },
+        {
+          "text": "Hello! Can I get more info on this?",
+          "time": "2026-07-29T12:09:43.701Z"
+        },
+        {
+          "text": "غرفتين وصاله \nمن 10 إلى 15",
+          "time": "2026-08-04T03:07:59.979Z"
+        }
+      ],
+      "totalMessagesInConversation": 19
+    },
+    {
+      "conversationId": "33bdaf28-0cbe-4359-976b-a9acab753791",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899444588",
+      "externalId": "96899444588",
+      "customerName": "Asma♥️",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:03:52.361Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "[The customer sent an image with this caption]: شفت هذي معكم فالسوق المركزي كم سعر الليله",
+      "lastCustomerQuestionTime": "2026-08-04T03:03:40.860Z",
+      "recentUserQueries": [
+        {
+          "text": "اسماء الحارثي\n99444588",
+          "time": "2026-08-03T12:17:52.526Z"
+        },
+        {
+          "text": "ممكن ترسلي موقع الشقه",
+          "time": "2026-08-03T14:08:03.454Z"
+        },
+        {
+          "text": "[The customer sent an image with this caption]: شفت هذي معكم فالسوق المركزي كم سعر الليله",
+          "time": "2026-08-04T03:03:40.860Z"
+        }
+      ],
+      "totalMessagesInConversation": 26
+    },
+    {
+      "conversationId": "c41d802f-32b2-4421-980c-f794873d4416",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892626544",
+      "externalId": "96892626544",
+      "customerName": "البادي",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T03:01:17.763Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "شي غرفه وحمام للايجار",
+      "lastCustomerQuestionTime": "2026-08-04T03:01:05.826Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T03:00:40.856Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T03:00:50.208Z"
+        },
+        {
+          "text": "شي غرفه وحمام للايجار",
+          "time": "2026-08-04T03:01:05.826Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "c78fcaa5-1d4c-4812-8b2a-456f578216df",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892752429",
+      "externalId": "96892752429",
+      "customerName": "Sss",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:51:56.715Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "هذا رد آلي",
+      "lastCustomerQuestionTime": "2026-08-04T02:51:45.184Z",
+      "recentUserQueries": [
+        {
+          "text": "وينكم",
+          "time": "2026-08-04T02:49:06.922Z"
+        },
+        {
+          "text": "ما حد في الاستقبال",
+          "time": "2026-08-04T02:49:15.167Z"
+        },
+        {
+          "text": "هذا رد آلي",
+          "time": "2026-08-04T02:51:45.184Z"
+        }
+      ],
+      "totalMessagesInConversation": 30
+    },
+    {
+      "conversationId": "27d76977-999e-48a0-956d-702edeae809c",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895335352",
+      "externalId": "96895335352",
+      "customerName": "Ahmed Al-Julandani",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:48:02.405Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم",
+      "lastCustomerQuestionTime": "2026-08-04T02:47:51.208Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-04T02:47:51.208Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "3abc23a9-2702-4dba-8df6-b80f8ac35cab",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897309791",
+      "externalId": "96897309791",
+      "customerName": "HamedSaid",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:35:08.205Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "شي شقه ٣ غرف",
+      "lastCustomerQuestionTime": "2026-08-04T02:34:56.884Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T02:34:34.959Z"
+        },
+        {
+          "text": "السلام عليكم موه خيارات السكن عندكم",
+          "time": "2026-08-04T02:34:50.462Z"
+        },
+        {
+          "text": "شي شقه ٣ غرف",
+          "time": "2026-08-04T02:34:56.884Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "e2b1fab5-3f85-4947-92fc-b2c1ea492dbb",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896041404",
+      "externalId": "96896041404",
+      "customerName": "Um Shamma",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:23:31.032Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "بتاريخ6/8",
+      "lastCustomerQuestionTime": "2026-08-04T02:23:19.884Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T02:22:59.914Z"
+        },
+        {
+          "text": "اريد غرفه وحمام",
+          "time": "2026-08-04T02:23:08.702Z"
+        },
+        {
+          "text": "بتاريخ6/8",
+          "time": "2026-08-04T02:23:19.884Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "ae4f7940-8d90-44e1-a6ba-3a060abfcd02",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894445212",
+      "externalId": "96894445212",
+      "customerName": "ام سعد ♡",
+      "language": "ar",
+      "status": "ESCALATED",
+      "lastMessageAt": "2026-08-04T02:21:11.520Z",
+      "isLastMessageFallback": false,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "غرفتين او ثلاث",
+      "lastCustomerQuestionTime": "2026-08-04T02:21:13.313Z",
+      "recentUserQueries": [
+        {
+          "text": "أريد ٣ غرف او غرفتين ب٣٠ او ٣٥",
+          "time": "2026-08-03T02:06:45.504Z"
+        },
+        {
+          "text": "هل متوفر سكن ب٣٠",
+          "time": "2026-08-04T02:21:00.143Z"
+        },
+        {
+          "text": "غرفتين او ثلاث",
+          "time": "2026-08-04T02:21:13.313Z"
+        }
+      ],
+      "totalMessagesInConversation": 18
+    },
+    {
+      "conversationId": "ca8ab4b7-bcb7-4927-b17c-5202fe154df2",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971507759779",
+      "externalId": "971507759779",
+      "customerName": "🌺",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:19:12.205Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T02:19:00.491Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T02:19:00.491Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "21047582-3011-40ac-ae28-b4355d9fab11",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894064062",
+      "externalId": "96894064062",
+      "customerName": "أم الشيخ بدر المنذري 😍",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:10:54.094Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "4/8\n14/8",
+      "lastCustomerQuestionTime": "2026-08-04T02:10:42.831Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم ورحمة الله وبركاته",
+          "time": "2026-08-04T02:10:34.209Z"
+        },
+        {
+          "text": "عندكم شقة",
+          "time": "2026-08-04T02:10:39.298Z"
+        },
+        {
+          "text": "4/8\n14/8",
+          "time": "2026-08-04T02:10:42.831Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "c4136651-f217-48b0-a9de-c080853f472f",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892077554",
+      "externalId": "96892077554",
+      "customerName": "Khamis",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T02:01:52.476Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T02:01:40.975Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-07-29T07:19:30.594Z"
+        },
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T02:01:40.975Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "f71907e4-4256-4d24-a534-688c74bff7ca",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896624479",
+      "externalId": "96896624479",
+      "customerName": "الحمدلله",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:58:27.674Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "من تاريخ ٤ الى تاريخ ٨ شهر ٨",
+      "lastCustomerQuestionTime": "2026-08-04T01:58:16.096Z",
+      "recentUserQueries": [
+        {
+          "text": "هلا",
+          "time": "2026-08-03T23:23:03.991Z"
+        },
+        {
+          "text": "السلام عليكم اخي \nاخبارك كيف صحتك \nمتوفر عندك شقه او بيت للايجار \nمن تاريخ ٤ الى ٨ شهر ٨",
+          "time": "2026-08-03T23:23:13.806Z"
+        },
+        {
+          "text": "من تاريخ ٤ الى تاريخ ٨ شهر ٨",
+          "time": "2026-08-04T01:58:16.096Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "beae218f-b226-4b25-8e6d-7c5d41eab7e9",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894569624",
+      "externalId": "96894569624",
+      "customerName": "𝐒𝐡",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:56:37.015Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "سلام عليكم بغيت غرفه وصاله ومطبخ من تاريخ ٩ إلى تاريخ ١٥",
+      "lastCustomerQuestionTime": "2026-08-04T01:56:25.756Z",
+      "recentUserQueries": [
+        {
+          "text": "سلام عليكم بغيت غرفه وصاله ومطبخ من تاريخ ٩ إلى تاريخ ١٥",
+          "time": "2026-08-04T01:56:25.756Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "8c19ab44-52a7-4948-a33e-457643ef7dda",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966507515266",
+      "externalId": "966507515266",
+      "customerName": "١",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:55:59.207Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًاالسلام عليكم  ورحمة الله وبركاته صباح الخير ممكن تعطيني فكره عن سعر الثلاث غرف والموقع",
+      "lastCustomerQuestionTime": "2026-08-04T01:55:47.817Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًاالسلام عليكم  ورحمة الله وبركاته صباح الخير ممكن تعطيني فكره عن سعر الثلاث غرف والموقع",
+          "time": "2026-08-04T01:55:47.817Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "cfa72458-4da9-4693-872e-05e1a45ad52d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895371575",
+      "externalId": "96895371575",
+      "customerName": "محمد الجهضمي",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:54:52.125Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "رسل لي الموقع الاستوديو وفي أي طابق؟",
+      "lastCustomerQuestionTime": "2026-08-04T01:54:40.261Z",
+      "recentUserQueries": [
+        {
+          "text": "الاستوديو",
+          "time": "2026-08-03T18:10:24.034Z"
+        },
+        {
+          "text": "في أي طابق؟\nوهل فيه مصعد؟",
+          "time": "2026-08-03T18:41:05.382Z"
+        },
+        {
+          "text": "رسل لي الموقع الاستوديو وفي أي طابق؟",
+          "time": "2026-08-04T01:54:40.261Z"
+        }
+      ],
+      "totalMessagesInConversation": 34
+    },
+    {
+      "conversationId": "b866cac5-825b-41a2-8513-75cba74e970f",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896472475",
+      "externalId": "96896472475",
+      "customerName": "ABU ALAKTHAM",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:49:12.454Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T01:49:00.975Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T01:49:00.975Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "1af4db56-1eb8-4d96-b6a7-5f648308b317",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971557644117",
+      "externalId": "971557644117",
+      "customerName": "هلا",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:34:14.735Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "شقق. في صلاله",
+      "lastCustomerQuestionTime": "2026-08-04T01:34:03.343Z",
+      "recentUserQueries": [
+        {
+          "text": "شقق. في صلاله",
+          "time": "2026-08-04T01:34:03.343Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "f909f570-d6d4-4733-8f0e-096d3e64fa65",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896633796",
+      "externalId": "96896633796",
+      "customerName": "أبو حمدان الحجري",
+      "language": "ar",
+      "status": "ESCALATED",
+      "lastMessageAt": "2026-08-04T01:32:37.850Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "لم يتواصل معنا أحد",
+      "lastCustomerQuestionTime": "2026-08-04T01:32:26.657Z",
+      "recentUserQueries": [
+        {
+          "text": "Yes",
+          "time": "2026-08-04T01:31:05.951Z"
+        },
+        {
+          "text": "No",
+          "time": "2026-08-04T01:32:14.527Z"
+        },
+        {
+          "text": "لم يتواصل معنا أحد",
+          "time": "2026-08-04T01:32:26.657Z"
+        }
+      ],
+      "totalMessagesInConversation": 24
+    },
+    {
+      "conversationId": "6d244b17-aee2-4f9e-bfee-6d6343c811b9",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896006339",
+      "externalId": "96896006339",
+      "customerName": "أبو عمار",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:26:33.778Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T01:26:22.401Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T01:26:22.401Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "25f96fcc-7807-4a1b-b292-af605420c990",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896600091",
+      "externalId": "96896600091",
+      "customerName": "ابو حيدر",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:22:01.283Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T01:21:49.797Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T01:21:49.797Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "299b7812-6464-4495-929c-09a14671430c",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971566134214",
+      "externalId": "971566134214",
+      "customerName": "🤍",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:16:34.253Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "من تاريخ 7-8 إلى 14-8",
+      "lastCustomerQuestionTime": "2026-08-04T01:16:23.068Z",
+      "recentUserQueries": [
+        {
+          "text": "سلام عليكم",
+          "time": "2026-08-04T01:16:10.947Z"
+        },
+        {
+          "text": "اريد شقه من ثلاث غرف",
+          "time": "2026-08-04T01:16:21.638Z"
+        },
+        {
+          "text": "من تاريخ 7-8 إلى 14-8",
+          "time": "2026-08-04T01:16:23.068Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "cf63500b-ea3c-43f0-8edb-0d634a9dd43c",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895495545",
+      "externalId": "96895495545",
+      "customerName": "marimalshidi",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T01:02:16.345Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "في غرفه و صاله ويكم",
+      "lastCustomerQuestionTime": "2026-08-04T01:02:04.995Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T01:01:47.136Z"
+        },
+        {
+          "text": "في غرفه و صاله ويكم",
+          "time": "2026-08-04T01:02:04.995Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "68c0e5e5-7775-4538-b8d1-acccb41dca89",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96893983983",
+      "externalId": "96893983983",
+      "customerName": "ابو أحمد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T00:54:36.850Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 5,
+      "lastCustomerQuestion": "شكرا لتميزكم🌸",
+      "lastCustomerQuestionTime": "2026-08-04T00:54:25.675Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام ورحمة الله \nحياك الله \nنحنا حاطين عروض الحجز المبكر وكل تفاصيل الشقق واكثر مما تتوقع في هذا الرقم  الشات بوت \n\n[+96876781481]\n\nفقط اعطيه تواريخ الوصول والمغادرة \n  بمجرد ما تراسله سوف يعجبك في التعاون والمعلومات الدقيقة وتاكيد ومرونة الحجز",
+          "time": "2026-08-04T00:53:28.444Z"
+        },
+        {
+          "text": "[The customer sent a sticker. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-04T00:53:46.526Z"
+        },
+        {
+          "text": "شكرا لتميزكم🌸",
+          "time": "2026-08-04T00:54:25.675Z"
+        }
+      ],
+      "totalMessagesInConversation": 10
+    },
+    {
+      "conversationId": "b8ff5766-4808-441e-aa4b-0a2aa932e488",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899328219",
+      "externalId": "96899328219",
+      "customerName": "𝐀𝐛𝐝𝐮𝐥𝐥𝐚𝐳𝐢𝐳 𝐀𝐲𝐚𝐳𝐞𝐞𝐝𝐢 🇴🇲",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T00:16:11.718Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "كم سعر شقة غرفتين و صالة و مطبخ من تاريخ ٥-١٠ هذا الشهر ؟",
+      "lastCustomerQuestionTime": "2026-08-04T00:15:59.818Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبا",
+          "time": "2026-08-04T00:15:59.621Z"
+        },
+        {
+          "text": "كم سعر شقة غرفتين و صالة و مطبخ من تاريخ ٥-١٠ هذا الشهر ؟",
+          "time": "2026-08-04T00:15:59.818Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "5078b33f-80be-427f-b79a-dd1c70e24741",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966504763560",
+      "externalId": "966504763560",
+      "customerName": "🌹",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T00:13:57.547Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "بكم الشقه لمدة ٥ ليالي ؟",
+      "lastCustomerQuestionTime": "2026-08-04T00:13:46.240Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T00:13:20.034Z"
+        },
+        {
+          "text": "سلام عليكم",
+          "time": "2026-08-04T00:13:24.928Z"
+        },
+        {
+          "text": "بكم الشقه لمدة ٥ ليالي ؟",
+          "time": "2026-08-04T00:13:46.240Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "2f79bd58-bf69-4dde-a19f-5baf228a771d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96877488304",
+      "externalId": "96877488304",
+      "customerName": "عطورات راحيل",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-04T00:13:12.126Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-04T00:13:00.674Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-04T00:13:00.674Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "12d0542a-40e9-444e-8f78-8d9996c51761",
+      "channel": "WHATSAPP",
+      "phoneNumber": "97332224774",
+      "externalId": "97332224774",
+      "customerName": "Alk3bi",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:53:59.935Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم \nاحتاج استفسر عن أسعار الشقق ؟\nمن تاريخ ١٢/٨\nالي ١٥/٨",
+      "lastCustomerQuestionTime": "2026-08-03T23:53:48.769Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم \nاحتاج استفسر عن أسعار الشقق ؟\nمن تاريخ ١٢/٨\nالي ١٥/٨",
+          "time": "2026-08-03T23:53:48.769Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "b93a1a7b-2f74-4f9d-b9db-3bc8c8087b17",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892524528",
+      "externalId": "96892524528",
+      "customerName": "❣️",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:51:54.089Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "تواصلت",
+      "lastCustomerQuestionTime": "2026-08-03T23:51:42.963Z",
+      "recentUserQueries": [
+        {
+          "text": "متوفر",
+          "time": "2026-08-03T23:50:58.277Z"
+        },
+        {
+          "text": "؟",
+          "time": "2026-08-03T23:51:00.487Z"
+        },
+        {
+          "text": "تواصلت",
+          "time": "2026-08-03T23:51:42.963Z"
+        }
+      ],
+      "totalMessagesInConversation": 8
+    },
+    {
+      "conversationId": "c47b5c39-5ee0-4f09-8540-b25793ecd152",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966505447090",
+      "externalId": "966505447090",
+      "customerName": "استغفر الله ",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:39:13.864Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "غرفه وصاله",
+      "lastCustomerQuestionTime": "2026-08-03T23:39:02.666Z",
+      "recentUserQueries": [
+        {
+          "text": "[The customer sent a sticker. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-03T23:38:32.561Z"
+        },
+        {
+          "text": "كم سعر الشقه عندكم",
+          "time": "2026-08-03T23:38:47.206Z"
+        },
+        {
+          "text": "غرفه وصاله",
+          "time": "2026-08-03T23:39:02.666Z"
+        }
+      ],
+      "totalMessagesInConversation": 7
+    },
+    {
+      "conversationId": "0631caa6-aa39-4c23-8555-481b372f71a7",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971545037039",
+      "externalId": "971545037039",
+      "customerName": "MArWaN",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:38:42.780Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "شقة من 4 /8 ل 10/8",
+      "lastCustomerQuestionTime": "2026-08-03T23:38:31.550Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T19:45:39.625Z"
+        },
+        {
+          "text": "شقة من 4 /8 ل 10/8",
+          "time": "2026-08-03T23:38:31.550Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "fe10f823-7dbf-409b-9288-763bf5e8bbeb",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892871118",
+      "externalId": "96892871118",
+      "customerName": "زينب '",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:25:10.736Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم ، متوفرة شقق للإيجار؟",
+      "lastCustomerQuestionTime": "2026-08-03T23:24:59.337Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم ، متوفرة شقق للإيجار؟",
+          "time": "2026-08-03T23:24:59.337Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "5573ebf1-c3c3-47db-b05c-03d5465c75e6",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898980897",
+      "externalId": "96898980897",
+      "customerName": "🌸",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T23:03:21.989Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "كم السعر؟",
+      "lastCustomerQuestionTime": "2026-08-03T23:03:10.540Z",
+      "recentUserQueries": [
+        {
+          "text": "كم السعر؟",
+          "time": "2026-08-03T23:03:10.540Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "dc4af1f9-7f0a-462d-b60e-d539bad36742",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894765161",
+      "externalId": "96894765161",
+      "customerName": "ZAKARIYA",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:53:47.122Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 4,
+      "lastCustomerQuestion": "الوصل تاريخ 5",
+      "lastCustomerQuestionTime": "2026-08-03T22:53:35.749Z",
+      "recentUserQueries": [
+        {
+          "text": "تاريخ ٥",
+          "time": "2026-08-03T22:48:34.997Z"
+        },
+        {
+          "text": "السلام عليكم في معكم شي غرفتين صالة من تاريخ ٥-١٣  \nاريد صورهم",
+          "time": "2026-08-03T22:49:04.876Z"
+        },
+        {
+          "text": "الوصل تاريخ 5",
+          "time": "2026-08-03T22:53:35.749Z"
+        }
+      ],
+      "totalMessagesInConversation": 11
+    },
+    {
+      "conversationId": "7a131de2-06f3-4716-9bbc-c787da01eec2",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896608612",
+      "externalId": "96896608612",
+      "customerName": "محمد ابو يوسق",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:50:24.916Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "السلام عليكم ورحمة الله وبركاته \nلشخصين ٥ ايام",
+      "lastCustomerQuestionTime": "2026-08-03T22:50:13.691Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T22:49:45.706Z"
+        },
+        {
+          "text": "السلام عليكم ورحمة الله وبركاته \nلشخصين ٥ ايام",
+          "time": "2026-08-03T22:50:13.691Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "bc217803-4a23-4a8c-b07b-7d2d9bf6c8f7",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96893303391",
+      "externalId": "96893303391",
+      "customerName": "ام نايف🦋♥️",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:47:23.695Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-03T22:47:12.213Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T22:47:12.213Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "7b37f033-8691-4cc5-90fb-04581f5f1b54",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899249514",
+      "externalId": "96899249514",
+      "customerName": "h",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:38:42.160Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "شقه ٢ غرفه\nمن ١٥ ل ٢٢",
+      "lastCustomerQuestionTime": "2026-08-03T22:38:30.648Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T17:42:12.297Z"
+        },
+        {
+          "text": "شقه ٢ غرفه\nمن ١٥ ل ٢٢",
+          "time": "2026-08-03T22:38:30.648Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "54f85d4c-5a24-425d-ba69-969b3dee4ebe",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896360068",
+      "externalId": "96896360068",
+      "customerName": "المشيفري",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:30:22.837Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 4,
+      "lastCustomerQuestion": "👀",
+      "lastCustomerQuestionTime": "2026-08-03T22:30:11.674Z",
+      "recentUserQueries": [
+        {
+          "text": "متى",
+          "time": "2026-08-03T22:29:55.312Z"
+        },
+        {
+          "text": "يردو",
+          "time": "2026-08-03T22:30:00.692Z"
+        },
+        {
+          "text": "👀",
+          "time": "2026-08-03T22:30:11.674Z"
+        }
+      ],
+      "totalMessagesInConversation": 11
+    },
+    {
+      "conversationId": "33055c1a-01f0-449c-937b-43c24698ee5b",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96891190606",
+      "externalId": "96891190606",
+      "customerName": "ام الحبايب",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:29:42.462Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "هل في حجز من تاريخ  16 \nل 7 ليالي \nوبكم سعر ليله ؟",
+      "lastCustomerQuestionTime": "2026-08-03T22:29:31.326Z",
+      "recentUserQueries": [
+        {
+          "text": "هل في حجز من تاريخ  16 \nل 7 ليالي \nوبكم سعر ليله ؟",
+          "time": "2026-08-03T22:29:31.326Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "7ed90c5b-744b-49c1-8d57-0cf7bd97b272",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96893663996",
+      "externalId": "96893663996",
+      "customerName": "Aala Nabeel",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:28:24.589Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "كل حد يعقني للثاني م عرفت اتواصل مع مين",
+      "lastCustomerQuestionTime": "2026-08-03T22:28:13.239Z",
+      "recentUserQueries": [
+        {
+          "text": "اهلا وسهلا السلام عليكم",
+          "time": "2026-08-03T22:26:28.931Z"
+        },
+        {
+          "text": "اخي حابه اعرف اذا متوفر معكم غرفه للايجار من تاريخ ٧",
+          "time": "2026-08-03T22:26:44.679Z"
+        },
+        {
+          "text": "كل حد يعقني للثاني م عرفت اتواصل مع مين",
+          "time": "2026-08-03T22:28:13.239Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "2f210166-416d-4e40-a23a-c06d0153af1f",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966500321100",
+      "externalId": "966500321100",
+      "customerName": "عايض القحطاني",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T22:00:48.229Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 3,
+      "lastCustomerQuestion": "[The customer sent a audio. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+      "lastCustomerQuestionTime": "2026-08-03T22:00:36.864Z",
+      "recentUserQueries": [
+        {
+          "text": "ارسلي اللوكيشن",
+          "time": "2026-08-03T21:56:49.209Z"
+        },
+        {
+          "text": "زودنا بالصور ياالغالي",
+          "time": "2026-08-03T21:56:49.588Z"
+        },
+        {
+          "text": "[The customer sent a audio. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-03T22:00:36.864Z"
+        }
+      ],
+      "totalMessagesInConversation": 8
+    },
+    {
+      "conversationId": "e317a24d-4b57-4f8e-aab5-ed73b4c73a85",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96871739776",
+      "externalId": "96871739776",
+      "customerName": "Ftm",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:57:53.773Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "في شقة متوفرة بتاريخ ٥؟",
+      "lastCustomerQuestionTime": "2026-08-03T21:57:42.446Z",
+      "recentUserQueries": [
+        {
+          "text": "هلا",
+          "time": "2026-08-03T21:57:37.175Z"
+        },
+        {
+          "text": "في شقة متوفرة بتاريخ ٥؟",
+          "time": "2026-08-03T21:57:42.446Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "6fc7e106-feca-4e77-adf2-2eb05f189f35",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892380289",
+      "externalId": "96892380289",
+      "customerName": "Q A I S E R",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:50:47.001Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "السلام عليكم\nمتوفره عندك شقة من غرفتين ودورتين مياه وصاله ومطبخ",
+      "lastCustomerQuestionTime": "2026-08-03T21:50:35.671Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T21:50:15.856Z"
+        },
+        {
+          "text": "السلام عليكم\nمتوفره عندك شقة من غرفتين ودورتين مياه وصاله ومطبخ",
+          "time": "2026-08-03T21:50:35.671Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "5a3f65ab-99cf-4145-ac00-4f6c8564f8c7",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894945559",
+      "externalId": "96894945559",
+      "customerName": "م.المهلب",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:41:41.977Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "معكم غرفة متوفرة ؟",
+      "lastCustomerQuestionTime": "2026-08-03T21:41:30.545Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام هليكم",
+          "time": "2026-08-03T21:41:23.568Z"
+        },
+        {
+          "text": "ع",
+          "time": "2026-08-03T21:41:24.674Z"
+        },
+        {
+          "text": "معكم غرفة متوفرة ؟",
+          "time": "2026-08-03T21:41:30.545Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "4c7e1c2a-1dbf-4601-ab3b-8ce82a253309",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899647222",
+      "externalId": "96899647222",
+      "customerName": ".",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:38:06.724Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "السلام عليكم، بكم باليوم",
+      "lastCustomerQuestionTime": "2026-08-03T21:37:55.395Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T21:37:45.051Z"
+        },
+        {
+          "text": "السلام عليكم، بكم باليوم",
+          "time": "2026-08-03T21:37:55.395Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "d1389307-eb7d-4538-abf8-6c2894b5705f",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898149311",
+      "externalId": "96898149311",
+      "customerName": "أم حمد الوهيبي",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:28:16.300Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "غرفه وصاله بكم",
+      "lastCustomerQuestionTime": "2026-08-03T21:28:04.640Z",
+      "recentUserQueries": [
+        {
+          "text": "غرفه وصاله بكم",
+          "time": "2026-08-03T21:28:04.640Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "e65307e9-7062-4049-8af1-9fedfd26ec81",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892422565",
+      "externalId": "96892422565",
+      "customerName": "الحمدلله 🤍",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:26:03.247Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم ورحمة الله وبركاته \nاخوي في شقه من 3 غرف للاجار",
+      "lastCustomerQuestionTime": "2026-08-03T21:25:51.791Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم ورحمة الله وبركاته \nاخوي في شقه من 3 غرف للاجار",
+          "time": "2026-08-03T21:25:51.791Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "ae1d4090-83a6-48a6-982c-529e8d2e055d",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966533599325",
+      "externalId": "966533599325",
+      "customerName": "Anas",
+      "language": "ar",
+      "status": "ESCALATED",
+      "lastMessageAt": "2026-08-03T21:22:03.068Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "على الاقل اريد تأكيد على حجزي",
+      "lastCustomerQuestionTime": "2026-08-03T21:21:51.693Z",
+      "recentUserQueries": [
+        {
+          "text": "لم يتم الرد حتى الان",
+          "time": "2026-08-03T21:21:26.651Z"
+        },
+        {
+          "text": "يقرا الرسالة بلا رد",
+          "time": "2026-08-03T21:21:31.812Z"
+        },
+        {
+          "text": "على الاقل اريد تأكيد على حجزي",
+          "time": "2026-08-03T21:21:51.693Z"
+        }
+      ],
+      "totalMessagesInConversation": 23
+    },
+    {
+      "conversationId": "2eee0dc1-9015-4cca-af27-dcbb37050583",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894954595",
+      "externalId": "96894954595",
+      "customerName": "Qais",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:14:56.577Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "هلا",
+      "lastCustomerQuestionTime": "2026-08-03T21:14:45.175Z",
+      "recentUserQueries": [
+        {
+          "text": "هلا",
+          "time": "2026-08-03T21:14:45.175Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "2e3e0e55-333b-4ff8-a697-fffa9d73e16a",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96877207188",
+      "externalId": "96877207188",
+      "customerName": "Saad",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:12:53.190Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "[The customer sent a sticker. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+      "lastCustomerQuestionTime": "2026-08-03T21:12:41.812Z",
+      "recentUserQueries": [
+        {
+          "text": "[The customer sent a sticker. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-08-03T21:12:41.812Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "212392dd-3b2b-4886-9fcb-65cfb95343c2",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898062163",
+      "externalId": "96898062163",
+      "customerName": "𝐓𝐡𝐞𝐤𝐫𝐚",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:10:18.856Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم \nكم اسعار الشقق معكم لبعد الخريف؟",
+      "lastCustomerQuestionTime": "2026-08-03T21:10:07.027Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم \nكم اسعار الشقق معكم لبعد الخريف؟",
+          "time": "2026-08-03T21:10:07.027Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "5c20689d-716e-4adc-bfe3-9ebdfbfc7047",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966597768068",
+      "externalId": "966597768068",
+      "customerName": "ابو مهند محمد الكميم",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:09:15.098Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم",
+      "lastCustomerQuestionTime": "2026-08-03T21:09:03.936Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T21:09:02.002Z"
+        },
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T21:09:03.936Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "994eb391-2357-4029-ae0b-cafe33e871b3",
+      "channel": "WHATSAPP",
+      "phoneNumber": "966503971084",
+      "externalId": "966503971084",
+      "customerName": "ام ابراهيم",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:08:24.323Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "متوفر عندكم غرفتين او ثلاث غرف",
+      "lastCustomerQuestionTime": "2026-08-03T21:08:13.034Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T21:07:55.458Z"
+        },
+        {
+          "text": "متوفر عندكم غرفتين او ثلاث غرف",
+          "time": "2026-08-03T21:08:13.034Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "8f8b59a2-2978-4e3e-8bef-8bcba6d09571",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895118962",
+      "externalId": "96895118962",
+      "customerName": "لاتوجد ارقام",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:05:36.365Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم كم بتعطيني الشقه  راعينا ف السعر",
+      "lastCustomerQuestionTime": "2026-08-03T21:05:24.850Z",
+      "recentUserQueries": [
+        {
+          "text": "[The customer sent a audio. You cannot view it, but it is saved for the team. If it seems to need a human's eyes (document, payment proof…), offer to have a colleague look at it.]",
+          "time": "2026-07-22T07:48:17.837Z"
+        },
+        {
+          "text": "كم بتعطيني ياها آخر بحجز ١١ يوم وممكن امدد",
+          "time": "2026-07-22T07:49:05.054Z"
+        },
+        {
+          "text": "السلام عليكم كم بتعطيني الشقه  راعينا ف السعر",
+          "time": "2026-08-03T21:05:24.850Z"
+        }
+      ],
+      "totalMessagesInConversation": 21
+    },
+    {
+      "conversationId": "48e0fb84-3cf5-47e7-b972-48ef63324795",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96891434634",
+      "externalId": "96891434634",
+      "customerName": "الحمدلله🤍",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:00:59.134Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "بكم الإيجار عندكم الشقق",
+      "lastCustomerQuestionTime": "2026-08-03T21:00:47.762Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T21:00:37.096Z"
+        },
+        {
+          "text": "كيف الحال",
+          "time": "2026-08-03T21:00:40.029Z"
+        },
+        {
+          "text": "بكم الإيجار عندكم الشقق",
+          "time": "2026-08-03T21:00:47.762Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "6f2f54f7-d999-4bea-80cf-debf176f33e6",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892955272",
+      "externalId": "96892955272",
+      "customerName": "Apple",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T21:00:24.611Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-03T21:00:13.049Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T21:00:13.049Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "b3010d14-7a5c-4439-9c9c-5b20ebe4f7f4",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971557610955",
+      "externalId": "971557610955",
+      "customerName": "Husam",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:59:31.629Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "اخي حصلت تغير في جدولة الرحلة\nلذلك سوف يتغير موعد السفر  ارجو الغاء الحجز",
+      "lastCustomerQuestionTime": "2026-08-03T20:59:20.005Z",
+      "recentUserQueries": [
+        {
+          "text": "نعم",
+          "time": "2026-08-02T09:07:21.207Z"
+        },
+        {
+          "text": "تمام",
+          "time": "2026-08-02T09:07:33.310Z"
+        },
+        {
+          "text": "اخي حصلت تغير في جدولة الرحلة\nلذلك سوف يتغير موعد السفر  ارجو الغاء الحجز",
+          "time": "2026-08-03T20:59:20.005Z"
+        }
+      ],
+      "totalMessagesInConversation": 43
+    },
+    {
+      "conversationId": "63766207-9d68-4cc3-997a-037c54554c78",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96895144866",
+      "externalId": "96895144866",
+      "customerName": "H. A. K",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:58:20.992Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "السلام عليكم \nاحصل شقة بغرفتين من 14/8 الى 25/8",
+      "lastCustomerQuestionTime": "2026-08-03T20:58:09.784Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T20:57:52.661Z"
+        },
+        {
+          "text": "السلام عليكم \nاحصل شقة بغرفتين من 14/8 الى 25/8",
+          "time": "2026-08-03T20:58:09.784Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "682df1e1-0ca7-415c-aef3-06d0c0441ffd",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96871559262",
+      "externalId": "96871559262",
+      "customerName": ".",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:58:20.743Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "بكم اليوم",
+      "lastCustomerQuestionTime": "2026-08-03T20:58:09.609Z",
+      "recentUserQueries": [
+        {
+          "text": "غرفتين",
+          "time": "2026-08-03T16:03:39.320Z"
+        },
+        {
+          "text": "بكره مثلا",
+          "time": "2026-08-03T20:58:07.595Z"
+        },
+        {
+          "text": "بكم اليوم",
+          "time": "2026-08-03T20:58:09.609Z"
+        }
+      ],
+      "totalMessagesInConversation": 9
+    },
+    {
+      "conversationId": "7db9ad4f-ef2c-4a59-a146-bc2267abc48b",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892139275",
+      "externalId": "96892139275",
+      "customerName": "Dr. Moustafa",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:53:59.493Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-03T20:53:48.101Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T20:53:48.101Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "fac6527d-3a6b-47d6-9d8e-fd98ad45ba67",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899015921",
+      "externalId": "96899015921",
+      "customerName": "خالد",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:50:01.581Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "كم السعر خلال شهر ٨",
+      "lastCustomerQuestionTime": "2026-08-03T20:49:50.101Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T20:49:43.835Z"
+        },
+        {
+          "text": "كم السعر خلال شهر ٨",
+          "time": "2026-08-03T20:49:50.101Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "157ad722-bf5d-45a5-8680-bc86b9575232",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892698181",
+      "externalId": "96892698181",
+      "customerName": "نور الفجر والضحى",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:47:38.690Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "بكم من بكره ٨/٤ الى ٨/٩؟؟",
+      "lastCustomerQuestionTime": "2026-08-03T20:47:27.250Z",
+      "recentUserQueries": [
+        {
+          "text": "بكم من بكره ٨/٤ الى ٨/٩؟؟",
+          "time": "2026-08-03T20:47:27.250Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "a8571be6-6ef0-448d-bda1-7385ed3a6662",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96893819190",
+      "externalId": "96893819190",
+      "customerName": "أم محمد ❤️",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:42:53.736Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "في نصف ٨ لمدة اسبوع",
+      "lastCustomerQuestionTime": "2026-08-03T20:42:42.543Z",
+      "recentUserQueries": [
+        {
+          "text": "كم السعر",
+          "time": "2026-08-03T18:13:14.825Z"
+        },
+        {
+          "text": "استديو",
+          "time": "2026-08-03T20:42:30.562Z"
+        },
+        {
+          "text": "في نصف ٨ لمدة اسبوع",
+          "time": "2026-08-03T20:42:42.543Z"
+        }
+      ],
+      "totalMessagesInConversation": 7
+    },
+    {
+      "conversationId": "271cd727-d41c-4b3b-bb1d-842bcedcfe94",
+      "channel": "WHATSAPP",
+      "phoneNumber": "971506800941",
+      "externalId": "971506800941",
+      "customerName": "Abu Rayan",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:41:37.230Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "ليوم 16",
+      "lastCustomerQuestionTime": "2026-08-03T20:41:25.882Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T20:41:12.286Z"
+        },
+        {
+          "text": "ممكن الاسعار",
+          "time": "2026-08-03T20:41:19.440Z"
+        },
+        {
+          "text": "ليوم 16",
+          "time": "2026-08-03T20:41:25.882Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "c458a718-a10d-4728-8503-f45cbbf47f86",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894533345",
+      "externalId": "96894533345",
+      "customerName": "ALManal💕~",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:35:00.690Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "صباح الخير \n\nممكن اعرف سعر الشقة / السعادة الجنوبية\n(غرفة + صالة + مطبخ + دورة مياه) \nواذا \n(غرفة + دورة مياه )\n\nتاريخ الوصول ١٧ / ٨ \nتاريخ المغادرة ٢٤ /٨ \nالمدة ٧ ليالي",
+      "lastCustomerQuestionTime": "2026-08-03T20:34:49.309Z",
+      "recentUserQueries": [
+        {
+          "text": "صباح الخير \n\nممكن اعرف سعر الشقة / السعادة الجنوبية\n(غرفة + صالة + مطبخ + دورة مياه) \nواذا \n(غرفة + دورة مياه )\n\nتاريخ الوصول ١٧ / ٨ \nتاريخ المغادرة ٢٤ /٨ \nالمدة ٧ ليالي",
+          "time": "2026-08-03T20:34:49.309Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "e1ed7b05-1a89-4cf9-8e1c-68d2d5a3174e",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897195951",
+      "externalId": "96897195951",
+      "customerName": "흐암 ‌‌‌‬⁩ོ ‌‌‌‬⁩‌‌‌‬",
+      "language": "en",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:33:16.271Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "😒",
+      "lastCustomerQuestionTime": "2026-08-03T20:33:05.063Z",
+      "recentUserQueries": [
+        {
+          "text": "بكم سعر الليله",
+          "time": "2026-08-03T20:17:23.966Z"
+        },
+        {
+          "text": "من تاريخ٨/١١",
+          "time": "2026-08-03T20:17:27.251Z"
+        },
+        {
+          "text": "😒",
+          "time": "2026-08-03T20:33:05.063Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "639570d3-f1fc-4337-a4a0-7102b2a04a3a",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892228048",
+      "externalId": "96892228048",
+      "customerName": "أبو حسام",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:32:46.849Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "اريد من تاريخ ١٦ الى ٢٠",
+      "lastCustomerQuestionTime": "2026-08-03T20:32:35.509Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T20:32:17.583Z"
+        },
+        {
+          "text": "اريد من تاريخ ١٦ الى ٢٠",
+          "time": "2026-08-03T20:32:35.509Z"
+        }
+      ],
+      "totalMessagesInConversation": 4
+    },
+    {
+      "conversationId": "78c0e62d-96db-46b6-8ca7-5b24d38fb0ee",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96879313153",
+      "externalId": "96879313153",
+      "customerName": "~",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:25:05.696Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "فيه شقة تاريخ ٦/٨",
+      "lastCustomerQuestionTime": "2026-08-03T20:24:54.379Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T20:24:48.983Z"
+        },
+        {
+          "text": "فيه شقة تاريخ ٦/٨",
+          "time": "2026-08-03T20:24:54.379Z"
+        }
+      ],
+      "totalMessagesInConversation": 3
+    },
+    {
+      "conversationId": "8c51e34a-3762-4cfe-8bcd-eae2b04f4492",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96899286710",
+      "externalId": "96899286710",
+      "customerName": "ام مازن",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:24:38.463Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "متوفر شقه",
+      "lastCustomerQuestionTime": "2026-08-03T20:24:26.989Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبا",
+          "time": "2026-07-14T17:52:11.750Z"
+        },
+        {
+          "text": "هلا",
+          "time": "2026-08-03T20:24:15.973Z"
+        },
+        {
+          "text": "متوفر شقه",
+          "time": "2026-08-03T20:24:26.989Z"
+        }
+      ],
+      "totalMessagesInConversation": 6
+    },
+    {
+      "conversationId": "770ebcde-6056-4761-84a3-89235963da60",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96898564834",
+      "externalId": "96898564834",
+      "customerName": "Nebras Said",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:21:55.373Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السلام عليكم",
+      "lastCustomerQuestionTime": "2026-08-03T20:21:43.909Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم",
+          "time": "2026-08-03T20:21:43.909Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "9bd4c124-448b-4635-aa97-d924dba573f1",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897101944",
+      "externalId": "96897101944",
+      "customerName": "أم مفاز",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:13:01.473Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "بنتواصل معكم لاحقا إذا بغينا نحجز",
+      "lastCustomerQuestionTime": "2026-08-03T20:12:49.754Z",
+      "recentUserQueries": [
+        {
+          "text": "نريد الصور",
+          "time": "2026-08-03T20:09:29.597Z"
+        },
+        {
+          "text": "شكرا جزيلا",
+          "time": "2026-08-03T20:12:37.408Z"
+        },
+        {
+          "text": "بنتواصل معكم لاحقا إذا بغينا نحجز",
+          "time": "2026-08-03T20:12:49.754Z"
+        }
+      ],
+      "totalMessagesInConversation": 17
+    },
+    {
+      "conversationId": "d8ffe33a-81ea-44ea-8e97-6996ac3dbe22",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892112934",
+      "externalId": "96892112934",
+      "customerName": "أم زكريا❤️",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:12:46.803Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "طيب ارجو الرد",
+      "lastCustomerQuestionTime": "2026-08-03T20:12:35.355Z",
+      "recentUserQueries": [
+        {
+          "text": "الدخول تاريخ 5\nالخروج تاريخ 8",
+          "time": "2026-08-03T20:09:56.526Z"
+        },
+        {
+          "text": "بكم غرفتين وصاله",
+          "time": "2026-08-03T20:10:34.507Z"
+        },
+        {
+          "text": "طيب ارجو الرد",
+          "time": "2026-08-03T20:12:35.355Z"
+        }
+      ],
+      "totalMessagesInConversation": 11
+    },
+    {
+      "conversationId": "41ff4dcb-2849-4654-81bc-84eea70301c3",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96897137719",
+      "externalId": "96897137719",
+      "customerName": "zakariya",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:12:44.634Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "وبكم",
+      "lastCustomerQuestionTime": "2026-08-03T20:12:33.494Z",
+      "recentUserQueries": [
+        {
+          "text": "السلام عليكم ورحمة الله وبركاته",
+          "time": "2026-08-03T20:12:13.336Z"
+        },
+        {
+          "text": "متوفر غرفة من تاريخ ٠٦/٠٨",
+          "time": "2026-08-03T20:12:28.817Z"
+        },
+        {
+          "text": "وبكم",
+          "time": "2026-08-03T20:12:33.494Z"
+        }
+      ],
+      "totalMessagesInConversation": 5
+    },
+    {
+      "conversationId": "e26809f3-b00b-4350-8d8c-b634940b0795",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96894922557",
+      "externalId": "96894922557",
+      "customerName": "جنان🤍",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:12:28.962Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 2,
+      "lastCustomerQuestion": "لقيت لك خيار أوفر بنفس المواصفات (غرفتين + مطبخ + صالة + حمامين) 👌\n\nشقة في *صلالة الوسطى* (Salalah Center) — 4 ليالٍ (5-8 أغسطس) بسعر إجمالي *212 ريال* بدل 240.\n\nموقعها بوسط المدينة، سهل الوصول لأي مكان. تحب أرسل لك صورها؟",
+      "lastCustomerQuestionTime": "2026-08-03T20:12:17.542Z",
+      "recentUserQueries": [
+        {
+          "text": "اريد غرفتين ومطبخ و صاله وحمامين ولكن بسعر اقل في تاريخ ٥ و ٦ و ٧ و ٨ من هذا الشهر",
+          "time": "2026-08-03T20:09:07.972Z"
+        },
+        {
+          "text": "ارسل صورها",
+          "time": "2026-08-03T20:10:19.389Z"
+        },
+        {
+          "text": "لقيت لك خيار أوفر بنفس المواصفات (غرفتين + مطبخ + صالة + حمامين) 👌\n\nشقة في *صلالة الوسطى* (Salalah Center) — 4 ليالٍ (5-8 أغسطس) بسعر إجمالي *212 ريال* بدل 240.\n\nموقعها بوسط المدينة، سهل الوصول لأي مكان. تحب أرسل لك صورها؟",
+          "time": "2026-08-03T20:12:17.542Z"
+        }
+      ],
+      "totalMessagesInConversation": 36
+    },
+    {
+      "conversationId": "126c3c14-7686-42d9-a1c0-db5fa160c5e1",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96892522217",
+      "externalId": "96892522217",
+      "customerName": "ناصر السديري",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:11:41.493Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+      "lastCustomerQuestionTime": "2026-08-03T20:11:30.039Z",
+      "recentUserQueries": [
+        {
+          "text": "مرحبًا! هل يمكنني الحصول على مزيد من المعلومات حول هذا؟",
+          "time": "2026-08-03T20:11:30.039Z"
+        }
+      ],
+      "totalMessagesInConversation": 2
+    },
+    {
+      "conversationId": "e69c41b8-2844-441f-9c9f-3b727f11a7e1",
+      "channel": "WHATSAPP",
+      "phoneNumber": "96896202789",
+      "externalId": "96896202789",
+      "customerName": "أبو عمار",
+      "language": "ar",
+      "status": "ACTIVE",
+      "lastMessageAt": "2026-08-03T20:10:58.364Z",
+      "isLastMessageFallback": true,
+      "totalOutageFallbacks": 1,
+      "lastCustomerQuestion": "السعر واجد مرتفع",
+      "lastCustomerQuestionTime": "2026-08-03T20:10:31.970Z",
+      "recentUserQueries": [
+        {
+          "text": "من تاريخ 8/8 والى 15/8",
+          "time": "2026-08-03T20:08:41.247Z"
+        },
+        {
+          "text": "لا",
+          "time": "2026-08-03T20:09:28.350Z"
+        },
+        {
+          "text": "السعر واجد مرتفع",
+          "time": "2026-08-03T20:10:31.970Z"
+        }
+      ],
+      "totalMessagesInConversation": 29
+    }
+  ]
+}

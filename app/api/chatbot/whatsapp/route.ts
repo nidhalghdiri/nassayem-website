@@ -25,7 +25,8 @@ import {
   sendWhatsAppLocation,
   markWhatsAppMessageRead,
 } from "@/lib/whatsapp";
-import { mirrorWhatsAppMedia } from "@/lib/chatbot/whatsappMedia";
+import { mirrorWhatsAppMedia, downloadWhatsAppMediaToBuffer } from "@/lib/chatbot/whatsappMedia";
+import { transcribeAudio } from "@/lib/chatbot/transcribe";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -237,7 +238,7 @@ async function sendMediaFollowUps(
 }
 
 async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<void> {
-  const text = extractText(msg);
+  let text = extractText(msg);
   if (!text || !msg.from) return;
 
   // Reply from the exact number the customer wrote to — the 24h service
@@ -257,6 +258,15 @@ async function handleInboundMessage(msg: WaMessage, value: WaValue): Promise<voi
   let media: { url: string; type: string } | undefined;
   const mediaRef = mediaRefOf(msg);
   if (mediaRef) {
+    if (mediaRef.type === "audio") {
+      const downloaded = await downloadWhatsAppMediaToBuffer(mediaRef.ref.id!);
+      if (downloaded) {
+        const transcript = await transcribeAudio(downloaded.buffer, downloaded.mimeType);
+        if (transcript) {
+          text = `[Voice Note]: ${transcript}`;
+        }
+      }
+    }
     const mirrored = await mirrorWhatsAppMedia(mediaRef.ref.id!, msg.from);
     if (mirrored) media = { url: mirrored.url, type: mediaRef.type };
   }

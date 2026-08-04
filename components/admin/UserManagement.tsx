@@ -9,7 +9,7 @@ import { format } from "date-fns";
 
 type AdminUser = {
   id: string;
-  supabaseId: string;
+  supabaseId: string | null;
   email: string;
   name: string | null;
   role: string;
@@ -28,13 +28,20 @@ type Building = {
 type Props = {
   users: AdminUser[];
   buildings: Building[];
-  currentSupabaseId: string;
+  currentAdminId: string;
+  currentSupabaseId?: string;
   locale: string;
 };
 
 const ALL_ROLES = Object.keys(STAFF_ROLE_CONFIG) as TStaffRole[];
 
-export default function UserManagement({ users, buildings, currentSupabaseId, locale }: Props) {
+export default function UserManagement({
+  users,
+  buildings,
+  currentAdminId,
+  currentSupabaseId,
+  locale,
+}: Props) {
   const isEn = locale === "en";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -73,7 +80,7 @@ export default function UserManagement({ users, buildings, currentSupabaseId, lo
     setEditError(null);
     const fd = new FormData(e.currentTarget);
     fd.set("adminUserId", editUser.id);
-    fd.set("supabaseId", editUser.supabaseId);
+    fd.set("supabaseId", editUser.supabaseId ?? "");
     const result = await updateAdminUser(fd);
     if (result.error) {
       setEditError(result.error);
@@ -88,7 +95,7 @@ export default function UserManagement({ users, buildings, currentSupabaseId, lo
     if (!deleteUser) return;
     const fd = new FormData();
     fd.set("adminUserId", deleteUser.id);
-    fd.set("supabaseId", deleteUser.supabaseId);
+    fd.set("supabaseId", deleteUser.supabaseId ?? "");
     await deleteAdminUser(fd);
     setDeleteUser(null);
     startTransition(() => router.refresh());
@@ -112,7 +119,9 @@ export default function UserManagement({ users, buildings, currentSupabaseId, lo
         ) : (
           <ul className="divide-y divide-gray-100">
             {users.map((u) => {
-              const isSelf = u.supabaseId === currentSupabaseId;
+              const isSelf =
+                u.id === currentAdminId ||
+                (currentSupabaseId && u.supabaseId === currentSupabaseId);
               const initials = (u.name ?? u.email).charAt(0).toUpperCase();
               const roleConf = STAFF_ROLE_CONFIG[u.role as TStaffRole];
 

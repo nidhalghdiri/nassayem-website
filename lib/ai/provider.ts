@@ -49,11 +49,20 @@ export type ModelTurnResult = {
 };
 
 function toResult(message: Anthropic.Message): ModelTurnResult {
+  const usage = message.usage as typeof message.usage & {
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  const totalInputTokens =
+    usage.input_tokens +
+    (usage.cache_read_input_tokens || 0) +
+    (usage.cache_creation_input_tokens || 0);
+
   return {
     content: message.content,
     stopReason: message.stop_reason,
     usage: {
-      inputTokens: message.usage.input_tokens,
+      inputTokens: totalInputTokens,
       outputTokens: message.usage.output_tokens,
     },
   };

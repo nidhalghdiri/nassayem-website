@@ -57,6 +57,7 @@ export default async function AdminUsersPage({ params }: PageProps) {
           assignedBuildingIds: u.assignedBuildings.map((b) => b.buildingId),
         }))}
         buildings={buildings}
+        currentAdminId={currentAdmin.id}
         currentSupabaseId={sessionUser?.id ?? ""}
         locale={locale}
       />
