@@ -877,7 +877,12 @@ const checkAvailability = defineTool({
     const settings = await getChatbotSettings();
     const unit = await prisma.unit.findUnique({
       where: { id: input.unit_id, isPublished: true },
-      select: { id: true, unitType: true, building: { select: { netsuiteId: true } } },
+      select: {
+        id: true,
+        buildingId: true,
+        unitType: true,
+        building: { select: { netsuiteId: true } },
+      },
     });
     if (!unit) return { error: "Unit not found or not published." };
 
