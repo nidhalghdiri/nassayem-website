@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { deleteFromR2 } from "@/lib/r2";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type RouteContext = { params: Promise<{ id: string; photoId: string }> };
@@ -30,20 +31,16 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Delete from Supabase Storage
+  // Delete from Storage (R2 or Supabase)
   try {
-    // URL format: .../storage/v1/object/public/task-photos/taskId/filename.ext
-    // We need "taskId/filename.ext"
-    const urlParts = photo.photoUrl.split("task-photos/");
-    if (urlParts.length > 1) {
-      const storagePath = urlParts[1];
-      const { error: storageError } = await supabaseAdmin.storage
-        .from("task-photos")
-        .remove([storagePath]);
-
-      if (storageError) {
-        console.warn("Could not delete from Supabase storage:", storageError);
+    if (photo.photoUrl.includes("supabase.co")) {
+      const urlParts = photo.photoUrl.split("task-photos/");
+      if (urlParts.length > 1) {
+        const storagePath = urlParts[1];
+        await supabaseAdmin.storage.from("task-photos").remove([storagePath]).catch(() => {});
       }
+    } else {
+      await deleteFromR2(photo.photoUrl).catch((err) => console.warn("R2 delete error:", err));
     }
   } catch (err) {
     console.warn("Error deleting from storage:", err);

@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabase";
+import { uploadToR2 } from "@/lib/r2";
 
 export async function createBuilding(formData: FormData, locale: string) {
   const nameEn = formData.get("nameEn") as string;
@@ -26,25 +26,14 @@ export async function createBuilding(formData: FormData, locale: string) {
 
   let imageUrl = null;
 
-  // Handle Supabase Upload if an image was provided
+  // Handle Cloudflare R2 Upload if an image was provided
   if (imageFile && imageFile.size > 0) {
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const fileExtension = imageFile.name.split(".").pop();
     const fileName = `buildings/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
-    const { error } = await supabaseAdmin.storage
-      .from("properties")
-      .upload(fileName, buffer, { contentType: imageFile.type });
-
-    if (error) {
-      throw new Error(`Image upload failed: ${error.message}`);
-    }
-
-    const { data } = supabaseAdmin.storage
-      .from("properties")
-      .getPublicUrl(fileName);
-    imageUrl = data.publicUrl;
+    imageUrl = await uploadToR2(fileName, buffer, imageFile.type || "image/jpeg");
   }
 
   await prisma.building.create({

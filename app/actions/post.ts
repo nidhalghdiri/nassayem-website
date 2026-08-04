@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabase";
+import { uploadToR2 } from "@/lib/r2";
 
 function generateSlug(title: string) {
   return title
@@ -41,25 +41,14 @@ export async function createPost(formData: FormData, locale: string) {
 
   let coverImage = null;
 
-  // Handle Supabase Upload if an image was provided
+  // Handle Cloudflare R2 Upload if an image was provided
   if (imageFile && imageFile.size > 0) {
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const fileExtension = imageFile.name.split(".").pop();
     const fileName = `blog/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
-    const { error } = await supabaseAdmin.storage
-      .from("properties") // Reuse properties bucket or create 'blog' if needed. Assuming 'properties' is general purpose.
-      .upload(fileName, buffer, { contentType: imageFile.type });
-
-    if (error) {
-      throw new Error(`Image upload failed: ${error.message}`);
-    }
-
-    const { data } = supabaseAdmin.storage
-      .from("properties")
-      .getPublicUrl(fileName);
-    coverImage = data.publicUrl;
+    coverImage = await uploadToR2(fileName, buffer, imageFile.type || "image/jpeg");
   }
 
   await prisma.post.create({
@@ -105,16 +94,7 @@ export async function updatePost(
     const fileExtension = imageFile.name.split(".").pop();
     const fileName = `blog/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
-    const { error } = await supabaseAdmin.storage
-      .from("properties")
-      .upload(fileName, buffer, { contentType: imageFile.type });
-
-    if (!error) {
-      const { data } = supabaseAdmin.storage
-        .from("properties")
-        .getPublicUrl(fileName);
-      coverImage = data.publicUrl;
-    }
+    coverImage = await uploadToR2(fileName, buffer, imageFile.type || "image/jpeg");
   }
 
   await prisma.post.update({

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { uploadToR2 } from "@/lib/r2";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -65,41 +65,14 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const caption = (formData.get("caption") as string | null)?.trim() ?? null;
 
-  // Build unique path in Supabase bucket
+  // Build unique path in R2 bucket
   const ext = file.name.split(".").pop() ?? "jpg";
-  const filename = `${taskId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const filename = `task-photos/${taskId}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
-  // Upload to Supabase Storage
+  // Upload to Cloudflare R2 Storage
   try {
-    const buffer = await file.arrayBuffer();
-
-    // Ensure bucket exists (best effort, service role has permission)
-    try {
-      await supabaseAdmin.storage.createBucket("task-photos", {
-        public: true,
-        fileSizeLimit: MAX_SIZE,
-        allowedMimeTypes: ALLOWED_TYPES,
-      });
-    } catch {
-      // Ignore if bucket already exists
-    }
-
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from("task-photos")
-      .upload(filename, buffer, {
-        contentType: file.type,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error("Supabase upload error:", uploadError);
-      return NextResponse.json({ error: "Failed to upload to storage." }, { status: 500 });
-    }
-
-    // Get Public URL
-    const { data: { publicUrl } } = supabaseAdmin.storage
-      .from("task-photos")
-      .getPublicUrl(filename);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const publicUrl = await uploadToR2(filename, buffer, file.type || "image/jpeg");
 
     // Persist record + activity in transaction
     const [photo] = await prisma.$transaction([

@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseAdmin } from "@/lib/supabase";
+import { uploadToR2 } from "@/lib/r2";
 import { requireManager } from "@/lib/adminAuth";
 import { RecommendationCategory } from "@prisma/client";
 
@@ -24,15 +24,7 @@ async function uploadImage(file: File): Promise<string> {
     .toString(36)
     .substring(7)}.${fileExtension}`;
 
-  const { error } = await supabaseAdmin.storage
-    .from("properties")
-    .upload(fileName, buffer, { contentType: file.type });
-  if (error) throw new Error(`Image upload failed: ${error.message}`);
-
-  const { data } = supabaseAdmin.storage
-    .from("properties")
-    .getPublicUrl(fileName);
-  return data.publicUrl;
+  return await uploadToR2(fileName, buffer, file.type || "image/jpeg");
 }
 
 export async function createRecommendation(

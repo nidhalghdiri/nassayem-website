@@ -8,6 +8,7 @@ import {
   canViewChatbot,
 } from "@/lib/chatbot/permissions";
 import { saveChatbotConfigKey } from "@/lib/chatbot/config";
+import { uploadToR2 } from "@/lib/r2";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
   sendWhatsAppText,
@@ -170,11 +171,13 @@ export async function sendStaffMessage(
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name.split(".").pop() || "jpg";
     const path = `chatbot/${conversation.externalId}/staff-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from("properties")
-      .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: false });
-    if (uploadError) return { ok: false, error: `Upload failed: ${uploadError.message}` };
-    mediaUrl = supabaseAdmin.storage.from("properties").getPublicUrl(path).data.publicUrl;
+    
+    try {
+      mediaUrl = await uploadToR2(path, buffer, file.type || "image/jpeg");
+    } catch (uploadError: any) {
+      return { ok: false, error: `Upload failed: ${uploadError.message || uploadError}` };
+    }
+    
     mediaType = "image";
     content = String(formData.get("text") ?? "").trim() || "📷 Photo";
     if (isWhatsApp) {
