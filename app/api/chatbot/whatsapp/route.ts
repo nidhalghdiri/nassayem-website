@@ -406,7 +406,41 @@ export async function POST(req: NextRequest) {
         for (const change of entry.changes ?? []) {
           if (change.field !== "messages") continue;
           const value = change.value ?? {};
-          // Delivery/read receipts arrive on the same field — nothing to do.
+
+          // Handle delivery/read/failure status callbacks from Meta
+          if (value.statuses && Array.isArray(value.statuses) && value.statuses.length > 0) {
+            for (const st of value.statuses as any[]) {
+              if (!st.id) continue;
+              const metaStatus = st.status; // "sent", "delivered", "read", "failed"
+              const updateData: { status?: string; error?: string } = {};
+
+              if (metaStatus === "delivered") {
+                updateData.status = "DELIVERED";
+              } else if (metaStatus === "read") {
+                updateData.status = "READ";
+              } else if (metaStatus === "failed") {
+                updateData.status = "FAILED";
+                const errDetail = st.errors
+                  ? JSON.stringify(st.errors)
+                  : "Delivery failed at Meta/Carrier";
+                updateData.error = errDetail;
+                console.error(
+                  `[chatbot/whatsapp] Message delivery failed for ${st.recipient_id} (${st.id}):`,
+                  errDetail,
+                );
+              }
+
+              if (updateData.status) {
+                await prisma.whatsAppMessageLog
+                  .updateMany({
+                    where: { waMessageId: st.id },
+                    data: updateData,
+                  })
+                  .catch(() => {});
+              }
+            }
+          }
+
           if (!value.messages?.length) continue;
 
           // Process a payload's messages CONCURRENTLY so their debounce windows
