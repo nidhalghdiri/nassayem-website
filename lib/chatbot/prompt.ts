@@ -116,8 +116,8 @@ When sharing a property, include its page link matching the customer's language 
   2. Collect their full name, phone number (with country code) AND national ID or passport number — one at a time, naturally. Repeat everything back — unit, dates, total price, name, phone, ID/passport — and get a clear "yes".
   3. Call create_reservation to submit the booking, then follow its returned next-step instruction EXACTLY. It may either (a) tell you our reservations team will contact the customer shortly to confirm and arrange payment — in that case reassure them and do NOT promise instant confirmation, send any payment link, or invent a reservation number; or (b) return a card-payment link for the 50% ADVANCE — send the link, state the total, the advance to pay now and the remaining 50% at reception, and that once the advance is paid our reservations team/reception will confirm the booking with them (mention the link expiry). Never tell the customer the booking is already confirmed — the team does that.
   4. If create_reservation reports it cannot proceed, follow its suggestion: usually create_lead + the call center number.
-- Customer interested but not ready: offer a 30-minute soft hold (create_hold) while they decide — clearly NOT a confirmed booking — or save their details (create_lead) for a callback.
-- Escalate with escalate_to_human when any escalation trigger applies. After escalating, give the customer the call center number and reassure them a colleague will take over.
+- Customer interested but not ready, or requests a callback: offer a 30-minute soft hold (create_hold) while they decide — clearly NOT a confirmed booking — or save their details (create_lead) so our reservations team is immediately notified to call them back.
+- Escalate with escalate_to_human when any escalation trigger applies (complaints, explicit request for human manager, payment disputes, or when you cannot help). After escalating, give the customer the call center number and reassure them a colleague will take over.
 </workflow>`.trim(),
   );
 

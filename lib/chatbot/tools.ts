@@ -586,6 +586,126 @@ async function resolveBuildingIdByName(name: string): Promise<string | null> {
   return matches.length === 1 ? matches[0].id : null;
 }
 
+/**
+ * Unified conversation escalation and staff notification (WhatsApp template + email).
+ * Used by createLead, escalateToHuman, and booking-request lead fallbacks.
+ */
+async function triggerEscalation(params: {
+  conversationId: string;
+  reason: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  buildingId?: string | null;
+  buildingName?: string | null;
+  dates?: string | null;
+  persons?: string | number | null;
+  summary: string;
+  emailSubject?: string;
+  emailHtml?: string;
+}): Promise<void> {
+  const settings = await getChatbotSettings();
+  const clean = (s?: string | null) => {
+    const t = (s ?? "").trim();
+    return t.length > 0 ? t : undefined;
+  };
+
+  const conversation = await prisma.chatbotConversation.update({
+    where: { id: params.conversationId },
+    data: {
+      status: "ESCALATED",
+      escalationReason: params.reason,
+      escalatedAt: new Date(),
+      followUpStatus: "PENDING",
+      ...(clean(params.customerName)
+        ? { customerName: clean(params.customerName) }
+        : {}),
+    },
+  });
+
+  const waNumber =
+    conversation.channel === "WHATSAPP"
+      ? conversation.externalId.replace(/\D/g, "")
+      : "";
+  const waPhone = waNumber.length >= 8 ? `+${waNumber}` : undefined;
+  const customerName =
+    clean(params.customerName) ??
+    clean(conversation.customerName) ??
+    waPhone ??
+    "غير محدد";
+  const customerPhone = clean(params.customerPhone) ?? waPhone ?? "غير محدد";
+
+  // WhatsApp escalation template:
+  // Call-center numbers (from settings.escalation_whatsapp_numbers or contact WhatsApp)
+  const recipients = callCenterEscalationNumbers(settings);
+
+  // Plus building receptionist(s) if buildingId or buildingName is known
+  let bId = params.buildingId;
+  let bName = params.buildingName;
+  if (!bId && bName && bName !== "غير محدد") {
+    bId = await resolveBuildingIdByName(bName);
+  }
+  if (bId) {
+    const receptionists = await receptionistRecipientsForBuilding(bId, {
+      fallbackToAll: false,
+    });
+    recipients.push(...receptionists);
+    if (!bName || bName === "غير محدد") {
+      const b = await prisma.building.findUnique({
+        where: { id: bId },
+        select: { nameAr: true },
+      });
+      if (b) bName = b.nameAr;
+    }
+  }
+
+  const finalBuildingName = bName ?? "غير محدد";
+
+  for (const r of dedupeRecipients(recipients)) {
+    sendChatbotEscalationTemplate({
+      to: r.to,
+      language: r.language,
+      building: finalBuildingName,
+      customer: customerName,
+      phone: customerPhone,
+      dates: params.dates ?? "غير محدد",
+      persons: params.persons ? String(params.persons) : "غير محدد",
+      summary: params.summary,
+    }).catch((err) =>
+      console.error("[chatbot] escalation template failed:", err),
+    );
+  }
+
+  // Best-effort staff email notification
+  if (settings.escalation_email && process.env.RESEND_API_KEY) {
+    try {
+      const { Resend } = await import("resend");
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const from =
+        process.env.EMAIL_FROM ?? "Nassayem Salalah <bookings@nassayem.com>";
+      const subject =
+        params.emailSubject ??
+        `Chatbot escalation — ${conversation.channel === "WHATSAPP" ? "WhatsApp" : "Web"} customer needs help`;
+      const html =
+        params.emailHtml ??
+        `<p><strong>Reason:</strong> ${params.reason}</p>
+<p><strong>Channel:</strong> ${conversation.channel}<br/>
+<strong>Customer:</strong> ${customerName} (${customerPhone})<br/>
+<strong>Building:</strong> ${finalBuildingName}<br/>
+<strong>Dates:</strong> ${params.dates ?? "Not specified"}</p>
+<p>Open the transcript: ${baseUrl()}/en/admin/chatbot/conversations/${conversation.id}</p>`;
+
+      await resend.emails.send({
+        from,
+        to: settings.escalation_email,
+        subject,
+        html,
+      });
+    } catch (err) {
+      console.error("[chatbot] escalation email failed:", err);
+    }
+  }
+}
+
 // ── Tool registry ─────────────────────────────────────────────────────────────
 
 type ToolDef<S extends z.ZodType> = {
@@ -1016,7 +1136,7 @@ const getBuildingInfo = defineTool({
 const createLead = defineTool({
   name: "create_lead",
   description:
-    "Save the customer's contact details so the reservations team follows up. Use when the customer agrees to a callback, wants dates we couldn't price online (e.g. Khareef call-center rates), or shows strong interest without booking. Always confirm name and phone with the customer first.",
+    "Save the customer's contact details and immediately notify our reservations team to follow up. Use when the customer agrees to a callback, asks for someone to contact them, wants dates we couldn't price online (e.g. Khareef call-center rates), or shows strong interest without booking. Always confirm name and phone with the customer first.",
   schema: z.object({
     name: z.string().min(2).max(120),
     phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
@@ -1028,23 +1148,95 @@ const createLead = defineTool({
     notes: z.string().max(500).optional().describe("Anything else the team should know"),
   }),
   execute: async (input, ctx) => {
+    let unitId = input.unit_id;
+    let checkIn = input.check_in;
+    let checkOut = input.check_out;
+
+    // If unit_id or dates were omitted, check if there's a recent active hold
+    if (!unitId) {
+      const recentHold = await prisma.chatbotHold.findFirst({
+        where: {
+          conversationId: ctx.conversationId,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { unitId: true, checkIn: true, checkOut: true },
+      });
+      if (recentHold) {
+        unitId = recentHold.unitId;
+        if (!checkIn && recentHold.checkIn)
+          checkIn = recentHold.checkIn.toISOString().slice(0, 10);
+        if (!checkOut && recentHold.checkOut)
+          checkOut = recentHold.checkOut.toISOString().slice(0, 10);
+      }
+    }
+
+    let unitTitle: string | null = null;
+    let buildingId: string | null = null;
+    let buildingName: string | null = null;
+
+    if (unitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: unitId },
+        select: {
+          id: true,
+          titleAr: true,
+          buildingId: true,
+          building: { select: { id: true, nameAr: true } },
+        },
+      });
+      if (unit) {
+        unitTitle = unit.titleAr;
+        buildingId = unit.buildingId;
+        buildingName = unit.building.nameAr;
+      }
+    } else if (input.unit_interest) {
+      buildingId = await resolveBuildingIdByName(input.unit_interest);
+      if (buildingId) {
+        const b = await prisma.building.findUnique({
+          where: { id: buildingId },
+          select: { nameAr: true },
+        });
+        if (b) buildingName = b.nameAr;
+      }
+    }
+
     await prisma.chatbotLead.create({
       data: {
         conversationId: ctx.conversationId,
         name: input.name,
         phone: input.phone,
-        unitId: input.unit_id ?? null,
-        unitInterest: input.unit_interest ?? null,
-        checkIn: input.check_in ? startOfDay(parseISO(input.check_in)) : null,
-        checkOut: input.check_out ? startOfDay(parseISO(input.check_out)) : null,
+        unitId: unitId ?? null,
+        unitInterest:
+          input.unit_interest ??
+          (unitTitle ? `${unitTitle} (${buildingName})` : null),
+        checkIn: checkIn ? startOfDay(parseISO(checkIn)) : null,
+        checkOut: checkOut ? startOfDay(parseISO(checkOut)) : null,
         guests: input.guests ?? null,
         notes: input.notes ?? null,
       },
     });
-    await prisma.chatbotConversation.update({
-      where: { id: ctx.conversationId },
-      data: { customerName: input.name },
+
+    const datesStr =
+      checkIn && checkOut ? `${checkIn} - ${checkOut}` : undefined;
+    const itemInterest = unitTitle
+      ? `${unitTitle} (${buildingName || ""})`
+      : input.unit_interest || "شقق نسائم";
+    const summary = `طلب تواصل جديد — ${itemInterest}.${input.notes ? ` ملاحظات: ${input.notes}.` : ""} يرجى التواصل مع العميل لمتابعة الحجز.`;
+
+    await triggerEscalation({
+      conversationId: ctx.conversationId,
+      reason: `طلب تواصل / مهتم بالحجز — ${itemInterest}`,
+      customerName: input.name,
+      customerPhone: input.phone,
+      buildingId,
+      buildingName,
+      dates: datesStr,
+      persons: input.guests,
+      summary,
+      emailSubject: `طلب تواصل جديد من عميل — ${input.name}`,
     });
+
     return {
       saved: true,
       next: "Tell the customer the team will contact them soon (during business hours).",
@@ -1188,40 +1380,21 @@ const createReservation = defineTool({
             ` · الهوية/الجواز: ${input.id_passport} · بانتظار تأكيد الموظف والدفع.`,
         },
       });
-      await prisma.chatbotConversation.update({
-        where: { id: ctx.conversationId },
-        data: {
-          customerName: input.customer_name,
-          status: "ESCALATED",
-          escalationReason: `طلب حجز — ${unit.titleAr} (${input.check_in} ← ${input.check_out})`,
-        },
+      await triggerEscalation({
+        conversationId: ctx.conversationId,
+        reason: `طلب حجز — ${unit.titleAr} (${input.check_in} ← ${input.check_out})`,
+        customerName: input.customer_name,
+        customerPhone: input.customer_phone,
+        buildingId: unit.buildingId,
+        buildingName: unit.building.nameAr,
+        dates: `${input.check_in} - ${input.check_out}`,
+        persons: "غير محدد",
+        summary:
+          `طلب حجز جديد — ${unit.titleAr}. الهوية/الجواز ${input.id_passport}.` +
+          (priced ? ` الإجمالي التقريبي ${finalTotal} ر.ع${discountNote}.` : "") +
+          ` يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.`,
+        emailSubject: `طلب حجز جديد — ${unit.titleAr} (${input.customer_name})`,
       });
-
-      // WhatsApp escalation template → call center + building receptionist(s),
-      // each in their own template language.
-      const [ccRecipients, receptionistRecipients] = await Promise.all([
-        Promise.resolve(callCenterEscalationNumbers(settings)),
-        receptionistRecipientsForBuilding(unit.buildingId),
-      ]);
-      const recipients = dedupeRecipients([...ccRecipients, ...receptionistRecipients]);
-      const summary =
-        `طلب حجز جديد — ${unit.titleAr}. الهوية/الجواز ${input.id_passport}.` +
-        (priced ? ` الإجمالي التقريبي ${finalTotal} ر.ع${discountNote}.` : "") +
-        ` يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.`;
-      for (const r of recipients) {
-        sendChatbotEscalationTemplate({
-          to: r.to,
-          language: r.language,
-          building: unit.building.nameAr,
-          customer: input.customer_name,
-          phone: input.customer_phone,
-          dates: `${input.check_in} - ${input.check_out}`,
-          persons: "غير محدد",
-          summary,
-        }).catch((err) =>
-          console.error("[chatbot] booking-request escalation failed:", err),
-        );
-      }
 
       return {
         request_registered: true,
@@ -1404,87 +1577,21 @@ const escalateToHuman = defineTool({
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
-    const conversation = await prisma.chatbotConversation.update({
-      where: { id: ctx.conversationId },
-      data: {
-        status: "ESCALATED",
-        escalationReason: input.reason,
-        escalatedAt: new Date(),
-        followUpStatus: "PENDING",
-      },
+    const datesStr =
+      input.check_in && input.check_out
+        ? `${input.check_in} - ${input.check_out}`
+        : undefined;
+
+    await triggerEscalation({
+      conversationId: ctx.conversationId,
+      reason: input.reason,
+      customerName: input.customer_name,
+      customerPhone: input.customer_phone,
+      buildingName: input.building,
+      dates: datesStr,
+      persons: input.guests,
+      summary: input.reason,
     });
-
-    // WhatsApp escalation template to every configured recipient (Arabic call
-    // center) plus, when the escalation names a matchable building, that
-    // building's receptionists in their own language.
-    //
-    // The model often passes "" for unknown name/phone, so treat blanks as
-    // missing (a nullish `??` alone would keep the empty string). When the
-    // customer reached us on WhatsApp we already know who they are: fall back
-    // to their profile name and the number they wrote from (externalId).
-    const clean = (s?: string | null) => {
-      const t = (s ?? "").trim();
-      return t.length > 0 ? t : undefined;
-    };
-    const waNumber =
-      conversation.channel === "WHATSAPP"
-        ? conversation.externalId.replace(/\D/g, "")
-        : "";
-    const waPhone = waNumber.length >= 8 ? `+${waNumber}` : undefined;
-    const customerName =
-      clean(input.customer_name) ?? clean(conversation.customerName) ?? waPhone ?? "غير محدد";
-    const customerPhone = clean(input.customer_phone) ?? waPhone ?? "غير محدد";
-    const recipients = callCenterEscalationNumbers(settings);
-    // Also notify the building's receptionists — but only when the escalation
-    // names a building we can match unambiguously. General escalations (a
-    // complaint, "I want a human") often have no building, and we don't want to
-    // ping every desk, so there is no fall-back to all receptionists here.
-    if (input.building) {
-      const buildingId = await resolveBuildingIdByName(input.building);
-      if (buildingId) {
-        recipients.push(
-          ...(await receptionistRecipientsForBuilding(buildingId, {
-            fallbackToAll: false,
-          })),
-        );
-      }
-    }
-    for (const r of dedupeRecipients(recipients)) {
-      sendChatbotEscalationTemplate({
-        to: r.to,
-        language: r.language,
-        building: input.building ?? "غير محدد",
-        customer: customerName,
-        phone: customerPhone,
-        dates:
-          input.check_in && input.check_out
-            ? `${input.check_in} - ${input.check_out}`
-            : "غير محدد",
-        persons: input.guests ? String(input.guests) : "غير محدد",
-        summary: input.reason,
-      }).catch((err) => console.error("[chatbot] escalation template failed:", err));
-    }
-
-    // Best-effort staff notification — never fail the customer reply over it.
-    if (settings.escalation_email && process.env.RESEND_API_KEY) {
-      try {
-        const { Resend } = await import("resend");
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const from =
-          process.env.EMAIL_FROM ?? "Nassayem Salalah <bookings@nassayem.com>";
-        await resend.emails.send({
-          from,
-          to: settings.escalation_email,
-          subject: `Chatbot escalation — ${conversation.channel === "WHATSAPP" ? "WhatsApp" : "Web"} customer needs help`,
-          html: `<p><strong>Reason:</strong> ${input.reason}</p>
-<p><strong>Channel:</strong> ${conversation.channel}<br/>
-<strong>Customer:</strong> ${conversation.customerName ?? "Unknown"} (${conversation.externalId})</p>
-<p>Open the transcript: ${baseUrl()}/en/admin/chatbot/conversations/${conversation.id}</p>`,
-        });
-      } catch (err) {
-        console.error("[chatbot] escalation email failed:", err);
-      }
-    }
 
     return {
       escalated: true,
