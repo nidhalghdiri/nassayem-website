@@ -31,10 +31,25 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
   });
   if (!conversation) notFound();
 
-  const tokenTotal = conversation.messages.reduce(
-    (s, m) => s + (m.inputTokens ?? 0) + (m.outputTokens ?? 0),
+  const inputTokensTotal = conversation.messages.reduce(
+    (s, m) => s + (m.inputTokens ?? 0),
     0,
   );
+  const outputTokensTotal = conversation.messages.reduce(
+    (s, m) => s + (m.outputTokens ?? 0),
+    0,
+  );
+  const tokenTotal = inputTokensTotal + outputTokensTotal;
+
+  // Prompt caching rate: $0.435/1M input, $15.00/1M output, 1 USD = 0.385 OMR
+  const costUsd =
+    (inputTokensTotal / 1_000_000) * 0.435 + (outputTokensTotal / 1_000_000) * 15.0;
+  const costOmr = costUsd * 0.385;
+
+  const costUsdFormatted =
+    costUsd < 0.0001 && costUsd > 0 ? "<$0.0001" : `$${costUsd.toFixed(4)}`;
+  const costOmrFormatted =
+    costOmr < 0.0001 && costOmr > 0 ? "<0.0001 ر.ع." : `${costOmr.toFixed(4)} ر.ع.`;
 
   const initialMessages: TranscriptMessage[] = await Promise.all(
     conversation.messages.map(async (m) => ({
@@ -76,10 +91,22 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
             <h1 className="text-sm font-bold text-gray-900 truncate">
               {conversation.customerName || conversation.externalId}
             </h1>
-            <p className="text-[11px] text-gray-500 truncate" dir="ltr">
-              {conversation.channel === "WHATSAPP" ? "WhatsApp" : "Web"} ·{" "}
-              {conversation.externalId} · {conversation.language.toUpperCase()} ·{" "}
-              {tokenTotal.toLocaleString()} tok
+            <p className="text-[11px] text-gray-500 truncate flex items-center gap-1.5 flex-wrap" dir="ltr">
+              <span>{conversation.channel === "WHATSAPP" ? "WhatsApp" : "Web"}</span>
+              <span>·</span>
+              <span>{conversation.externalId}</span>
+              <span>·</span>
+              <span>{conversation.language.toUpperCase()}</span>
+              <span>·</span>
+              <span>{tokenTotal.toLocaleString()} tok</span>
+              {tokenTotal > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="text-emerald-700 font-semibold">{costUsdFormatted}</span>
+                  <span>·</span>
+                  <span className="text-emerald-700 font-semibold">{costOmrFormatted}</span>
+                </>
+              )}
             </p>
             {conversation.status === "ESCALATED" && conversation.escalationReason && (
               <p className="text-xs text-red-600 font-medium truncate">
