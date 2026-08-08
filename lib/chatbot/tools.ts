@@ -1052,16 +1052,39 @@ const checkAvailability = defineTool({
 const getActivePromotions = defineTool({
   name: "get_active_promotions",
   description:
-    "List currently running promotions with their date ranges and discounted nightly prices per building/unit type. Use when a customer asks about offers, discounts or deals.",
-  schema: z.object({}),
-  execute: async () => {
+    "List currently running promotions with their date ranges and discounted nightly prices per building/unit type. Use when a customer asks generally about current offers or deals. If the customer already specified stay dates (check_in / check_out), pass them so only offers strictly covering those dates are returned.",
+  schema: z.object({
+    check_in: dateString.optional().describe("Optional customer check-in date (YYYY-MM-DD) to filter for applicable promotions"),
+    check_out: dateString.optional().describe("Optional customer check-out date (YYYY-MM-DD) to filter for applicable promotions"),
+  }),
+  execute: async (input) => {
     const settings = await getChatbotSettings();
     const today = startOfDay(new Date());
+    let whereClause: any = { isActive: true, endDate: { gte: today } };
+
+    if (input.check_in && input.check_out) {
+      const start = startOfDay(parseISO(input.check_in));
+      const end = startOfDay(parseISO(input.check_out));
+      whereClause = {
+        isActive: true,
+        startDate: { lte: start },
+        endDate: { gte: end },
+      };
+    }
+
     const promotions = await prisma.promotion.findMany({
-      where: { isActive: true, endDate: { gte: today } },
+      where: whereClause,
       include: { rows: { include: { building: true } } },
       orderBy: { startDate: "asc" },
     });
+
+    if (input.check_in && input.check_out && promotions.length === 0) {
+      return {
+        count: 0,
+        message: `No promotions cover the requested dates (${input.check_in} to ${input.check_out}). Standard published rates apply. Do NOT quote or promise any promotion for these dates.`,
+        promotions: [],
+      };
+    }
 
     return {
       count: promotions.length,
@@ -1069,8 +1092,9 @@ const getActivePromotions = defineTool({
         title_en: p.titleEn,
         title_ar: p.titleAr,
         description_en: p.descriptionEn?.slice(0, 300) ?? null,
-        from: p.startDate.toISOString().slice(0, 10),
-        to: p.endDate.toISOString().slice(0, 10),
+        valid_from: p.startDate.toISOString().slice(0, 10),
+        valid_to: p.endDate.toISOString().slice(0, 10),
+        validity_rule: `CRITICAL: This promotion is ONLY valid for stays within ${p.startDate.toISOString().slice(0, 10)} to ${p.endDate.toISOString().slice(0, 10)}. It CANNOT be applied to any stay dates outside this range.`,
         page_url: `${baseUrl()}/en/promotions/${p.id}`,
         offers: p.rows.map((r) => ({
           building: r.building
