@@ -48,6 +48,12 @@ export default function DashboardHeader({
 
   const navLinks = [
     {
+      href: `/${locale}/admin/chatbot/report`,
+      en: "Daily Report",
+      ar: "التقرير اليومي",
+      icon: LineChart,
+    },
+    {
       href: `/${locale}/admin/chatbot/conversations`,
       en: "Conversations",
       ar: "المحادثات",

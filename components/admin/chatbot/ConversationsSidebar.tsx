@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BarChart3, Bot } from "lucide-react";
 
 type ConversationItem = {
   id: string;
@@ -80,6 +81,23 @@ export default function ConversationsSidebar({ locale }: { locale: string }) {
 
   return (
     <div className="flex flex-col h-full bg-white border-e border-gray-200">
+      {/* Top Header Bar */}
+      <div className="p-3 bg-slate-50 border-b border-gray-100 flex items-center justify-between gap-2 shrink-0">
+        <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+          <Bot className="w-4 h-4 text-nassayem" />
+          {isEn ? "Live Conversations" : "المحادثات المباشرة"}
+        </span>
+
+        <Link
+          href={`/${locale}/admin/chatbot/report`}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-nassayem text-white hover:bg-nassayem/90 transition-all shadow-2xs"
+          title={isEn ? "Daily Chatbot Executive Report" : "التقرير التنفيذي اليومي"}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>{isEn ? "Daily Report" : "التقرير اليومي"}</span>
+        </Link>
+      </div>
+
       {/* Search */}
       <div className="p-3 shrink-0 space-y-2 border-b border-gray-100">
         <input

@@ -205,148 +205,7 @@ async function unifiedAvailability(
   return { ...fallback, available: fallback.available, source: "website" };
 }
 
-export type NegotiationDetails = {
-  eligible_for_same_day_discount: boolean;
-  building_vacant_units: number;
-  discount_percent: 0 | 10 | 20;
-  original_total_omr: number;
-  discounted_total_omr: number;
-  discounted_per_night_omr: number;
-  guidance_for_assistant: string;
-};
 
-/**
- * Computes the total number of vacant units across an entire building for given dates.
- * Deduplicates NetSuite pools (netsuiteBuildingId + unitType) and sums remaining units.
- */
-async function getBuildingVacantUnits(
-  buildingId: string,
-  checkIn: string,
-  checkOut: string,
-  conversationId: string,
-  memo?: AvailabilityMemo,
-): Promise<number> {
-  const buildingUnits = await prisma.unit.findMany({
-    where: { buildingId, isPublished: true },
-    select: {
-      id: true,
-      unitType: true,
-      building: { select: { netsuiteId: true } },
-    },
-  });
-
-  if (buildingUnits.length === 0) return 0;
-
-  const seenPools = new Set<string>();
-  let totalVacant = 0;
-
-  for (const u of buildingUnits) {
-    const poolKey = u.building.netsuiteId
-      ? `${u.building.netsuiteId}:${u.unitType}`
-      : `unit:${u.id}`;
-
-    if (seenPools.has(poolKey)) continue;
-    seenPools.add(poolKey);
-
-    const avail = await unifiedAvailability(
-      {
-        id: u.id,
-        unitType: u.unitType,
-        buildingNetsuiteId: u.building.netsuiteId,
-      },
-      checkIn,
-      checkOut,
-      conversationId,
-      memo,
-    );
-
-    if (avail.available && avail.remaining > 0) {
-      totalVacant += avail.remaining;
-    }
-  }
-
-  return totalVacant;
-}
-
-/**
- * Dynamic Price Negotiation Engine:
- * 1. Check-in must be TODAY in Salalah (salalahTodayISO()). If future, 0% discount / non-negotiable.
- * 2. If check-in is today, discount depends on total building vacant units for the stay:
- *    - >= 6 vacant units -> 20% discount
- *    - 4 or 5 vacant units -> 10% discount
- *    - < 4 vacant units -> 0% discount (no discount)
- */
-async function calculateNegotiationDiscount(
-  buildingId: string,
-  checkIn: string,
-  checkOut: string,
-  originalTotalOmr: number,
-  nights: number,
-  conversationId: string,
-  memo?: AvailabilityMemo,
-): Promise<NegotiationDetails> {
-  const today = salalahTodayISO();
-  const isSameDay = checkIn === today;
-
-  if (!isSameDay) {
-    return {
-      eligible_for_same_day_discount: false,
-      building_vacant_units: 0,
-      discount_percent: 0,
-      original_total_omr: originalTotalOmr,
-      discounted_total_omr: originalTotalOmr,
-      discounted_per_night_omr:
-        nights > 0 ? Math.round((originalTotalOmr / nights) * 100) / 100 : originalTotalOmr,
-      guidance_for_assistant:
-        "Check-in date is not today. Price negotiation is strictly NOT permitted for future dates. Rates are fixed at standard published prices.",
-    };
-  }
-
-  const vacantUnits = await getBuildingVacantUnits(
-    buildingId,
-    checkIn,
-    checkOut,
-    conversationId,
-    memo,
-  );
-
-  let discountPercent: 0 | 10 | 20 = 0;
-  if (vacantUnits >= 6) {
-    discountPercent = 20;
-  } else if (vacantUnits >= 4) {
-    discountPercent = 10;
-  } else {
-    discountPercent = 0;
-  }
-
-  if (discountPercent === 0) {
-    return {
-      eligible_for_same_day_discount: false,
-      building_vacant_units: vacantUnits,
-      discount_percent: 0,
-      original_total_omr: originalTotalOmr,
-      discounted_total_omr: originalTotalOmr,
-      discounted_per_night_omr:
-        nights > 0 ? Math.round((originalTotalOmr / nights) * 100) / 100 : originalTotalOmr,
-      guidance_for_assistant: `Check-in is today, but the building has ${vacantUnits} vacant units (under 4). No negotiation discount applies. Rates are fixed at standard published prices. NEVER mention vacant unit counts or building occupancy to the customer.`,
-    };
-  }
-
-  const discountedTotal =
-    Math.round(originalTotalOmr * (1 - discountPercent / 100) * 100) / 100;
-  const discountedPerNight =
-    nights > 0 ? Math.round((discountedTotal / nights) * 100) / 100 : discountedTotal;
-
-  return {
-    eligible_for_same_day_discount: true,
-    building_vacant_units: vacantUnits,
-    discount_percent: discountPercent,
-    original_total_omr: originalTotalOmr,
-    discounted_total_omr: discountedTotal,
-    discounted_per_night_omr: discountedPerNight,
-    guidance_for_assistant: `Customer check-in is TODAY (${checkIn}) and the building qualifies for an immediate ${discountPercent}% same-day discount. OFFER THE DISCOUNTED PRICE DIRECTLY UPFRONT from your very first quote (${discountedTotal} OMR total, ${discountedPerNight} OMR/night, instead of the standard ${originalTotalOmr} OMR). Frame it enthusiastically as a special same-day check-in offer (e.g. "عرض خاص لدخول اليوم بخصم ${discountPercent}%: ${discountedTotal} ر.ع بدل ${originalTotalOmr} ر.ع"). When submitting the booking, call create_reservation with apply_same_day_discount: true. NEVER mention occupancy or vacant unit counts.`,
-  };
-}
 
 type PriceInfo =
   | {
@@ -833,21 +692,7 @@ const searchUnits = defineTool({
         bookable.map(async ({ unit, availability }) => {
           let price = null;
           if (settings.show_prices) {
-            const rawPrice = await priceForStay(unit.id, input.check_in!, input.check_out!);
-            if ("total_omr" in rawPrice) {
-              const negotiation = await calculateNegotiationDiscount(
-                unit.buildingId,
-                input.check_in!,
-                input.check_out!,
-                rawPrice.total_omr,
-                rawPrice.nights,
-                ctx.conversationId,
-                memo,
-              );
-              price = { ...rawPrice, negotiation };
-            } else {
-              price = rawPrice;
-            }
+            price = await priceForStay(unit.id, input.check_in!, input.check_out!);
           }
           return { unit, availability, price };
         }),
@@ -1025,20 +870,7 @@ const checkAvailability = defineTool({
     }
     let price: unknown = undefined;
     if (settings.show_prices) {
-      const rawPrice = await priceForStay(input.unit_id, input.check_in, input.check_out);
-      if ("total_omr" in rawPrice) {
-        const negotiation = await calculateNegotiationDiscount(
-          unit.buildingId,
-          input.check_in,
-          input.check_out,
-          rawPrice.total_omr,
-          rawPrice.nights,
-          ctx.conversationId,
-        );
-        price = { ...rawPrice, negotiation };
-      } else {
-        price = rawPrice;
-      }
+      price = await priceForStay(input.unit_id, input.check_in, input.check_out);
     }
 
     return {
@@ -1280,12 +1112,6 @@ const createReservation = defineTool({
     customer_phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
     id_passport: z.string().min(4).max(40).describe("National ID number or passport number — required for every reservation"),
     customer_email: z.string().email().optional(),
-    apply_same_day_discount: z
-      .boolean()
-      .optional()
-      .describe(
-        "Set to true if a same-day check-in discount (10% or 20%) was quoted or applies",
-      ),
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
@@ -1303,24 +1129,7 @@ const createReservation = defineTool({
       ? await priceForStay(unit.id, input.check_in, input.check_out)
       : null;
     const priced = price && !("price_unavailable" in price) ? price : null;
-
-    let finalTotal = priced?.total_omr ?? 0;
-    let appliedDiscountInfo: NegotiationDetails | null = null;
-
-    if (priced && input.apply_same_day_discount !== false) {
-      const negotiation = await calculateNegotiationDiscount(
-        unit.buildingId,
-        input.check_in,
-        input.check_out,
-        priced.total_omr,
-        priced.nights,
-        ctx.conversationId,
-      );
-      if (negotiation.eligible_for_same_day_discount && negotiation.discount_percent > 0) {
-        finalTotal = negotiation.discounted_total_omr;
-        appliedDiscountInfo = negotiation;
-      }
-    }
+    const finalTotal = priced?.total_omr ?? 0;
 
     // ── Paused mode (default) ────────────────────────────────────────────────
     // The bot does NOT create the reservation. Save the booking-ready customer
@@ -1331,10 +1140,7 @@ const createReservation = defineTool({
         startOfDay(parseISO(input.check_out)),
         startOfDay(parseISO(input.check_in)),
       );
-      const discountNote = appliedDiscountInfo
-        ? ` (تم تطبيق خصم دخول اليوم ${appliedDiscountInfo.discount_percent}% — السعر الأصلي ${priced?.total_omr} ر.ع)`
-        : "";
-      const priceLine = priced ? ` · الإجمالي التقريبي ${finalTotal} ر.ع${discountNote}` : "";
+      const priceLine = priced ? ` · الإجمالي التقريبي ${finalTotal} ر.ع` : "";
       await prisma.chatbotLead.create({
         data: {
           conversationId: ctx.conversationId,
@@ -1364,7 +1170,7 @@ const createReservation = defineTool({
         persons: "غير محدد",
         summary:
           `طلب حجز جديد — ${unit.titleAr}. الهوية/الجواز ${input.id_passport}.` +
-          (priced ? ` الإجمالي التقريبي ${finalTotal} ر.ع${discountNote}.` : "") +
+          (priced ? ` الإجمالي التقريبي ${finalTotal} ر.ع.` : "") +
           ` يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.`,
         emailSubject: `طلب حجز جديد — ${unit.titleAr} (${input.customer_name})`,
       });
@@ -1375,8 +1181,6 @@ const createReservation = defineTool({
         ...(priced
           ? {
               approx_total_omr: finalTotal,
-              original_total_omr: priced.total_omr,
-              discount_percent: appliedDiscountInfo?.discount_percent ?? 0,
               nights: priced.nights,
             }
           : {}),
@@ -1447,7 +1251,7 @@ const createReservation = defineTool({
       customerEmail: input.customer_email ?? null,
       idPassport: input.id_passport,
       totalAmount: finalTotal,
-      notes: `AI chatbot reservation — ${unit.titleEn} (${priced.nights} nights${forceDaily ? ", daily rate — Khareef" : ""}${appliedDiscountInfo ? ` · ${appliedDiscountInfo.discount_percent}% same-day discount applied` : ""})`,
+      notes: `AI chatbot reservation — ${unit.titleEn} (${priced.nights} nights${forceDaily ? ", daily rate — Khareef" : ""})`,
       forceDaily,
       conversationId: ctx.conversationId,
     });
@@ -1482,9 +1286,6 @@ const createReservation = defineTool({
       where: { id: ctx.conversationId },
       select: { language: true },
     });
-    const discountDesc = appliedDiscountInfo
-      ? ` (includes ${appliedDiscountInfo.discount_percent}% same-day discount)`
-      : "";
     const paymentLink = await createNetsuitePaymentLink({
       netsuiteReservationId: reservation.data.reservationId,
       netsuiteReservationRef: reservation.data.reservationRef ?? null,
@@ -1496,7 +1297,7 @@ const createReservation = defineTool({
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
       amount: advance,
-      description: `Advance payment (50%) — total ${finalTotal} OMR${discountDesc}, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
+      description: `Advance payment (50%) — total ${finalTotal} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
       locale: conversation?.language === "ar" ? "ar" : "en",
     });
 
@@ -1513,7 +1314,7 @@ const createReservation = defineTool({
         idNumber: input.id_passport,
         reservationNumber:
           reservation.data.reservationRef ?? reservation.data.reservationId,
-        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${finalTotal}).${appliedDiscountInfo ? ` (${appliedDiscountInfo.discount_percent}% same-day discount applied)` : ""}`,
+        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${finalTotal}).`,
       },
     });
     await prisma.chatbotConversation.update({
