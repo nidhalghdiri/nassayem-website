@@ -64,8 +64,8 @@ export default function ConfigForm({ locale, settings }: Props) {
           />
           <span className="text-sm font-medium text-gray-800">
             {t(
-              "Let the bot create reservations — when OFF (recommended), a booking-ready customer is saved as a lead and the reservations team + building receptionist are notified on WhatsApp to finish the booking",
-              "السماح للبوت بإنشاء الحجوزات — عند الإيقاف (مُوصى به) يُحفظ العميل الجاهز للحجز كعميل محتمل ويُشعَر فريق الحجوزات وموظف الاستقبال عبر واتساب لإتمام الحجز",
+              "Enable direct reservations — the chatbot creates the reservation in NetSuite and issues the 50% advance payment link directly to the customer",
+              "تفعيل إنشاء الحجوزات مباشرة — ينشئ البوت الحجز في النظام ويرسل رابط سداد الدفعة المقدمة (50%) للعميل مباشرة",
             )}
           </span>
         </label>

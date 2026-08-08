@@ -344,7 +344,7 @@ async function calculateNegotiationDiscount(
     original_total_omr: originalTotalOmr,
     discounted_total_omr: discountedTotal,
     discounted_per_night_omr: discountedPerNight,
-    guidance_for_assistant: `Customer check-in is TODAY (${checkIn}) and the building qualifies for a ${discountPercent}% same-day occupancy discount. Quote standard price (${originalTotalOmr} OMR) first. ONLY IF the customer attempts to negotiate, complains about price, or asks for a discount/best price ("آخر سعر" / "تخفيض"), you MAY offer this special ${discountPercent}% same-day discount (${discountedTotal} OMR total, ${discountedPerNight} OMR/night). If accepted, call create_reservation with apply_same_day_discount: true. NEVER mention occupancy or vacant unit counts.`,
+    guidance_for_assistant: `Customer check-in is TODAY (${checkIn}) and the building qualifies for an immediate ${discountPercent}% same-day discount. OFFER THE DISCOUNTED PRICE DIRECTLY UPFRONT from your very first quote (${discountedTotal} OMR total, ${discountedPerNight} OMR/night, instead of the standard ${originalTotalOmr} OMR). Frame it enthusiastically as a special same-day check-in offer (e.g. "عرض خاص لدخول اليوم بخصم ${discountPercent}%: ${discountedTotal} ر.ع بدل ${originalTotalOmr} ر.ع"). When submitting the booking, call create_reservation with apply_same_day_discount: true. NEVER mention occupancy or vacant unit counts.`,
   };
 }
 
@@ -1136,7 +1136,7 @@ const getBuildingInfo = defineTool({
 const createLead = defineTool({
   name: "create_lead",
   description:
-    "Save the customer's contact details and immediately notify our reservations team to follow up. Use when the customer agrees to a callback, asks for someone to contact them, wants dates we couldn't price online (e.g. Khareef call-center rates), or shows strong interest without booking. Always confirm name and phone with the customer first.",
+    "Save contact details ONLY when the customer explicitly asks for a phone callback and does NOT want to proceed with booking through the chat assistant. DO NOT use this tool when a customer provides details to reserve — instead, collect their ID/Passport and call create_reservation directly.",
   schema: z.object({
     name: z.string().min(2).max(120),
     phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
@@ -1244,57 +1244,6 @@ const createLead = defineTool({
   },
 });
 
-const createHold = defineTool({
-  name: "create_hold",
-  description:
-    `Place a soft reservation on a unit for ${HOLD_MINUTES} minutes while the customer decides. It is NOT a confirmed booking and no payment is taken — always say so. Verify the customer wants it before calling.`,
-  schema: z.object({
-    unit_id: realId,
-    check_in: dateString,
-    check_out: dateString,
-  }),
-  execute: async (input, ctx) => {
-    const unit = await prisma.unit.findUnique({
-      where: { id: input.unit_id, isPublished: true },
-      select: { id: true, unitType: true, building: { select: { netsuiteId: true } } },
-    });
-    if (!unit) return { held: false, reason: "Unit not found." };
-
-    const availability = await unifiedAvailability(
-      {
-        id: unit.id,
-        unitType: unit.unitType,
-        buildingNetsuiteId: unit.building.netsuiteId,
-      },
-      input.check_in,
-      input.check_out,
-      ctx.conversationId,
-    );
-    if (!availability.available) {
-      return { held: false, reason: "The unit is no longer available for these dates." };
-    }
-
-    const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60_000);
-    await prisma.chatbotHold.create({
-      data: {
-        unitId: input.unit_id,
-        conversationId: ctx.conversationId,
-        checkIn: startOfDay(parseISO(input.check_in)),
-        checkOut: startOfDay(parseISO(input.check_out)),
-        expiresAt,
-      },
-    });
-
-    return {
-      held: true,
-      minutes: HOLD_MINUTES,
-      expires_at: expiresAt.toISOString(),
-      booking_link: `${baseUrl()}/en/properties/${input.unit_id}`,
-      next: `Tell the customer the unit is set aside for ${HOLD_MINUTES} minutes and they can complete the booking online now, or the team can call them (offer create_lead).`,
-    };
-  },
-});
-
 const createReservation = defineTool({
   name: "create_reservation",
   description:
@@ -1311,7 +1260,7 @@ const createReservation = defineTool({
       .boolean()
       .optional()
       .describe(
-        "Set to true if the customer negotiated and agreed on the same-day check-in discount (10% or 20%)",
+        "Set to true if a same-day check-in discount (10% or 20%) was quoted or applies",
       ),
   }),
   execute: async (input, ctx) => {
@@ -1334,7 +1283,7 @@ const createReservation = defineTool({
     let finalTotal = priced?.total_omr ?? 0;
     let appliedDiscountInfo: NegotiationDetails | null = null;
 
-    if (priced && input.apply_same_day_discount) {
+    if (priced && input.apply_same_day_discount !== false) {
       const negotiation = await calculateNegotiationDiscount(
         unit.buildingId,
         input.check_in,
@@ -1557,7 +1506,7 @@ const createReservation = defineTool({
       nights: priced.nights,
       payment_url: paymentLink.url,
       payment_link_expires_at: paymentLink.expiresAt.toISOString(),
-      next: "Tell the customer: the unit is held for them; they pay the 50% ADVANCE now via the link (bare URL) and the remaining 50% at reception on arrival; and that once the advance is paid our reservations team/reception will CONFIRM the booking with them. Do NOT tell the customer the booking is already confirmed (never say «تم تأكيد الحجز») — only the team confirms. Mention the total, the advance amount, the remaining amount and the link expiry.",
+      next: `Tell the customer: their reservation has been registered in the system (Ref: ${reservation.data.reservationRef ?? reservation.data.reservationId}). Send the 50% advance payment link (${paymentLink.url} as a bare URL) to pay ${advance} OMR now to confirm the reservation. The remaining ${remaining} OMR will be paid upon arrival at reception. Total: ${finalTotal} OMR (${priced.nights} nights). Do not tell the customer a team member will contact them unless they explicitly ask for escalation.`,
     };
   },
 });
@@ -1608,7 +1557,6 @@ const TOOLS: ToolDef<z.ZodType>[] = [
   getActivePromotions,
   getBuildingInfo,
   createLead,
-  createHold,
   createReservation,
   escalateToHuman,
 ];

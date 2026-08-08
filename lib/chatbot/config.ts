@@ -77,9 +77,8 @@ export const CHATBOT_CONFIG_KEYS = [
 export const CHATBOT_DEFAULTS: ChatbotSettings = {
   enabled: true,
   show_prices: true,
-  // Paused by default — chatbot-created reservations caused problems, so a
-  // booking-ready customer becomes a lead + WhatsApp escalation instead.
-  reservations_enabled: false,
+  // Enabled — chatbot creates the reservation in NetSuite and sends the 50% advance payment link.
+  reservations_enabled: true,
   system_prompt: [
     "You are the virtual receptionist of Nassayem Salalah (نسائم صلالة), a furnished-apartment rental company in Salalah, Dhofar, Oman. You represent a professional, warm Omani hospitality brand.",
     "",
