@@ -47,7 +47,7 @@ export type ChatbotReservationItem = {
   totalPriceOmr: number;
   status: string;
   reservationNumber: string | null;
-  conversationId: string;
+  conversationId: string | null;
   createdAt: string;
 };
 
@@ -189,36 +189,29 @@ export type DailyReportPayload = {
 };
 
 export async function getDailyReportData(targetDate: Date): Promise<DailyReportPayload> {
-  const startOfDay = new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate(),
-    0,
-    0,
-    0,
-    0,
-  );
-  const endOfDay = new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate(),
-    23,
-    59,
-    59,
-    999,
-  );
+  // Convert targetDate to a string in GST (UTC+4) to get the local YYYY-MM-DD
+  const gstTarget = new Date(targetDate.getTime() + 4 * 60 * 60 * 1000);
+  const year = gstTarget.getUTCFullYear();
+  const month = gstTarget.getUTCMonth();
+  const date = gstTarget.getUTCDate();
+
+  // Create startOfDay and endOfDay in GST (UTC+4), then convert to UTC for Prisma
+  const startOfDay = new Date(Date.UTC(year, month, date, -4, 0, 0, 0)); // 00:00:00 GST = 20:00:00 UTC previous day
+  const endOfDay = new Date(Date.UTC(year, month, date, 19, 59, 59, 999)); // 23:59:59 GST = 19:59:59 UTC
 
   const now = new Date();
+  const gstNow = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+  
   const isToday =
-    targetDate.getFullYear() === now.getFullYear() &&
-    targetDate.getMonth() === now.getMonth() &&
-    targetDate.getDate() === now.getDate();
+    year === gstNow.getUTCFullYear() &&
+    month === gstNow.getUTCMonth() &&
+    date === gstNow.getUTCDate();
 
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const gstYesterday = new Date(gstNow.getTime() - 24 * 60 * 60 * 1000);
   const isYesterday =
-    targetDate.getFullYear() === yesterday.getFullYear() &&
-    targetDate.getMonth() === yesterday.getMonth() &&
-    targetDate.getDate() === yesterday.getDate();
+    year === gstYesterday.getUTCFullYear() &&
+    month === gstYesterday.getUTCMonth() &&
+    date === gstYesterday.getUTCDate();
 
   const REAL_CUSTOMERS = { NOT: { externalId: { startsWith: "playground-" } } };
 
@@ -329,10 +322,11 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
       orderBy: { createdAt: "desc" },
     }),
 
-    // Netsuite payment links created on this day
+    // Netsuite payment links created on this day (chatbot links only, identified by unitCode)
     prisma.netsuitePayment.findMany({
       where: {
         createdAt: { gte: startOfDay, lte: endOfDay },
+        unitCode: { not: null },
       },
       include: {
         building: {
@@ -478,12 +472,7 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
   // Human baseline: ~0.438 OMR per conversation
   const estimatedHumanCostOmr = totalConvs * 0.438;
   const estimatedLaborSavingsOmr = Math.max(0, estimatedHumanCostOmr - spendOmr);
-  const estimatedRoiPct =
-    spendOmr > 0
-      ? Math.round(((estimatedHumanCostOmr - spendOmr) / spendOmr) * 100)
-      : totalConvs > 0
-      ? 1600
-      : 0;
+  const estimatedRoiPct = 0;
 
   // ── 4. Channel & Language Splits ─────────────────────────────────────────────
   const channelWhatsapp = dayConversations.filter((c) => c.channel === "WHATSAPP").length;
@@ -717,10 +706,17 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
   let totalReservationsValueOmr = 0;
 
   for (const lead of dayLeads) {
+    const matchingPay = dayPaymentLinks.find(
+      (p) =>
+        (p.customerPhone && p.customerPhone === lead.phone) ||
+        (p.customerName && p.customerName === lead.name)
+    );
+    const resolvedReservationNum = matchingPay?.netsuiteReservationRef || lead.reservationNumber;
+
     const isReservation =
       lead.status === "CONTACTED" ||
       lead.status === "CONVERTED" ||
-      lead.reservationNumber !== null ||
+      resolvedReservationNum !== null ||
       lead.checkIn !== null;
 
     if (isReservation) {
@@ -745,9 +741,40 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
         nights,
         totalPriceOmr: calculatedTotal,
         status: lead.status,
-        reservationNumber: lead.reservationNumber,
+        reservationNumber: resolvedReservationNum,
         conversationId: lead.conversationId,
         createdAt: lead.createdAt.toISOString(),
+      });
+    }
+  }
+
+  // Also include any chatbot Payment Links (with unitCode) that didn't match a lead
+  for (const pay of dayPaymentLinks) {
+    if (!reservations.some((r) => r.reservationNumber === pay.netsuiteReservationRef || r.guestPhone === pay.customerPhone)) {
+      let nights = 1;
+      if (pay.checkIn && pay.checkOut) {
+        const diffMs = pay.checkOut.getTime() - pay.checkIn.getTime();
+        nights = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      }
+      // amount is 50% advance, so total is approx amount * 2
+      const calculatedTotal = pay.amount * 2;
+      totalReservationsValueOmr += calculatedTotal;
+
+      reservations.push({
+        id: pay.id,
+        guestName: pay.customerName,
+        guestPhone: pay.customerPhone || "N/A",
+        unitTitle: pay.unitCode || "شقة فندقية",
+        unitType: "ONE_BEDROOM", // Default as we don't have it directly from NetSuitePayment
+        buildingName: pay.building?.nameAr || pay.building?.nameEn || "نسائم صلالة",
+        checkIn: pay.checkIn ? pay.checkIn.toISOString().slice(0, 10) : null,
+        checkOut: pay.checkOut ? pay.checkOut.toISOString().slice(0, 10) : null,
+        nights,
+        totalPriceOmr: calculatedTotal,
+        status: pay.status === "PAID" ? "CONVERTED" : "CONTACTED",
+        reservationNumber: pay.netsuiteReservationRef,
+        conversationId: null, // No direct link to conversation
+        createdAt: pay.createdAt.toISOString(),
       });
     }
   }

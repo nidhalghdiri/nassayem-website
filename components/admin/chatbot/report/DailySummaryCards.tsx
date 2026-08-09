@@ -282,55 +282,17 @@ export default function DailySummaryCards({ data, locale, currency }: Props) {
             <span>{isEn ? "Pending Follow-up:" : "بانتظار تواصل الموظف:"}</span>
             <span className="font-bold">{data.followUpSummary.pending}</span>
           </div>
-        </div>
-      </div>
-
-      {/* 7. Estimated Labor Savings & ROI */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-[#1B365D] text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between sm:col-span-2 xl:col-span-2">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 mb-2">
-              <TrendingUp className="w-3 h-3" />
-              {isEn ? "Financial Impact & ROI" : "العائد المالي والتشغيلي"}
-            </span>
-            <h3 className="text-lg font-bold text-white">
-              {isEn ? "Human Labor vs AI Savings" : "المقارنة مع تكلفة خدمة العملاء البشرية"}
-            </h3>
+          <div className="flex items-center justify-between text-[11px] text-blue-700">
+            <span>{isEn ? "Asked Customer:" : "تم سؤال العميل:"}</span>
+            <span className="font-bold">{data.followUpSummary.asked}</span>
           </div>
-          <div className="text-right">
-            <span className="text-2xl font-extrabold text-emerald-400">
-              +{data.estimatedLaborSavingsOmr.toFixed(2)} OMR
-            </span>
-            <p className="text-[11px] text-slate-300">
-              {isEn ? "Labor cost saved today" : "صافي التوفير المالي اليوم"}
-            </p>
+          <div className="flex items-center justify-between text-[11px] text-red-700">
+            <span>{isEn ? "✕ Not Contacted:" : "✕ لم يتم التواصل:"}</span>
+            <span className="font-bold">{data.followUpSummary.notContacted}</span>
           </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-white/10 text-center">
-          <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[11px] text-slate-400 block">
-              {isEn ? "Human Baseline" : "التكلفة البشرية التقديرية"}
-            </span>
-            <span className="text-sm font-bold text-white">
-              {data.estimatedHumanCostOmr.toFixed(2)} OMR
-            </span>
-          </div>
-          <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[11px] text-slate-400 block">
-              {isEn ? "Actual AI Spend" : "التكلفة الفعلية للذكاء"}
-            </span>
-            <span className="text-sm font-bold text-amber-300">
-              {data.spendOmr.toFixed(3)} OMR
-            </span>
-          </div>
-          <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-            <span className="text-[11px] text-emerald-300 block">
-              {isEn ? "Return on Investment" : "معدل العائد (ROI)"}
-            </span>
-            <span className="text-sm font-extrabold text-emerald-300">
-              +{data.estimatedRoiPct}%
-            </span>
+          <div className="flex items-center justify-between text-[11px] text-emerald-700">
+            <span>{isEn ? "✓ Contacted:" : "✓ تم التواصل:"}</span>
+            <span className="font-bold">{data.followUpSummary.contacted}</span>
           </div>
         </div>
       </div>

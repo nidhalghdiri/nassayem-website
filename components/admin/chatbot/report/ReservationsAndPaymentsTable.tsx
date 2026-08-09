@@ -207,9 +207,16 @@ export default function ReservationsAndPaymentsTable({
 
                     {/* Status */}
                     <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        {res.status}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          {res.status}
+                        </span>
+                        {res.reservationNumber && (
+                          <span className="block text-[10px] font-mono text-gray-500 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">
+                            {res.reservationNumber}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Action */}
