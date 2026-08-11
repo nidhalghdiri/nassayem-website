@@ -671,7 +671,27 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
   for (const c of dayConversations) {
     if (c.status === "ESCALATED") {
       const relatedLead = dayLeads.find((l) => l.conversationId === c.id);
-      const bId = relatedLead?.unit?.buildingId || UNASSIGNED_ID;
+      let bId = relatedLead?.unit?.buildingId || UNASSIGNED_ID;
+
+      // If no building from lead, try to extract from escalation logs
+      if (bId === UNASSIGNED_ID) {
+        const relatedLog = escalationLogs.find((l) => l.conversationId === c.id && l.buildingName);
+        if (relatedLog && relatedLog.buildingName && relatedLog.buildingName !== "غير محدد" && relatedLog.buildingName.trim().length > 2) {
+           const bName = relatedLog.buildingName.toLowerCase().trim();
+           const matchedBuilding = buildings.find((b) => 
+              (b.nameEn && bName.includes(b.nameEn.toLowerCase())) || 
+              (b.nameAr && bName.includes(b.nameAr.toLowerCase())) ||
+              (b.nameEn && b.nameEn.toLowerCase().includes(bName)) ||
+              (b.nameAr && b.nameAr.toLowerCase().includes(bName)) ||
+              (b.shortName && bName.includes(b.shortName.toLowerCase())) ||
+              (b.shortName && b.shortName.toLowerCase().includes(bName))
+           );
+           if (matchedBuilding) {
+             bId = matchedBuilding.id;
+           }
+        }
+      }
+
       const bucket = buildingStatusMap.get(bId) || buildingStatusMap.get(UNASSIGNED_ID)!;
 
       bucket.total++;
