@@ -654,35 +654,38 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
     lost: 0,
   };
 
+  // Only count lead status summary for the leads section, do NOT add them to building buckets here
   for (const lead of dayLeads) {
-    const bId = lead.unit?.buildingId || UNASSIGNED_ID;
-    const bucket = buildingStatusMap.get(bId) || buildingStatusMap.get(UNASSIGNED_ID)!;
-
-    bucket.total++;
-
     if (lead.status === "NEW") {
-      bucket.pending++;
       leadStatusSummary.new++;
     } else if (lead.status === "CONTACTED") {
-      bucket.contacted++;
       leadStatusSummary.contacted++;
     } else if (lead.status === "CONVERTED") {
-      bucket.converted++;
       leadStatusSummary.converted++;
     } else if (lead.status === "LOST") {
-      bucket.notContacted++;
       leadStatusSummary.lost++;
     }
   }
 
-  // Also include escalated conversations without leads into building counts
+  // Only Escalated Conversations are considered as "Inquiries" in the building breakdown
   for (const c of dayConversations) {
-    if (c.status === "ESCALATED" && !dayLeads.some((l) => l.conversationId === c.id)) {
-      const bucket = buildingStatusMap.get(UNASSIGNED_ID)!;
+    if (c.status === "ESCALATED") {
+      const relatedLead = dayLeads.find((l) => l.conversationId === c.id);
+      const bId = relatedLead?.unit?.buildingId || UNASSIGNED_ID;
+      const bucket = buildingStatusMap.get(bId) || buildingStatusMap.get(UNASSIGNED_ID)!;
+
       bucket.total++;
-      if (c.followUpStatus === "CONTACTED") bucket.contacted++;
-      else if (c.followUpStatus === "NOT_CONTACTED") bucket.notContacted++;
-      else bucket.pending++;
+
+      if (relatedLead) {
+        if (relatedLead.status === "NEW") bucket.pending++;
+        else if (relatedLead.status === "CONTACTED") bucket.contacted++;
+        else if (relatedLead.status === "CONVERTED") bucket.converted++;
+        else if (relatedLead.status === "LOST") bucket.notContacted++;
+      } else {
+        if (c.followUpStatus === "CONTACTED") bucket.contacted++;
+        else if (c.followUpStatus === "NOT_CONTACTED") bucket.notContacted++;
+        else bucket.pending++;
+      }
     }
   }
 
