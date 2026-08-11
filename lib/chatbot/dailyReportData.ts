@@ -530,11 +530,11 @@ export async function getDailyReportData(targetDate: Date): Promise<DailyReportP
       let buildingName: string | null = null;
 
       if (log.bodyParams && Array.isArray(log.bodyParams)) {
-        // [customerName, phone, building, dates, persons, reason/summary]
+        // Actual order based on DB: [building, customerName, phone, dates, persons, reason/summary]
         const params = log.bodyParams as string[];
-        if (params.length >= 1) customerName = params[0];
-        if (params.length >= 2) customerPhone = params[1];
-        if (params.length >= 3) buildingName = params[2];
+        if (params.length >= 1) buildingName = params[0];
+        if (params.length >= 2) customerName = params[1];
+        if (params.length >= 3) customerPhone = params[2];
         if (params.length >= 6) summary = params[5];
         reason = summary || reason;
       }
