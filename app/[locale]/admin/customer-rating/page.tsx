@@ -1,0 +1,50 @@
+import { redirect } from "next/navigation";
+import prisma from "@/lib/prisma";
+import { getCurrentAdminUser } from "@/lib/adminAuth";
+import CustomerRatingModule from "@/components/admin/campaign/CustomerRatingModule";
+
+type PageProps = {
+  params: Promise<{ locale: string }>;
+};
+
+export default async function AdminCustomerRatingPage({ params }: PageProps) {
+  const { locale } = await params;
+  const isEn = locale === "en";
+
+  const currentAdmin = await getCurrentAdminUser();
+  if (!currentAdmin || currentAdmin.role !== "MANAGER") {
+    redirect(`/${locale}/admin`);
+  }
+
+  // Fetch campaign customers
+  const rawCustomers = await prisma.campaignCustomer.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
+  const customers = rawCustomers.map((c) => ({
+    ...c,
+    checkinDate: c.checkinDate?.toISOString() ?? null,
+    checkoutDate: c.checkoutDate?.toISOString() ?? null,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            {isEn ? "Customer Ratings Campaign" : "حملة تقييم العملاء"}
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            {isEn
+              ? "Manage feedback campaigns, upload CSV data, and track WhatsApp surveys."
+              : "إدارة حملات التقييم، رفع بيانات العملاء، وتتبع استبيانات الواتساب."}
+          </p>
+        </div>
+      </div>
+
+      <CustomerRatingModule initialCustomers={customers} locale={locale} />
+    </div>
+  );
+}

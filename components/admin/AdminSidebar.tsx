@@ -20,7 +20,7 @@ type Props = {
 // MAINTENANCE  : Dashboard, Tasks
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "chatbot", "whatsappLog", "blog", "recommendations", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "laundry", "chatbot"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks"],
@@ -123,6 +123,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/whatsapp-log`,
       exact: false,
       icon: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8",
+    },
+    {
+      key: "customer-rating",
+      nameEn: "Customer Ratings",
+      nameAr: "تقييم العملاء",
+      href: `/${locale}/admin/customer-rating`,
+      exact: false,
+      icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
     },
     {
       key: "blog",

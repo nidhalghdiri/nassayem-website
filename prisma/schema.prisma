@@ -1021,3 +1021,42 @@ model Recommendation {
 
   @@index([category, isPublished, displayOrder])
 }
+
+// ------------------------------------------------------
+// MODELS — Campaigns (Customer Ratings)
+// ------------------------------------------------------
+
+enum CampaignCustomerStatus {
+  PENDING
+  SENT_WAITING
+  IN_PROGRESS
+  DONE
+}
+
+model CampaignCustomer {
+  id                 String   @id @default(uuid())
+  campaignId         String   @default("KHAREEF_2026")
+  netsuiteCustomerId String?
+  name               String
+  phone              String 
+  reservationNumber  String?
+  building           String?
+  unitType           String?
+  unitNumber         String?
+  checkinDate        DateTime?
+  checkoutDate       DateTime?
+  stayAmount         Float?
+  nightRate          Float?
+
+  status             CampaignCustomerStatus @default(PENDING)
+  summary            String? @db.Text
+  category           String?
+  sentimentScore     Int?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([phone])
+}

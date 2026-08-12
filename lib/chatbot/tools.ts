@@ -1375,6 +1375,47 @@ const escalateToHuman = defineTool({
   },
 });
 
+const submitSurveyFeedback = defineTool({
+  name: "submit_survey_feedback",
+  description:
+    "Submit the final categorized feedback summary for a customer's recent stay. Call this when the customer has finished giving feedback about their stay. DO NOT call this for new bookings.",
+  schema: z.object({
+    phone: z.string().describe("The customer's phone number exactly as found in the conversation context (the externalId)."),
+    category: z.enum(["COMPLAINT", "SUGGESTION", "COMPLIMENT", "MIXED"]).describe("The overall sentiment/category of the feedback."),
+    summary: z.string().min(10).describe("A concise summary of the customer's feedback, in English, focusing on actionable points."),
+  }),
+  execute: async (input) => {
+    // We match by phone (with or without '+')
+    let phone = input.phone;
+    if (!phone.startsWith("+")) phone = "+" + phone;
+    
+    // Check both exact and without '+' just in case
+    const campaignCustomer = await prisma.campaignCustomer.findFirst({
+      where: { 
+        OR: [
+          { phone: input.phone },
+          { phone: input.phone.replace("+", "") },
+          { phone: "+" + input.phone.replace("+", "") }
+        ]
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (campaignCustomer) {
+      await prisma.campaignCustomer.update({
+        where: { id: campaignCustomer.id },
+        data: {
+          status: "DONE",
+          summary: input.summary,
+          category: input.category,
+        },
+      });
+      return { success: true, message: "Feedback submitted successfully." };
+    }
+    return { success: false, error: "Campaign customer not found." };
+  },
+});
+
 const TOOLS: ToolDef<z.ZodType>[] = [
   searchUnits,
   getUnitDetails,
@@ -1384,6 +1425,7 @@ const TOOLS: ToolDef<z.ZodType>[] = [
   createLead,
   createReservation,
   escalateToHuman,
+  submitSurveyFeedback,
 ];
 
 // ── Public surface ────────────────────────────────────────────────────────────

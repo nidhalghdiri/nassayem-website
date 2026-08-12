@@ -685,3 +685,25 @@ export async function notifyLaundryUpdate({
     ).catch(console.error);
   }
 }
+
+/**
+ * Notify a Khareef campaign customer to ask for their rating/survey.
+ * Template: ns_customer_survey (AR)
+ * Body Params: [1] name (assumed, adjust if the template has no parameters)
+ */
+export async function sendCustomerSurveyTemplate(
+  to: string,
+  name: string,
+): Promise<void> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return;
+
+  const flatName = name.replace(/\s+/g, " ").trim().slice(0, 100) || "عميلنا العزيز";
+  
+  await sendTemplate(
+    cleanTo,
+    "ns_customer_survey",
+    "ar",
+    [flatName], // Assuming {{1}} is the customer's name. Remove or change if your template has different variables!
+  );
+}

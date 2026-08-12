@@ -242,12 +242,13 @@ async function ingestUserMessage(opts: ChatbotTurnOptions): Promise<IngestOutcom
  */
 async function generateReply(params: {
   conversationId: string;
+  externalId: string;
   language: string;
   settings: ChatbotSettings;
   channel: ChatChannel;
   onTextDelta?: (text: string) => void;
 }): Promise<ChatbotTurnResult> {
-  const { conversationId, language, settings, channel } = params;
+  const { conversationId, externalId, language, settings, channel } = params;
 
   // ── History (includes the message(s) just stored) ─────────────────────────
   // STAFF rows (human handoff) are included as assistant turns so a resumed
@@ -349,10 +350,62 @@ async function generateReply(params: {
     }
   }
 
-  const system = buildSystemPrompt(settings, {
+  let system = buildSystemPrompt(settings, {
     channel,
     todayISO: salalahTodayISO(),
   });
+
+  // --- CAMPAIGN CUSTOMER SURVEY OVERRIDE ---
+  // If this customer is part of an active campaign, prepend the survey instructions.
+  // We match the externalId (phone) against the database.
+  let phone = externalId;
+  if (!phone.startsWith("+")) phone = "+" + phone;
+
+  const campaignCustomer = await prisma.campaignCustomer.findFirst({
+    where: { 
+      OR: [
+        { phone: externalId },
+        { phone: externalId.replace("+", "") },
+        { phone: "+" + externalId.replace("+", "") }
+      ],
+      status: { in: ["SENT_WAITING", "IN_PROGRESS"] }
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (campaignCustomer) {
+    if (campaignCustomer.status === "SENT_WAITING") {
+      // Mark as IN_PROGRESS once they reply
+      await prisma.campaignCustomer.update({
+        where: { id: campaignCustomer.id },
+        data: { status: "IN_PROGRESS" }
+      });
+    }
+
+    const checkin = campaignCustomer.checkinDate ? new Date(campaignCustomer.checkinDate).toLocaleDateString() : "unknown";
+    const checkout = campaignCustomer.checkoutDate ? new Date(campaignCustomer.checkoutDate).toLocaleDateString() : "unknown";
+
+    const surveyInstructions = `
+<survey_campaign>
+You are the Nassayem Quality Assurance Agent. This customer recently stayed with us during Khareef 2026.
+Customer Name: ${campaignCustomer.name}
+Phone: ${campaignCustomer.phone}
+Stay Info: Building: ${campaignCustomer.building ?? "Unknown"}, Unit: ${campaignCustomer.unitNumber ?? "Unknown"}, Type: ${campaignCustomer.unitType ?? "Unknown"}
+Dates: From ${checkin} to ${checkout}.
+
+YOUR PRIMARY GOAL:
+You recently sent them a WhatsApp message asking for feedback on their stay. They have now replied.
+1. Thank them for their time.
+2. Ask gently about their experience: what they liked, and if they faced any issues or have suggestions for improvement. (Ask one question at a time).
+3. If they share a complaint, apologize professionally and assure them we are taking notes to improve.
+4. Once you feel you have gathered enough feedback about their stay, you MUST call the "submit_survey_feedback" tool to log their summary and category. Set the "phone" argument to exactly "${externalId}".
+5. If the customer suddenly asks to make a new booking, you CAN STILL fulfill their booking request using your normal tools (search_units, check_availability, etc.). However, make sure to submit their survey feedback first if they gave any.
+</survey_campaign>
+`;
+    system = surveyInstructions + "\n\n" + system;
+  }
+  // --- END CAMPAIGN OVERRIDE ---
+
   const tools = getAnthropicTools();
 
   // ── Tool loop ──────────────────────────────────────────────────────────────
@@ -483,6 +536,7 @@ export async function runChatbotTurn(
   if (ingest.kind === "terminal") return ingest.result;
   return generateReply({
     conversationId: ingest.conversationId,
+    externalId: opts.externalId,
     language: ingest.language,
     settings: ingest.settings,
     channel: opts.channel,
@@ -529,6 +583,7 @@ export async function runChatbotTurnDebounced(
 
   return generateReply({
     conversationId: ingest.conversationId,
+    externalId: opts.externalId,
     language: ingest.language,
     settings: ingest.settings,
     channel: opts.channel,
