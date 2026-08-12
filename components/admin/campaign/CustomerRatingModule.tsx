@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CampaignCustomer } from "@prisma/client";
 
-export type SerializedCampaignCustomer = Omit<CampaignCustomer, "checkinDate" | "checkoutDate" | "createdAt" | "updatedAt"> & {
+export type SerializedCampaignCustomer = Omit<CampaignCustomer, "checkinDate" | "checkoutDate" | "stayAmount" | "nightRate" | "createdAt" | "updatedAt"> & {
   checkinDate: string | null;
   checkoutDate: string | null;
+  stayAmount: number | null;
+  nightRate: number | null;
   createdAt: string;
   updatedAt: string;
+  conversationId?: string | null;
 };
 
 type Props = {
@@ -241,16 +244,23 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                       {" → "} 
                       {customer.checkoutDate ? new Date(customer.checkoutDate).toLocaleDateString() : ""}
                     </div>
+                    {(customer.stayAmount != null || customer.nightRate != null) && (
+                      <div className="text-xs font-medium text-gray-600 mt-1">
+                        {customer.stayAmount != null && <span>Total: {customer.stayAmount} OMR</span>}
+                        {customer.stayAmount != null && customer.nightRate != null && <span className="mx-1">•</span>}
+                        {customer.nightRate != null && <span>Rate: {customer.nightRate} OMR/night</span>}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(customer.status)}`}>
                       {customer.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 max-w-xs truncate">
+                  <td className="px-6 py-4 max-w-xs">
                     {customer.summary ? (
                       <div>
-                        <div className="text-gray-900 font-medium truncate">{customer.summary}</div>
+                        <div className="text-gray-900 font-medium whitespace-pre-wrap">{customer.summary}</div>
                         {customer.category && (
                           <span className="inline-block mt-1 bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">
                             {customer.category}
@@ -263,15 +273,16 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                   </td>
                   <td className="px-6 py-4 text-center space-x-2">
                     {/* Link to view Chatbot Conversation based on Phone Number */}
-                    <button 
-                      className="text-nassayem hover:underline font-medium"
-                      onClick={() => {
-                        // TODO: Implement viewing chat history
-                        alert("Will link to chatbot conversation view for: " + customer.phone);
-                      }}
-                    >
-                      {isEn ? "View Chat" : "عرض المحادثة"}
-                    </button>
+                    {customer.conversationId ? (
+                      <button 
+                        className="text-nassayem hover:underline font-medium"
+                        onClick={() => router.push(`/${locale}/admin/chatbot/conversations/${customer.conversationId}`)}
+                      >
+                        {isEn ? "View Chat" : "عرض المحادثة"}
+                      </button>
+                    ) : (
+                      <span className="text-gray-400 text-sm">{isEn ? "No Chat Yet" : "لا يوجد محادثة"}</span>
+                    )}
                   </td>
                 </tr>
               ))

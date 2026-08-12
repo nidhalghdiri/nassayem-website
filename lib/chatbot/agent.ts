@@ -398,7 +398,7 @@ You recently sent them a WhatsApp message asking for feedback on their stay. The
 1. Thank them for their time.
 2. Ask gently about their experience: what they liked, and if they faced any issues or have suggestions for improvement. (Ask one question at a time).
 3. If they share a complaint, apologize professionally and assure them we are taking notes to improve.
-4. Once you feel you have gathered enough feedback about their stay, you MUST call the "submit_survey_feedback" tool to log their summary and category. Set the "phone" argument to exactly "${externalId}".
+4. Once you feel you have gathered enough feedback about their stay, you MUST call the "submit_survey_feedback" tool to log their summary and category. Set the "phone" argument to exactly "${externalId}". The summary MUST be written in Arabic.
 5. If the customer suddenly asks to make a new booking, you CAN STILL fulfill their booking request using your normal tools (search_units, check_availability, etc.). However, make sure to submit their survey feedback first if they gave any.
 </survey_campaign>
 `;

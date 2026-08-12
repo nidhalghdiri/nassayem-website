@@ -1382,7 +1382,7 @@ const submitSurveyFeedback = defineTool({
   schema: z.object({
     phone: z.string().describe("The customer's phone number exactly as found in the conversation context (the externalId)."),
     category: z.enum(["COMPLAINT", "SUGGESTION", "COMPLIMENT", "MIXED"]).describe("The overall sentiment/category of the feedback."),
-    summary: z.string().min(10).describe("A concise summary of the customer's feedback, in English, focusing on actionable points."),
+    summary: z.string().min(10).describe("A concise summary of the customer's feedback, in Arabic, focusing on actionable points."),
   }),
   execute: async (input) => {
     // We match by phone (with or without '+')
