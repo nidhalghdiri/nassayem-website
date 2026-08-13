@@ -27,6 +27,8 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [filterBuilding, setFilterBuilding] = useState<string>("ALL");
+  const [filterSubject, setFilterSubject] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -60,8 +62,13 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
     }
   };
 
+  const uniqueBuildings = Array.from(new Set(customers.map(c => c.building).filter(Boolean))) as string[];
+  const uniqueSubjects = Array.from(new Set(customers.flatMap(c => c.subjects || [])));
+
   const filteredCustomers = customers.filter(c => {
     if (filterStatus !== "ALL" && c.status !== filterStatus) return false;
+    if (filterBuilding !== "ALL" && c.building !== filterBuilding) return false;
+    if (filterSubject !== "ALL" && !(c.subjects || []).includes(filterSubject)) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!c.name.toLowerCase().includes(q) && !c.phone.includes(q) && !(c.building?.toLowerCase() || "").includes(q)) {
@@ -153,6 +160,28 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
             <option value="SENT_WAITING">{isEn ? "Sent & Waiting" : "تم الإرسال وبانتظار الرد"}</option>
             <option value="IN_PROGRESS">{isEn ? "In Progress" : "جاري المعالجة"}</option>
             <option value="DONE">{isEn ? "Done" : "مكتمل"}</option>
+          </select>
+
+          <select
+            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-nassayem outline-none"
+            value={filterBuilding}
+            onChange={(e) => setFilterBuilding(e.target.value)}
+          >
+            <option value="ALL">{isEn ? "All Buildings" : "كل المباني"}</option>
+            {uniqueBuildings.map(b => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+
+          <select
+            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-nassayem outline-none"
+            value={filterSubject}
+            onChange={(e) => setFilterSubject(e.target.value)}
+          >
+            <option value="ALL">{isEn ? "All Subjects" : "كل المواضيع"}</option>
+            {uniqueSubjects.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
           </select>
           
           {selectedIds.size > 0 && (
@@ -262,9 +291,18 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                       <div>
                         <div className="text-gray-900 font-medium whitespace-pre-wrap">{customer.summary}</div>
                         {customer.category && (
-                          <span className="inline-block mt-1 bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">
+                          <span className="inline-block mt-1 mr-1 bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">
                             {customer.category}
                           </span>
+                        )}
+                        {customer.subjects && customer.subjects.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {customer.subjects.map((subject, idx) => (
+                              <span key={idx} className="inline-block bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded">
+                                {subject}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     ) : (

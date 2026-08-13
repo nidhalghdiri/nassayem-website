@@ -1051,6 +1051,7 @@ model CampaignCustomer {
   status             CampaignCustomerStatus @default(PENDING)
   summary            String? @db.Text
   category           String?
+  subjects           String[] @default([])
   sentimentScore     Int?
 
   createdAt          DateTime @default(now())

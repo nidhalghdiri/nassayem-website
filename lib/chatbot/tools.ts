@@ -1382,6 +1382,7 @@ const submitSurveyFeedback = defineTool({
   schema: z.object({
     phone: z.string().describe("The customer's phone number exactly as found in the conversation context (the externalId)."),
     category: z.enum(["COMPLAINT", "SUGGESTION", "COMPLIMENT", "MIXED"]).describe("The overall sentiment/category of the feedback."),
+    subjects: z.array(z.string()).describe("A list of subjects mentioned in the feedback. Pick from: 'MAINTENANCE', 'CLEANING', 'STAFF', 'PRICING', 'MISREPRESENTATION', 'AMENITIES', 'LOCATION', or add other relevant keywords if needed."),
     summary: z.string().min(10).describe("A concise summary of the customer's feedback, in Arabic, focusing on actionable points."),
   }),
   execute: async (input) => {
@@ -1408,6 +1409,7 @@ const submitSurveyFeedback = defineTool({
           status: "DONE",
           summary: input.summary,
           category: input.category,
+          subjects: input.subjects,
         },
       });
       return { success: true, message: "Feedback submitted successfully." };
