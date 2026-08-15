@@ -88,6 +88,8 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
     }
   };
 
+  const [sendProgress, setSendProgress] = useState<{current: number, total: number} | null>(null);
+
   const handleSendSurvey = async () => {
     if (selectedIds.size === 0) return;
     
@@ -98,27 +100,46 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
     if (!confirm(confirmMsg)) return;
 
     setIsSending(true);
+    const allIds = Array.from(selectedIds);
+    setSendProgress({ current: 0, total: allIds.length });
+    let successCount = 0;
+    
     try {
-      const res = await fetch("/api/admin/campaign/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerIds: Array.from(selectedIds) }),
-      });
+      const chunkSize = 100;
+      
+      for (let i = 0; i < allIds.length; i += chunkSize) {
+        const chunk = allIds.slice(i, i + chunkSize);
+        
+        const res = await fetch("/api/admin/campaign/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerIds: chunk }),
+        });
 
-      const data = await res.json();
-      if (res.ok) {
-        setCustomers(prev => prev.map(c => 
-          selectedIds.has(c.id) ? { ...c, status: "SENT_WAITING" } : c
-        ));
-        setSelectedIds(new Set());
-        alert(isEn ? `Successfully sent ${data.count} surveys!` : `تم إرسال ${data.count} استبيان بنجاح!`);
-      } else {
-        alert(isEn ? `Error: ${data.error}` : `خطأ: ${data.error}`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          successCount += data.count;
+          // Update the UI immediately for this chunk
+          setCustomers(prev => prev.map(c => 
+            chunk.includes(c.id) ? { ...c, status: "SENT_WAITING" } : c
+          ));
+          setSendProgress({ current: Math.min(i + chunkSize, allIds.length), total: allIds.length });
+        } else {
+          console.error("Error sending chunk:", data.error);
+          alert(isEn ? `Error on batch ${Math.floor(i/chunkSize) + 1}: ${data.error}` : `خطأ في الدفعة ${Math.floor(i/chunkSize) + 1}: ${data.error}`);
+          // Decide whether to break or continue on error. Continuing might be better so rest of batches go through.
+        }
       }
+
+      setSelectedIds(new Set());
+      alert(isEn ? `Successfully sent ${successCount} surveys!` : `تم إرسال ${successCount} استبيان بنجاح!`);
     } catch (err) {
+      console.error(err);
       alert(isEn ? "An unexpected error occurred." : "حدث خطأ غير متوقع.");
     } finally {
       setIsSending(false);
+      setSendProgress(null);
     }
   };
 
@@ -191,7 +212,11 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
               className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
             >
               {isSending ? (
-                <span className="animate-pulse">{isEn ? "Sending..." : "جاري الإرسال..."}</span>
+                <span className="animate-pulse">
+                  {isEn 
+                    ? (sendProgress ? `Sending (${sendProgress.current}/${sendProgress.total})...` : "Sending...") 
+                    : (sendProgress ? `جاري الإرسال (${sendProgress.current}/${sendProgress.total})...` : "جاري الإرسال...")}
+                </span>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
