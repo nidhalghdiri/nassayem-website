@@ -29,6 +29,7 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterBuilding, setFilterBuilding] = useState<string>("ALL");
   const [filterSubject, setFilterSubject] = useState<string>("ALL");
+  const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -64,11 +65,13 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
 
   const uniqueBuildings = Array.from(new Set(customers.map(c => c.building).filter(Boolean))) as string[];
   const uniqueSubjects = Array.from(new Set(customers.flatMap(c => c.subjects || [])));
+  const uniqueCategories = Array.from(new Set(customers.map(c => c.category).filter(Boolean))) as string[];
 
   const filteredCustomers = customers.filter(c => {
     if (filterStatus !== "ALL" && c.status !== filterStatus) return false;
     if (filterBuilding !== "ALL" && c.building !== filterBuilding) return false;
     if (filterSubject !== "ALL" && !(c.subjects || []).includes(filterSubject)) return false;
+    if (filterCategory !== "ALL" && c.category !== filterCategory) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!c.name.toLowerCase().includes(q) && !c.phone.includes(q) && !(c.building?.toLowerCase() || "").includes(q)) {
@@ -204,28 +207,59 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+
+          <select
+            className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-nassayem outline-none"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+          >
+            <option value="ALL">{isEn ? "All Feedback Types" : "كل أنواع التقييم"}</option>
+            {uniqueCategories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           
+          <button
+            onClick={() => {
+              const unselected = filteredCustomers.filter(c => !selectedIds.has(c.id)).slice(0, 100);
+              const newSet = new Set(selectedIds);
+              unselected.forEach(c => newSet.add(c.id));
+              setSelectedIds(newSet);
+            }}
+            className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            {isEn ? "Select Next 100" : "تحديد 100 التالية"}
+          </button>
+
           {selectedIds.size > 0 && (
-            <button
-              onClick={handleSendSurvey}
-              disabled={isSending}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              {isSending ? (
-                <span className="animate-pulse">
-                  {isEn 
-                    ? (sendProgress ? `Sending (${sendProgress.current}/${sendProgress.total})...` : "Sending...") 
-                    : (sendProgress ? `جاري الإرسال (${sendProgress.current}/${sendProgress.total})...` : "جاري الإرسال...")}
-                </span>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  {isEn ? `Send Survey (${selectedIds.size})` : `إرسال الاستبيان (${selectedIds.size})`}
-                </>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                {isEn ? "Clear Selection" : "إلغاء التحديد"}
+              </button>
+              <button
+                onClick={handleSendSurvey}
+                disabled={isSending}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                {isSending ? (
+                  <span className="animate-pulse">
+                    {isEn 
+                      ? (sendProgress ? `Sending (${sendProgress.current}/${sendProgress.total})...` : "Sending...") 
+                      : (sendProgress ? `جاري الإرسال (${sendProgress.current}/${sendProgress.total})...` : "جاري الإرسال...")}
+                  </span>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    {isEn ? `Send Survey (${selectedIds.size})` : `إرسال الاستبيان (${selectedIds.size})`}
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
 
