@@ -173,17 +173,27 @@ export async function simulateAdminPayment(id: string) {
   if (!payment) throw new Error("Payment not found");
   if (payment.status === "PAID") throw new Error("Payment already paid");
 
-  const syncResult = await notifyNetsuitePaymentSucceeded({
-    netsuiteReservationId: payment.netsuiteReservationId,
-    netsuiteReservationRef: payment.netsuiteReservationRef,
-    amount: Number(payment.amount),
-    currency: "OMR",
-    paidAt: new Date().toISOString(),
-    smartpayOrderId: "SIM-ORD-" + Date.now(),
-    customerEmail: payment.customerEmail,
-    customerName: payment.customerName,
-    paymentLinkId: payment.id,
-  });
+  const reservationIds = payment.netsuiteReservationId.split(",");
+  const reservationRefs = payment.netsuiteReservationRef ? payment.netsuiteReservationRef.split(",") : [];
+  const splitAmount = Number(payment.amount) / reservationIds.length;
+
+  const results = await Promise.all(reservationIds.map((resId, index) => {
+    const ref = reservationRefs[index] || null;
+    return notifyNetsuitePaymentSucceeded({
+      netsuiteReservationId: resId,
+      netsuiteReservationRef: ref,
+      amount: splitAmount,
+      currency: "OMR",
+      paidAt: new Date().toISOString(),
+      smartpayOrderId: "SIM-ORD-" + Date.now(),
+      customerEmail: payment.customerEmail,
+      customerName: payment.customerName,
+      paymentLinkId: payment.id,
+    });
+  }));
+
+  const allOk = results.every(r => r.ok);
+  const errorMsg = results.find(r => !r.ok)?.error ?? null;
 
   await prisma.netsuitePayment.update({
     where: { id },
@@ -191,17 +201,21 @@ export async function simulateAdminPayment(id: string) {
       status: "PAID",
       paidAt: new Date(),
       smartpayOrderId: "SIM-ORD-" + Date.now(),
-      netsuiteSyncError: syncResult.ok ? null : syncResult.error,
+      netsuiteSyncError: allOk ? null : errorMsg,
     },
   });
 
-  if (syncResult.ok && syncResult.paymentPdfUrl && payment.customerPhone) {
-    await sendWhatsAppDocument(
-      payment.customerPhone,
-      syncResult.paymentPdfUrl,
-      `PaymentReceipt_SIM.pdf`,
-      "Thank you! Your payment has been received. Here is your receipt."
-    ).catch((err) => console.error("[whatsapp] failed to send simulate payment PDF:", err));
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const ref = reservationRefs[i] || reservationIds[i];
+    if (result.ok && result.paymentPdfUrl && payment.customerPhone) {
+      await sendWhatsAppDocument(
+        payment.customerPhone,
+        result.paymentPdfUrl,
+        `PaymentReceipt_${ref}.pdf`,
+        "Thank you! Your payment has been received. Here is your receipt."
+      ).catch((err) => console.error("[whatsapp] failed to send simulate payment PDF:", err));
+    }
   }
 
   revalidatePath("/admin/netsuite-payments");

@@ -236,34 +236,63 @@ async function handleNetsuitePayment(args: {
     console.log("SUCCESS (NS): payment", paymentId, "confirmed");
 
     // Fire-and-forget: NetSuite callback + emails
-    notifyNetsuitePaymentSucceeded({
-      netsuiteReservationId: updated.netsuiteReservationId,
-      netsuiteReservationRef: updated.netsuiteReservationRef,
-      amount: updated.amount,
-      currency: updated.currency,
-      paidAt: updated.paidAt!.toISOString(),
-      smartpayOrderId: updated.smartpayOrderId ?? "",
-      smartpayBankRefNo: updated.smartpayBankRefNo,
-      customerEmail: updated.customerEmail,
-      customerName: updated.customerName,
-      paymentLinkId: updated.id,
-    })
-      .then(async (result) => {
+    const reservationIds = updated.netsuiteReservationId.split(",");
+    const reservationRefs = updated.netsuiteReservationRef ? updated.netsuiteReservationRef.split(",") : [];
+    
+    // Distribute amount among reservations
+    const splitAmount = updated.amount / reservationIds.length;
+
+    Promise.all(reservationIds.map((resId, index) => {
+      const ref = reservationRefs[index] || null;
+      return notifyNetsuitePaymentSucceeded({
+        netsuiteReservationId: resId,
+        netsuiteReservationRef: ref,
+        amount: splitAmount,
+        currency: updated.currency,
+        paidAt: updated.paidAt!.toISOString(),
+        smartpayOrderId: updated.smartpayOrderId ?? "",
+        smartpayBankRefNo: updated.smartpayBankRefNo,
+        customerEmail: updated.customerEmail,
+        customerName: updated.customerName,
+        paymentLinkId: updated.id,
+      });
+    }))
+      .then(async (results) => {
+        const allOk = results.every(r => r.ok);
+        const errorMsg = results.find(r => !r.ok)?.error ?? null;
+        
         await prisma.netsuitePayment.update({
           where: { id: paymentId },
           data: {
-            netsuiteSyncedAt: result.ok ? new Date() : null,
-            netsuiteSyncError: result.ok ? null : (result.error ?? "Unknown"),
+            netsuiteSyncedAt: allOk ? new Date() : null,
+            netsuiteSyncError: allOk ? null : errorMsg,
           },
         });
         
-        if (result.ok && result.paymentPdfUrl && updated.customerPhone) {
-          await sendWhatsAppDocument(
-            updated.customerPhone,
-            result.paymentPdfUrl,
-            `PaymentReceipt_${updated.smartpayOrderId}.pdf`,
-            "Thank you! Your payment has been received. Here is your receipt."
-          ).catch((err) => console.error("[whatsapp] failed to send payment PDF:", err));
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const ref = reservationRefs[i] || reservationIds[i];
+          if (result.ok && result.paymentPdfUrl && updated.customerPhone) {
+            await sendWhatsAppDocument(
+              updated.customerPhone,
+              result.paymentPdfUrl,
+              `PaymentReceipt_${ref}.pdf`,
+              "Here is your payment receipt."
+            ).catch(err => console.error("[netsuite] failed to send payment PDF:", err));
+          }
+        }
+
+        if (allOk && updated.customerEmail) {
+          await sendEmail({
+            to: updated.customerEmail,
+            subject: "Payment Confirmed - Nassayem Salalah",
+            html: `
+              <h2>Thank you for your payment</h2>
+              <p>Dear ${updated.customerName},</p>
+              <p>Your payment of ${updated.amount} ${updated.currency} for reservation(s) <strong>${updated.netsuiteReservationRef ?? updated.netsuiteReservationId}</strong> has been successfully processed.</p>
+              <p>We look forward to welcoming you.</p>
+            `,
+          }).catch((err) => console.error("[netsuite] failed to send payment email:", err));
         }
       })
       .catch((err) =>

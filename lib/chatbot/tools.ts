@@ -1103,11 +1103,15 @@ const createLead = defineTool({
 const createReservation = defineTool({
   name: "create_reservation",
   description:
-    "Submit the customer's booking so we can finalize it. Only call after the customer has EXPLICITLY confirmed: the exact unit, check-in/check-out dates, full name, phone number AND national ID/passport number — repeat these back and get a clear 'yes' first. This does NOT charge the customer. After it returns, follow the returned `next` instruction EXACTLY for what to tell the customer (it will either say our reservations team will contact them shortly to finish the booking, or return a payment link to send).",
+    "Submit the customer's booking so we can finalize it. Only call after the customer has EXPLICITLY confirmed: the exact units, check-in/check-out dates, full name, phone number AND national ID/passport number — repeat these back and get a clear 'yes' first. This does NOT charge the customer. After it returns, follow the returned `next` instruction EXACTLY for what to tell the customer (it will either say our reservations team will contact them shortly to finish the booking, or return a payment link to send).",
   schema: z.object({
-    unit_id: realId,
-    check_in: dateString,
-    check_out: dateString,
+    units: z.array(
+      z.object({
+        unit_id: realId,
+        check_in: dateString,
+        check_out: dateString,
+      })
+    ).min(1).describe("List of units the customer wants to reserve"),
     customer_name: z.string().min(2).max(120),
     customer_phone: z.string().min(6).max(24).describe("Phone with country code, e.g. +96899123456"),
     id_passport: z.string().min(4).max(40).describe("National ID number or passport number — required for every reservation"),
@@ -1116,207 +1120,188 @@ const createReservation = defineTool({
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
 
-    const unit = await prisma.unit.findUnique({
-      where: { id: input.unit_id, isPublished: true },
-      include: { building: true },
-    });
-    if (!unit) return { reserved: false, reason: "Unit not found." };
+    let finalTotal = 0;
+    const unitDetails = [];
+    
+    // 1. Fetch, price, and check availability for all units
+    for (const u of input.units) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: u.unit_id, isPublished: true },
+        include: { building: true },
+      });
+      if (!unit) return { reserved: false, reason: `Unit ${u.unit_id} not found.` };
 
-    // Exact total from the website pricing engine (promos, per-day pricing).
-    // Best-effort context for the team in paused mode; required in enabled mode.
-    // priceForStay never throws — it returns { price_unavailable } on failure.
-    const price = settings.show_prices
-      ? await priceForStay(unit.id, input.check_in, input.check_out)
-      : null;
-    const priced = price && !("price_unavailable" in price) ? price : null;
-    const finalTotal = priced?.total_omr ?? 0;
+      const price = settings.show_prices
+        ? await priceForStay(unit.id, u.check_in, u.check_out)
+        : null;
+      const priced = price && !("price_unavailable" in price) ? price : null;
+      
+      if (settings.reservations_enabled && settings.show_prices && !priced) {
+        return {
+          reserved: false,
+          reason: `Cannot price unit ${unit.titleAr} for these dates.`,
+          suggestion: "Save a lead (create_lead) so the call center completes the booking.",
+        };
+      }
+      
+      if (settings.reservations_enabled) {
+        if (!isNetsuiteChatbotConfigured()) {
+          return { reserved: false, reason: "Reservation system not configured.", suggestion: "create_lead" };
+        }
+        if (!unit.building.netsuiteId) {
+          return { reserved: false, reason: `Building ${unit.building.nameAr} not linked to reservation system.`, suggestion: "create_lead" };
+        }
+        
+        // Check availability
+        const availability = await unifiedAvailability(
+          { id: unit.id, unitType: unit.unitType, buildingNetsuiteId: unit.building.netsuiteId },
+          u.check_in,
+          u.check_out,
+          ctx.conversationId,
+        );
+        if (!availability.available) {
+          return {
+            reserved: false,
+            reason: `Unit ${unit.titleAr} is unavailable for requested dates.`,
+            suggestion: "Apologize and offer alternative dates or units (search_units).",
+          };
+        }
+      }
+
+      finalTotal += priced?.total_omr ?? 0;
+      unitDetails.push({ unit, priced, check_in: u.check_in, check_out: u.check_out });
+    }
 
     // ── Paused mode (default) ────────────────────────────────────────────────
-    // The bot does NOT create the reservation. Save the booking-ready customer
-    // as a lead and notify the reservations team + the building receptionist(s)
-    // on WhatsApp so a human confirms the unit and arranges payment.
     if (!settings.reservations_enabled) {
-      const nights = differenceInDays(
-        startOfDay(parseISO(input.check_out)),
-        startOfDay(parseISO(input.check_in)),
-      );
-      const priceLine = priced ? ` · الإجمالي التقريبي ${finalTotal} ر.ع` : "";
+      const summaryNotes = unitDetails.map(d => 
+        `- ${d.unit.titleAr} (${d.unit.building.nameAr}): ${d.check_in} ← ${d.check_out} ` +
+        (d.priced ? `· ${d.priced.total_omr} ر.ع` : "")
+      ).join("\n");
+      
+      // We create a lead attached to the FIRST unit, but with combined notes
       await prisma.chatbotLead.create({
         data: {
           conversationId: ctx.conversationId,
           name: input.customer_name,
           phone: input.customer_phone,
-          unitId: unit.id,
-          checkIn: startOfDay(parseISO(input.check_in)),
-          checkOut: startOfDay(parseISO(input.check_out)),
+          unitId: unitDetails[0].unit.id,
+          checkIn: startOfDay(parseISO(unitDetails[0].check_in)),
+          checkOut: startOfDay(parseISO(unitDetails[0].check_out)),
           idNumber: input.id_passport,
           status: "CONTACTED",
-          notes:
-            `طلب حجز عبر المساعد الذكي — ${unit.titleAr} (${unit.building.nameAr})` +
-            ` · ${input.check_in} ← ${input.check_out}` +
-            (nights > 0 ? ` · ${nights} ليالٍ` : "") +
-            priceLine +
-            ` · الهوية/الجواز: ${input.id_passport} · بانتظار تأكيد الموظف والدفع.`,
+          notes: `طلب حجز متعدد عبر المساعد الذكي:\n${summaryNotes}\nالإجمالي التقريبي: ${finalTotal} ر.ع\nالهوية/الجواز: ${input.id_passport} · بانتظار تأكيد الموظف والدفع.`,
         },
       });
+      
       await triggerEscalation({
         conversationId: ctx.conversationId,
-        reason: `طلب حجز — ${unit.titleAr} (${input.check_in} ← ${input.check_out})`,
+        reason: `طلب حجز متعدد لـ ${unitDetails.length} وحدات`,
         customerName: input.customer_name,
         customerPhone: input.customer_phone,
-        buildingId: unit.buildingId,
-        buildingName: unit.building.nameAr,
-        dates: `${input.check_in} - ${input.check_out}`,
+        buildingId: unitDetails[0].unit.buildingId,
+        buildingName: unitDetails[0].unit.building.nameAr,
+        dates: "متعدد",
         persons: "غير محدد",
-        summary:
-          `طلب حجز جديد — ${unit.titleAr}. الهوية/الجواز ${input.id_passport}.` +
-          (priced ? ` الإجمالي التقريبي ${finalTotal} ر.ع.` : "") +
-          ` يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.`,
-        emailSubject: `طلب حجز جديد — ${unit.titleAr} (${input.customer_name})`,
+        summary: `طلب حجز متعدد لـ ${unitDetails.length} وحدات. الهوية/الجواز ${input.id_passport}. الإجمالي التقريبي ${finalTotal} ر.ع. يرجى التواصل مع العميل لتأكيد الحجز وترتيب الدفع.\nالتفاصيل:\n${summaryNotes}`,
+        emailSubject: `طلب حجز متعدد (${input.customer_name})`,
       });
 
       return {
         request_registered: true,
         handed_to: "reservations_team",
-        ...(priced
-          ? {
-              approx_total_omr: finalTotal,
-              nights: priced.nights,
-            }
-          : {}),
-        next:
-          "Tell the customer warmly that their booking request has been received and our reservations team will contact them very shortly (during working hours) to confirm the apartment and arrange the payment. Do NOT claim the reservation is confirmed, do NOT send any payment link, and do NOT invent a reservation number. You may share the call center number if they'd like to reach us first.",
+        approx_total_omr: finalTotal,
+        next: "Tell the customer warmly that their booking request has been received and our reservations team will contact them very shortly (during working hours) to confirm the apartments and arrange the payment. Do NOT claim the reservation is confirmed, do NOT send any payment link.",
       };
     }
 
-    // ── Enabled mode: real NetSuite reservation + 50% advance payment link ───
-    if (!settings.show_prices) {
-      return {
-        reserved: false,
-        reason:
-          "Online booking is disabled while price quoting is off. Save the customer as a lead (create_lead) and give them the call center number.",
-      };
-    }
-    if (!isNetsuiteChatbotConfigured()) {
-      return {
-        reserved: false,
-        reason:
-          "The reservation system connection is not configured. Save the customer as a lead (create_lead) and give them the call center number.",
-      };
-    }
-    if (!unit.building.netsuiteId) {
-      return {
-        reserved: false,
-        reason:
-          "This building is not linked to the reservation system yet. Save a lead and offer the call center.",
-      };
+    // ── Enabled mode ─────────────────────────────────────────────────────────
+
+    // Loop and create reservations
+    const createdReservations = [];
+    for (const d of unitDetails) {
+      const forceDaily = d.priced && d.priced.nights >= 30 && stayContainsKhareef(d.check_in, d.check_out);
+      const res = await createNetsuiteReservation({
+        netsuiteBuildingId: d.unit.building.netsuiteId,
+        unitType: d.unit.unitType,
+        checkIn: d.check_in,
+        checkOut: d.check_out,
+        customerName: input.customer_name,
+        customerPhone: input.customer_phone,
+        customerEmail: input.customer_email ?? null,
+        idPassport: input.id_passport,
+        totalAmount: d.priced?.total_omr ?? 0,
+        notes: `AI chatbot reservation — ${d.unit.titleEn} (Multi-unit booking)`,
+        forceDaily: forceDaily || false,
+        conversationId: ctx.conversationId,
+      });
+
+      if (!res.ok) {
+        console.error("[chatbot] NetSuite reservation failed for unit:", d.unit.id, res.error);
+        return {
+          reserved: false,
+          reason: "The reservation system did not accept one of the bookings right now.",
+          suggestion: "Apologize, save a lead (create_lead) and offer the call center.",
+          system_error: String(res.error).slice(0, 400),
+        };
+      }
+      
+      createdReservations.push({ data: res.data, unit: d.unit, priced: d.priced, check_in: d.check_in, check_out: d.check_out });
+      
+      if (res.data.reservationPdfUrl) {
+        await sendWhatsAppDocument(
+          input.customer_phone,
+          res.data.reservationPdfUrl,
+          `Reservation_${res.data.reservationRef ?? res.data.reservationId}.pdf`,
+          "Here is your official reservation document."
+        ).catch((err) => console.error("[chatbot] failed to send reservation PDF:", err));
+      }
     }
 
-    // Re-check real-time availability right before reserving.
-    const availability = await unifiedAvailability(
-      { id: unit.id, unitType: unit.unitType, buildingNetsuiteId: unit.building.netsuiteId },
-      input.check_in,
-      input.check_out,
-      ctx.conversationId,
-    );
-    if (!availability.available) {
-      return {
-        reserved: false,
-        reason: "The unit just became unavailable for these dates.",
-        suggestion: "Apologize and offer alternative dates or units (search_units).",
-      };
-    }
-
-    if (!priced) {
-      return {
-        reserved: false,
-        reason: `Cannot price these dates online: ${
-          price && "price_unavailable" in price ? price.price_unavailable : "unknown"
-        }`,
-        suggestion: "Save a lead (create_lead) so the call center completes the booking.",
-      };
-    }
-
-    // 1. Reservation in NetSuite (it picks a free unit of this type).
-    // 30+ night Khareef stays stay on the DAILY cycle — no monthly in Khareef.
-    const forceDaily =
-      priced.nights >= 30 && stayContainsKhareef(input.check_in, input.check_out);
-    const reservation = await createNetsuiteReservation({
-      netsuiteBuildingId: unit.building.netsuiteId,
-      unitType: unit.unitType,
-      checkIn: input.check_in,
-      checkOut: input.check_out,
-      customerName: input.customer_name,
-      customerPhone: input.customer_phone,
-      customerEmail: input.customer_email ?? null,
-      idPassport: input.id_passport,
-      totalAmount: finalTotal,
-      notes: `AI chatbot reservation — ${unit.titleEn} (${priced.nights} nights${forceDaily ? ", daily rate — Khareef" : ""})`,
-      forceDaily,
-      conversationId: ctx.conversationId,
-    });
-    if (!reservation.ok) {
-      console.error("[chatbot] NetSuite reservation failed:", reservation.error);
-      return {
-        reserved: false,
-        reason: "The reservation system did not accept the booking right now.",
-        suggestion: "Apologize, save a lead (create_lead) and offer the call center.",
-        // Internal diagnostic — visible in the admin tool trace. Do not read
-        // this to the customer.
-        system_error: String(reservation.error).slice(0, 400),
-      };
-    }
-    
-    // 1.5 Send the generated PDF Reservation document to the customer
-    if (reservation.data.reservationPdfUrl) {
-      await sendWhatsAppDocument(
-        input.customer_phone,
-        reservation.data.reservationPdfUrl,
-        `Reservation_${reservation.data.reservationRef ?? reservation.data.reservationId}.pdf`,
-        "Here is your official reservation document."
-      ).catch((err) => console.error("[chatbot] failed to send reservation PDF:", err));
-    }
-
-    // 2. Card-payment link for the 50% ADVANCE (same machinery as
-    // receptionist-issued links). The remaining 50% is paid at reception —
-    // the NetSuite reservation itself carries the full total.
     const advance = Math.round(finalTotal * 0.5 * 1000) / 1000;
     const remaining = Math.round((finalTotal - advance) * 1000) / 1000;
+    
+    // Combine IDs
+    const combinedIds = createdReservations.map(r => r.data.reservationId).join(",");
+    const combinedRefs = createdReservations.map(r => r.data.reservationRef).filter(Boolean).join(",") || null;
+    const combinedUnitCodes = createdReservations.map(r => r.data.unitCode ?? r.unit.unitCode).filter(Boolean).join(",") || null;
+
     const conversation = await prisma.chatbotConversation.findUnique({
       where: { id: ctx.conversationId },
       select: { language: true },
     });
+
     const paymentLink = await createNetsuitePaymentLink({
-      netsuiteReservationId: reservation.data.reservationId,
-      netsuiteReservationRef: reservation.data.reservationRef ?? null,
-      netsuiteBuildingId: unit.building.netsuiteId,
-      unitCode: reservation.data.unitCode ?? unit.unitCode ?? null,
-      checkIn: input.check_in,
-      checkOut: input.check_out,
+      netsuiteReservationId: combinedIds,
+      netsuiteReservationRef: combinedRefs,
+      netsuiteBuildingId: unitDetails[0].unit.building.netsuiteId,
+      unitCode: combinedUnitCodes,
+      checkIn: input.units[0].check_in, 
+      checkOut: input.units[0].check_out,
       customerName: input.customer_name,
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
       amount: advance,
-      description: `Advance payment (50%) — total ${finalTotal} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
+      description: `Advance payment (50%) for ${createdReservations.length} units — total ${finalTotal} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
       locale: conversation?.language === "ar" ? "ar" : "en",
     });
 
-    // 3. Lead row so the team sees it in the pipeline.
+    // Lead row
     await prisma.chatbotLead.create({
       data: {
         conversationId: ctx.conversationId,
         name: input.customer_name,
         phone: input.customer_phone,
-        unitId: unit.id,
-        checkIn: startOfDay(parseISO(input.check_in)),
-        checkOut: startOfDay(parseISO(input.check_out)),
+        unitId: unitDetails[0].unit.id,
+        checkIn: startOfDay(parseISO(input.units[0].check_in)),
+        checkOut: startOfDay(parseISO(input.units[0].check_out)),
         status: "CONTACTED",
         idNumber: input.id_passport,
-        reservationNumber:
-          reservation.data.reservationRef ?? reservation.data.reservationId,
-        notes: `NetSuite reservation ${reservation.data.reservationRef ?? reservation.data.reservationId} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${finalTotal}).`,
+        reservationNumber: combinedRefs || combinedIds,
+        notes: `Multi-unit NetSuite reservations ${combinedRefs || combinedIds} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${finalTotal}).`,
       },
     });
+
     await prisma.chatbotConversation.update({
       where: { id: ctx.conversationId },
       data: { customerName: input.customer_name },
@@ -1324,17 +1309,17 @@ const createReservation = defineTool({
 
     return {
       reserved: true,
-      reservation_ref: reservation.data.reservationRef ?? reservation.data.reservationId,
-      total_omr: priced.total_omr,
+      reservation_ref: combinedRefs || combinedIds,
+      total_omr: finalTotal,
       advance_paid_online_omr: advance,
       remaining_at_reception_omr: remaining,
-      nights: priced.nights,
       payment_url: paymentLink.url,
       payment_link_expires_at: paymentLink.expiresAt.toISOString(),
-      next: `Tell the customer: their reservation has been registered in the system (Ref: ${reservation.data.reservationRef ?? reservation.data.reservationId}). Send the 50% advance payment link (${paymentLink.url} as a bare URL) to pay ${advance} OMR now to confirm the reservation. The remaining ${remaining} OMR will be paid upon arrival at reception. Total: ${finalTotal} OMR (${priced.nights} nights). Do not tell the customer a team member will contact them unless they explicitly ask for escalation.`,
+      next: `Tell the customer: their reservations have been registered in the system (Refs: ${combinedRefs || combinedIds}). Send the 50% advance payment link (${paymentLink.url} as a bare URL) to pay ${advance} OMR now to confirm all reservations. The remaining ${remaining} OMR will be paid upon arrival at reception. Total: ${finalTotal} OMR.`,
     };
   },
 });
+
 
 const escalateToHuman = defineTool({
   name: "escalate_to_human",
