@@ -282,17 +282,8 @@ async function handleNetsuitePayment(args: {
           }
         }
 
-        if (allOk && updated.customerEmail) {
-          await sendEmail({
-            to: updated.customerEmail,
-            subject: "Payment Confirmed - Nassayem Salalah",
-            html: `
-              <h2>Thank you for your payment</h2>
-              <p>Dear ${updated.customerName},</p>
-              <p>Your payment of ${updated.amount} ${updated.currency} for reservation(s) <strong>${updated.netsuiteReservationRef ?? updated.netsuiteReservationId}</strong> has been successfully processed.</p>
-              <p>We look forward to welcoming you.</p>
-            `,
-          }).catch((err) => console.error("[netsuite] failed to send payment email:", err));
+        if (allOk) {
+          await sendNetsuitePaymentReceipt(paymentId, updated.locale || "en");
         }
       })
       .catch((err) =>
