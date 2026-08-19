@@ -283,7 +283,7 @@ async function handleNetsuitePayment(args: {
         }
 
         if (allOk) {
-          await sendNetsuitePaymentReceipt(paymentId, updated.locale || "en");
+          await sendNetsuitePaymentReceipt(paymentId, locale || "en");
         }
       })
       .catch((err) =>
