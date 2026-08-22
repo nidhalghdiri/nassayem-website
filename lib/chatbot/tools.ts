@@ -210,6 +210,7 @@ async function unifiedAvailability(
 type PriceInfo =
   | {
       total_omr: number;
+      original_total_omr?: number;
       nights: number;
       per_night_omr: number;
       promotion: { title_en: string; title_ar: string; savings_omr: number } | null;
@@ -270,6 +271,7 @@ async function dailyRatePrice(
     const originalDaily = unit.dailyPrice ?? promo.regularPrice;
     return {
       total_omr: total,
+      original_total_omr: originalDaily * nights,
       nights,
       per_night_omr: Math.floor(promo.promoPrice),
       promotion: {
@@ -285,6 +287,7 @@ async function dailyRatePrice(
     const dailyAverage = Math.floor(inclusiveSum / (nights + 1));
     return {
       total_omr: dailyAverage * nights,
+      original_total_omr: dailyAverage * nights,
       nights,
       per_night_omr: dailyAverage,
       promotion: null,
@@ -322,6 +325,7 @@ async function priceForStay(
     const p = await calculateBookingPrice(unitId, checkIn, checkOut);
     return {
       total_omr: p.grandTotal,
+      original_total_omr: p.promotion ? p.grandTotal + p.promotion.savings : p.grandTotal,
       nights: p.totalNights,
       per_night_omr: p.dailyAverage,
       promotion: p.promotion
@@ -581,7 +585,7 @@ function defineTool<S extends z.ZodType>(def: ToolDef<S>): ToolDef<z.ZodType> {
 const searchUnits = defineTool({
   name: "search_units",
   description:
-    "Search available apartments. Use whenever the customer describes what they need (type, dates, building). Group size NEVER restricts results — we welcome any group size in any apartment type; ask the customer which TYPE they prefer (studio / one / two / three bedrooms / villa) and search by that. With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only.",
+    "Search available apartments. Use whenever the customer describes what they need (type, dates, building). Group size NEVER restricts results — we welcome any group size in any apartment type; ask the customer which TYPE they prefer (studio / one / two / three bedrooms / villa) and search by that. With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only. If a promotion is active, ALWAYS mention the promotion directly to the customer including the original price and the discounted total.",
   schema: z.object({
     unit_type: z.enum(UNIT_TYPES).optional().describe("Apartment type the CUSTOMER chose — always ask their preference instead of guessing from group size"),
     building_id: realId.optional().describe("Filter to one building (from get_building_info)"),
@@ -1324,7 +1328,7 @@ const createReservation = defineTool({
 const escalateToHuman = defineTool({
   name: "escalate_to_human",
   description:
-    "Flag this conversation for a human agent — the call center is notified on WhatsApp immediately. Use when an escalation trigger applies (complaint, refund, group/corporate booking, explicit request for a human, or you cannot help). Fill in every detail you know from the conversation (building, name, phone, dates, persons) — the team reads them in the notification. After calling, give the customer the call-center number and reassure them.",
+    "Flag this conversation for a human agent — the call center is notified on WhatsApp immediately. YOU MUST CALL THIS TOOL FIRST before you ever say 'Our team will contact you' / 'فريقنا سيتواصل معك'. Use when an escalation trigger applies (complaint, refund, group/corporate booking, explicit request for a human, or you cannot help). Fill in every detail you know from the conversation (building, name, phone, dates, persons) — the team reads them in the notification. After calling, give the customer the call-center number and reassure them.",
   schema: z.object({
     reason: z.string().min(3).max(300).describe("Short summary a staff member will read (in Arabic)"),
     building: z.string().max(120).optional().describe("Building name discussed, if any"),

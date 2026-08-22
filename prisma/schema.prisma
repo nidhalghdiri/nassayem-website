@@ -126,6 +126,7 @@ enum ChatConversationStatus {
   ACTIVE
   ESCALATED // flagged for human takeover — surfaced in the admin panel
   CLOSED
+  PENDING_RETRY // when chatbot has technical issues, wait for cron to retry
 }
 
 enum ChatLeadStatus {

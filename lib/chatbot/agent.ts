@@ -240,7 +240,7 @@ async function ingestUserMessage(opts: ChatbotTurnOptions): Promise<IngestOutcom
  * so consecutive user messages from a burst are naturally merged into one user
  * turn here — the model sees the customer's full intent, not one fragment.
  */
-async function generateReply(params: {
+export async function generateReply(params: {
   conversationId: string;
   externalId: string;
   language: string;
@@ -481,18 +481,26 @@ You recently sent them a WhatsApp message asking for feedback on their stay. The
       }
     }
 
-    if (!finalText.trim()) {
-      // Model produced no text (refusal / max-iteration edge) — safe fallback.
-      finalText = fallbackText(language, settings);
-      if (!streamedText) params.onTextDelta?.(finalText);
-    }
+    // We do NOT use fallbackText here anymore; if no text is produced, we handle it below.
   } catch (err) {
     console.error("[chatbot] turn failed:", describeTurnError(err), err);
-    if (!finalText.trim()) {
-      finalText = fallbackText(language, settings);
-      // Stream the fallback only if nothing was streamed yet (avoid garbled UX).
-      if (!streamedText) params.onTextDelta?.(finalText);
-    }
+  }
+
+  if (!finalText.trim()) {
+    // Model produced no text (refusal, max-iteration edge, or API error).
+    // Instead of sending a fallback message, we mark the conversation as pending retry.
+    await prisma.chatbotConversation.update({
+      where: { id: conversationId },
+      data: { status: "PENDING_RETRY", lastMessageAt: new Date() },
+    });
+    
+    return {
+      conversationId,
+      text: "",
+      escalated: false,
+      language,
+      toolCalls: executedToolCalls,
+    };
   }
 
   // ── Persist the assistant turn ─────────────────────────────────────────────
