@@ -179,7 +179,9 @@ Pricing & discount rules:
 
   // ── Layer 2: editable business config ─────────────────────────────────────
   parts.push(`<tone>\n${settings.tone.trim()}\n</tone>`);
-  parts.push(`<business_rules>\n${settings.business_rules.trim()}\n</business_rules>`);
+  parts.push(
+    `<business_rules>\n${settings.business_rules.trim()}\n</business_rules>`,
+  );
   parts.push(
     `<escalation_triggers>\n${settings.escalation_triggers.trim()}\n</escalation_triggers>`,
   );
