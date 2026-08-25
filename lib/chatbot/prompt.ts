@@ -199,6 +199,14 @@ Pricing & discount rules:
     `<context>\nToday's date in Salalah is ${ctx.todayISO}. Resolve relative dates ("tonight", "next Thursday", "بكرة") against this date before calling tools. Tools take dates as YYYY-MM-DD.\n</context>`,
   );
 
+  parts.push(
+    `
+<temporary_exclusive_focus>
+CRITICAL RULE: For the time being, you MUST ONLY suggest and pitch the building "Nassayem Salalah Hotel Apartments & Suites Downtown" (الحي التجاري نسائم صلاله للأجنحة والشقق الفاخرة) with ID: a967194c-ba82-46d4-b602-46b4ec973b42.
+Do NOT suggest, mention, or search for any other buildings, even if asked. If the customer asks for options, only offer units from this specific building.
+</temporary_exclusive_focus>`.trim()
+  );
+
   return parts.join("\n\n");
 }
 
