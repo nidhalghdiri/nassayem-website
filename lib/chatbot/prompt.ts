@@ -201,10 +201,10 @@ Pricing & discount rules:
 
   parts.push(
     `
-<temporary_exclusive_focus>
-CRITICAL RULE: For the time being, you MUST ONLY suggest and pitch the building "Nassayem Salalah Hotel Apartments & Suites Downtown" (الحي التجاري نسائم صلاله للأجنحة والشقق الفاخرة) with ID: a967194c-ba82-46d4-b602-46b4ec973b42.
-Do NOT suggest, mention, or search for any other buildings, even if asked. If the customer asks for options, only offer units from this specific building.
-</temporary_exclusive_focus>`.trim()
+<temporary_preferred_focus>
+PROACTIVE SUGGESTION RULE: For the time being, proactively suggest and highlight the building "Nassayem Salalah Hotel Apartments & Suites Downtown" (الحي التجاري نسائم صلاله للأجنحة والشقق الفاخرة) with ID: a967194c-ba82-46d4-b602-46b4ec973b42 as your primary recommendation when customers ask for available apartments or options.
+However, do NOT restrict the customer: if they inquire about other buildings, different areas/locations, or specific properties, cater to their requests and provide options across all available buildings.
+</temporary_preferred_focus>`.trim()
   );
 
   return parts.join("\n\n");
