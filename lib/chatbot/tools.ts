@@ -329,7 +329,7 @@ async function priceForStay(
       original_total_omr: p.promotion ? p.grandTotal + p.promotion.savings : p.grandTotal,
       nights: p.totalNights,
       per_night_omr: p.dailyAverage,
-      monthly_rate_omr: p.monthlyRate,
+      monthly_rate_omr: p.monthlyRate ?? undefined,
       promotion: p.promotion
         ? {
             title_en: p.promotion.titleEn,
