@@ -40,7 +40,10 @@ export async function updateMonthlyPrice(
 ) {
   await prisma.unit.updateMany({
     where: { buildingId, unitType },
-    data: { monthlyPrice },
+    data: { 
+      monthlyPrice,
+      rentType: monthlyPrice !== null ? "BOTH" : "DAILY"
+    },
   });
 
   revalidatePath(`/${locale}/admin/pricing`);
