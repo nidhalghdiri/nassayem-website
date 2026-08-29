@@ -213,6 +213,7 @@ type PriceInfo =
       original_total_omr?: number;
       nights: number;
       per_night_omr: number;
+      monthly_rate_omr?: number;
       promotion: { title_en: string; title_ar: string; savings_omr: number } | null;
       note?: string;
     }
@@ -328,6 +329,7 @@ async function priceForStay(
       original_total_omr: p.promotion ? p.grandTotal + p.promotion.savings : p.grandTotal,
       nights: p.totalNights,
       per_night_omr: p.dailyAverage,
+      monthly_rate_omr: p.monthlyRate,
       promotion: p.promotion
         ? {
             title_en: p.promotion.titleEn,
