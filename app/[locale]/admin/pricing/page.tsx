@@ -37,6 +37,15 @@ export default async function PricingIndexPage({ params }: PageProps) {
       tone: "bg-purple-50 text-purple-700",
     },
     {
+      href: `/${locale}/admin/pricing/monthly`,
+      titleEn: "Monthly Pricing",
+      titleAr: "التسعير الشهري",
+      descEn: "Set a bulk Monthly Price for all units of a specific type.",
+      descAr: "حدّد سعراً شهرياً لجميع الوحدات من نوع معين دفعة واحدة.",
+      icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+      tone: "bg-cyan-50 text-cyan-700",
+    },
+    {
       href: `/${locale}/admin/pricing/overrides`,
       titleEn: "Per-Unit Overrides",
       titleAr: "استثناءات الوحدات",
