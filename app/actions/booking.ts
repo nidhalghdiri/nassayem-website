@@ -242,6 +242,7 @@ export async function calculateBookingPrice(
     calculationMethod,
     promotion,
     dailyAverage,
+    monthlyRate: unit.rentType === "MONTHLY" || usingDaily === false ? unit.monthlyPrice : undefined,
   };
 }
 
