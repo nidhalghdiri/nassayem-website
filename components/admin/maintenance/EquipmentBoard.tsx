@@ -5,8 +5,8 @@ import { Search, MapPin, Activity, Wrench, MoreVertical, Plus } from "lucide-rea
 import Link from "next/link";
 import { format } from "date-fns";
 
-import { createEquipmentType, createEquipment } from "@/app/actions/maintenance";
-import { Loader2, Settings, X } from "lucide-react";
+import { createEquipmentType, createEquipment, updateEquipment } from "@/app/actions/maintenance";
+import { Loader2, Settings, X, Edit, Activity, Plus, MapPin, Wrench, MoreVertical } from "lucide-react";
 
 type Props = {
   equipments: any[];
@@ -41,6 +41,17 @@ export default function EquipmentBoard({
     unitNumber: "",
     typeId: "",
     brandModel: "",
+  });
+
+  const [editingEq, setEditingEq] = useState<any | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    qrCode: "",
+    buildingId: "",
+    unitNumber: "",
+    typeId: "",
+    brandModel: "",
+    status: "",
   });
 
   const handleAddType = async (e: React.FormEvent) => {
@@ -83,6 +94,41 @@ export default function EquipmentBoard({
       alert(isEn ? "Failed to add equipment. QR Code might already exist." : "فشلت الإضافة. قد يكون رمز QR موجوداً بالفعل.");
     } finally {
       setIsAddingEq(false);
+    }
+  };
+
+  const handleEditClick = (eq: any) => {
+    setEditingEq(eq);
+    setEditForm({
+      qrCode: eq.qrCode,
+      buildingId: eq.buildingId,
+      unitNumber: eq.unitNumber || "",
+      typeId: eq.typeId,
+      brandModel: eq.brandModel,
+      status: eq.status,
+    });
+  };
+
+  const handleEditEquipment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEq || !editForm.qrCode || !editForm.buildingId || !editForm.typeId) return;
+
+    setIsEditing(true);
+    try {
+      await updateEquipment(editingEq.id, {
+        qrCode: editForm.qrCode,
+        buildingId: editForm.buildingId,
+        unitNumber: editForm.unitNumber || null,
+        typeId: editForm.typeId,
+        brandModel: editForm.brandModel,
+        status: editForm.status as any,
+      });
+      setEditingEq(null);
+      alert(isEn ? "Equipment updated successfully!" : "تم تحديث الجهاز بنجاح!");
+    } catch (err) {
+      alert(isEn ? "Failed to update equipment." : "فشل التحديث.");
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -272,12 +318,20 @@ export default function EquipmentBoard({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`/${locale}/admin/maintenance/equipment/${eq.id}`}
-                        className="inline-flex items-center justify-center p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleEditClick(eq)}
+                          className="inline-flex items-center justify-center p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <Link
+                          href={`/${locale}/admin/maintenance/equipment/${eq.id}`}
+                          className="inline-flex items-center justify-center p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -467,6 +521,132 @@ export default function EquipmentBoard({
                         {isEn ? "Save Equipment" : "حفظ الجهاز"}
                       </>
                     )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Equipment Modal */}
+      {editingEq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col mt-10 mb-10">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-900">
+                {isEn ? "Edit Equipment" : "تعديل الجهاز"}
+              </h2>
+              <button
+                onClick={() => setEditingEq(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 flex-1">
+              <form onSubmit={handleEditEquipment} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "QR Code ID" : "معرف QR"} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.qrCode}
+                    onChange={(e) => setEditForm({ ...editForm, qrCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-center uppercase"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Building" : "المبنى"} *
+                  </label>
+                  <select
+                    required
+                    value={editForm.buildingId}
+                    onChange={(e) => setEditForm({ ...editForm, buildingId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{isEn ? "Select Building" : "اختر المبنى"}</option>
+                    {buildings.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {isEn ? b.nameEn : b.nameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Unit Number" : "رقم الشقة / الوحدة"}
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.unitNumber}
+                    onChange={(e) => setEditForm({ ...editForm, unitNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Equipment Type" : "نوع الجهاز"} *
+                  </label>
+                  <select
+                    required
+                    value={editForm.typeId}
+                    onChange={(e) => setEditForm({ ...editForm, typeId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{isEn ? "Select Type" : "اختر النوع"}</option>
+                    {equipmentTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {isEn ? t.nameEn || t.nameAr : t.nameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Brand / Model" : "الماركة / الموديل"}
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.brandModel}
+                    onChange={(e) => setEditForm({ ...editForm, brandModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Status" : "الحالة"}
+                  </label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="GOOD">{isEn ? "Good" : "جيد"}</option>
+                    <option value="FAIR">{isEn ? "Fair" : "متوسط"}</option>
+                    <option value="NEEDS_REPAIR">{isEn ? "Needs Repair" : "يحتاج صيانة"}</option>
+                    <option value="NEEDS_REPLACEMENT">{isEn ? "Needs Replacement" : "يحتاج استبدال"}</option>
+                    <option value="BROKEN">{isEn ? "Broken" : "معطل"}</option>
+                  </select>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isEditing}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isEditing ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEn ? "Save Changes" : "حفظ التعديلات")}
                   </button>
                 </div>
               </form>

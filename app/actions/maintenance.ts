@@ -118,3 +118,21 @@ export async function createEquipment(data: {
   revalidatePath("/[locale]/admin/maintenance/equipment");
   return equipment;
 }
+
+export async function updateEquipment(id: string, data: {
+  qrCode?: string;
+  buildingId?: string;
+  unitNumber?: string | null;
+  typeId?: string;
+  brandModel?: string;
+  status?: EquipmentStatus;
+}) {
+  const equipment = await prisma.equipment.update({
+    where: { id },
+    data,
+  });
+
+  revalidatePath("/[locale]/admin/maintenance/equipment");
+  revalidatePath(`/[locale]/admin/maintenance/equipment/${id}`);
+  return equipment;
+}
