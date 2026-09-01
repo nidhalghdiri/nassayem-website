@@ -268,7 +268,6 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
                   }
                 }}
                 components={{
-                  audio: false,
                   finder: true,
                 }}
                 styles={{
