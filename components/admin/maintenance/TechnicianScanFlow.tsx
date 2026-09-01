@@ -48,8 +48,6 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
         setSearchError(isEn ? "Equipment not found" : "لم يتم العثور على الجهاز");
       }
     } catch (error) {
-      }
-    } catch (error) {
       setSearchError(isEn ? "Error searching for equipment" : "حدث خطأ أثناء البحث");
     } finally {
       setIsSearching(false);
@@ -105,7 +103,8 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-6 min-h-screen">
+    <>
+      <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-6 min-h-screen">
       <div className="text-center space-y-2 mb-8">
         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <Search className="w-8 h-8" />
