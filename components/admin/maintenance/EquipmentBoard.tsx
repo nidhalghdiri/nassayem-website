@@ -5,8 +5,8 @@ import { Search, MapPin, Activity, Wrench, MoreVertical, Plus } from "lucide-rea
 import Link from "next/link";
 import { format } from "date-fns";
 
-import { createEquipmentType } from "@/app/actions/maintenance";
-import { Loader2, Settings } from "lucide-react";
+import { createEquipmentType, createEquipment } from "@/app/actions/maintenance";
+import { Loader2, Settings, Plus, Activity, X } from "lucide-react";
 
 type Props = {
   equipments: any[];
@@ -33,6 +33,16 @@ export default function EquipmentBoard({
   const [newTypeNameEn, setNewTypeNameEn] = useState("");
   const [isSubmittingType, setIsSubmittingType] = useState(false);
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddingEq, setIsAddingEq] = useState(false);
+  const [addForm, setAddForm] = useState({
+    qrCode: "",
+    buildingId: "",
+    unitNumber: "",
+    typeId: "",
+    brandModel: "",
+  });
+
   const handleAddType = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTypeNameAr.trim()) return;
@@ -49,6 +59,30 @@ export default function EquipmentBoard({
       alert(isEn ? "Failed to add type" : "حدث خطأ أثناء إضافة النوع");
     } finally {
       setIsSubmittingType(false);
+    }
+  };
+
+  const handleAddEquipment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.qrCode || !addForm.buildingId || !addForm.typeId) return;
+    
+    setIsAddingEq(true);
+    try {
+      await createEquipment({
+        qrCode: addForm.qrCode,
+        buildingId: addForm.buildingId,
+        unitNumber: addForm.unitNumber || undefined,
+        typeId: addForm.typeId,
+        brandModel: addForm.brandModel,
+      });
+      setIsAddModalOpen(false);
+      setAddForm({ qrCode: "", buildingId: "", unitNumber: "", typeId: "", brandModel: "" });
+      alert(isEn ? "Equipment added successfully!" : "تمت إضافة الجهاز بنجاح!");
+      // Note: Revalidation handles refreshing the list
+    } catch (err) {
+      alert(isEn ? "Failed to add equipment. QR Code might already exist." : "فشلت الإضافة. قد يكون رمز QR موجوداً بالفعل.");
+    } finally {
+      setIsAddingEq(false);
     }
   };
 
@@ -109,7 +143,10 @@ export default function EquipmentBoard({
             <Activity className="w-4 h-4" />
             {isEn ? "Technician Scan" : "مسح الفني"}
           </Link>
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm">
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+          >
             <Plus className="w-4 h-4" />
             {isEn ? "Add Equipment" : "إضافة جهاز"}
           </button>
@@ -317,6 +354,121 @@ export default function EquipmentBoard({
                 >
                   {isSubmittingType ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEn ? "Add Type" : "إضافة النوع")}
                 </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Equipment Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col mt-10 mb-10">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-900">
+                {isEn ? "Add New Equipment" : "إضافة جهاز جديد"}
+              </h2>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 flex-1">
+              <form onSubmit={handleAddEquipment} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "QR Code ID" : "معرف QR"} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={addForm.qrCode}
+                    onChange={(e) => setAddForm({ ...addForm, qrCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-center uppercase"
+                    placeholder="e.g. AC-101"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Building" : "المبنى"} *
+                  </label>
+                  <select
+                    required
+                    value={addForm.buildingId}
+                    onChange={(e) => setAddForm({ ...addForm, buildingId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{isEn ? "Select Building" : "اختر المبنى"}</option>
+                    {buildings.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {isEn ? b.nameEn : b.nameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Unit Number" : "رقم الشقة / الوحدة"}
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.unitNumber}
+                    onChange={(e) => setAddForm({ ...addForm, unitNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Equipment Type" : "نوع الجهاز"} *
+                  </label>
+                  <select
+                    required
+                    value={addForm.typeId}
+                    onChange={(e) => setAddForm({ ...addForm, typeId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{isEn ? "Select Type" : "اختر النوع"}</option>
+                    {equipmentTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {isEn ? t.nameEn || t.nameAr : t.nameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Brand / Model" : "الماركة / الموديل"}
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.brandModel}
+                    onChange={(e) => setAddForm({ ...addForm, brandModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isAddingEq}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isAddingEq ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        {isEn ? "Save Equipment" : "حفظ الجهاز"}
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </div>
           </div>

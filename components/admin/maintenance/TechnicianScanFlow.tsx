@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Loader2, Wrench, CheckCircle2 } from "lucide-react";
+import { Search, Loader2, Wrench, CheckCircle2, Camera, X } from "lucide-react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 import { getEquipmentByQrCode, logMaintenanceVisit } from "@/app/actions/maintenance";
 import { EquipmentVisitStatus } from "@prisma/client";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
   const [isSearching, setIsSearching] = useState(false);
   const [equipment, setEquipment] = useState<any | null>(null);
   const [searchError, setSearchError] = useState("");
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -40,6 +42,33 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
 
     try {
       const eq = await getEquipmentByQrCode(qrCode.trim());
+      if (eq) {
+        setEquipment(eq);
+      } else {
+        setSearchError(isEn ? "Equipment not found" : "لم يتم العثور على الجهاز");
+      }
+    } catch (error) {
+      }
+    } catch (error) {
+      setSearchError(isEn ? "Error searching for equipment" : "حدث خطأ أثناء البحث");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleCameraScan = async (detectedQr: string) => {
+    if (!detectedQr) return;
+    setIsCameraOpen(false);
+    setQrCode(detectedQr);
+    
+    // Auto-search
+    setIsSearching(true);
+    setSearchError("");
+    setEquipment(null);
+    setSuccess(false);
+
+    try {
+      const eq = await getEquipmentByQrCode(detectedQr.trim());
       if (eq) {
         setEquipment(eq);
       } else {
@@ -91,19 +120,28 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
         </p>
       </div>
 
-      <form onSubmit={handleSearch} className="relative">
-        <input
-          type="text"
-          value={qrCode}
-          onChange={(e) => setQrCode(e.target.value)}
-          placeholder={isEn ? "Enter QR Code (e.g. AC-101)..." : "أدخل رمز QR (مثل AC-101)..."}
-          className="w-full text-lg p-4 pl-12 pr-24 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-center uppercase"
-          autoFocus
-        />
+      <form onSubmit={handleSearch} className="relative flex gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={qrCode}
+            onChange={(e) => setQrCode(e.target.value)}
+            placeholder={isEn ? "Enter QR Code (e.g. AC-101)..." : "أدخل رمز QR (مثل AC-101)..."}
+            className="w-full text-lg p-4 pl-12 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all uppercase"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => setIsCameraOpen(true)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors p-2"
+          >
+            <Camera className="w-6 h-6" />
+          </button>
+        </div>
         <button
           type="submit"
           disabled={isSearching || !qrCode.trim()}
-          className="absolute right-2 top-2 bottom-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+          className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-medium transition-colors disabled:opacity-50"
         >
           {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEn ? "Find" : "بحث")}
         </button>
@@ -209,5 +247,39 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
         </div>
       )}
     </div>
+      
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+          <button
+            onClick={() => setIsCameraOpen(false)}
+            className="absolute top-6 right-6 z-10 text-white bg-black/50 p-2 rounded-full hover:bg-black/70"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <div className="w-full max-w-md p-4">
+            <h3 className="text-white text-center mb-4 font-medium">
+              {isEn ? "Position QR Code in the frame" : "ضع رمز QR داخل الإطار"}
+            </h3>
+            <div className="rounded-2xl overflow-hidden border-2 border-gray-800">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    handleCameraScan(result[0].rawValue);
+                  }
+                }}
+                components={{
+                  audio: false,
+                  finder: true,
+                }}
+                styles={{
+                  container: { width: "100%" },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
