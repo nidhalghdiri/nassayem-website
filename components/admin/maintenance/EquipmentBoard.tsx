@@ -6,7 +6,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 import { createEquipmentType, createEquipment } from "@/app/actions/maintenance";
-import { Loader2, Settings, Plus, Activity, X } from "lucide-react";
+import { Loader2, Settings, X } from "lucide-react";
 
 type Props = {
   equipments: any[];
