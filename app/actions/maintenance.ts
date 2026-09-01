@@ -81,7 +81,7 @@ export async function logMaintenanceVisit(data: {
   });
 
   // Update equipment status based on visit status
-  let newEqStatus: EquipmentStatus = "WORKING";
+  let newEqStatus: EquipmentStatus = "GOOD";
   if (data.status === "NEEDS_PARTS" || data.status === "UNRESOLVED") {
     newEqStatus = "NEEDS_REPAIR";
   }
