@@ -102,7 +102,7 @@ export default function EquipmentDetail({
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
                   {isEn ? "Type" : "النوع"}
                 </div>
-                <div className="font-medium text-gray-900">{equipment.type}</div>
+                <div className="font-medium text-gray-900">{isEn ? equipment.type?.nameEn || equipment.type?.nameAr : equipment.type?.nameAr}</div>
               </div>
               <div>
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">

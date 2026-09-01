@@ -8,6 +8,7 @@ export async function getEquipments() {
   return await prisma.equipment.findMany({
     include: {
       building: true,
+      type: true,
       visits: {
         orderBy: { visitDate: "desc" },
         take: 1,
@@ -25,6 +26,7 @@ export async function getEquipmentById(id: string) {
     where: { id },
     include: {
       building: true,
+      type: true,
       visits: {
         include: { technician: true },
         orderBy: { visitDate: "desc" },
@@ -38,8 +40,26 @@ export async function getEquipmentByQrCode(qrCode: string) {
     where: { qrCode },
     include: {
       building: true,
+      type: true,
     },
   });
+}
+
+export async function getEquipmentTypes() {
+  return await prisma.equipmentType.findMany({
+    orderBy: { nameAr: "asc" }
+  });
+}
+
+export async function createEquipmentType(data: { nameAr: string; nameEn?: string }) {
+  const t = await prisma.equipmentType.create({
+    data: {
+      nameAr: data.nameAr,
+      nameEn: data.nameEn
+    }
+  });
+  revalidatePath("/[locale]/admin/maintenance/equipment");
+  return t;
 }
 
 export async function logMaintenanceVisit(data: {
@@ -81,7 +101,7 @@ export async function createEquipment(data: {
   qrCode: string;
   buildingId: string;
   unitNumber?: string;
-  type: string;
+  typeId: string;
   brandModel: string;
 }) {
   const equipment = await prisma.equipment.create({
@@ -89,9 +109,9 @@ export async function createEquipment(data: {
       qrCode: data.qrCode,
       buildingId: data.buildingId,
       unitNumber: data.unitNumber,
-      type: data.type,
+      typeId: data.typeId,
       brandModel: data.brandModel,
-      status: "WORKING",
+      status: "GOOD",
     },
   });
 

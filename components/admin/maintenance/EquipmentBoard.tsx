@@ -5,8 +5,12 @@ import { Search, MapPin, Activity, Wrench, MoreVertical, Plus } from "lucide-rea
 import Link from "next/link";
 import { format } from "date-fns";
 
+import { createEquipmentType } from "@/app/actions/maintenance";
+import { Loader2, Settings } from "lucide-react";
+
 type Props = {
   equipments: any[];
+  equipmentTypes: any[];
   buildings: any[];
   locale: string;
   currentUserRole: string;
@@ -14,6 +18,7 @@ type Props = {
 
 export default function EquipmentBoard({
   equipments,
+  equipmentTypes,
   buildings,
   locale,
   currentUserRole,
@@ -22,6 +27,30 @@ export default function EquipmentBoard({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [buildingFilter, setBuildingFilter] = useState("");
+
+  const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
+  const [newTypeNameAr, setNewTypeNameAr] = useState("");
+  const [newTypeNameEn, setNewTypeNameEn] = useState("");
+  const [isSubmittingType, setIsSubmittingType] = useState(false);
+
+  const handleAddType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTypeNameAr.trim()) return;
+    setIsSubmittingType(true);
+    try {
+      await createEquipmentType({
+        nameAr: newTypeNameAr.trim(),
+        nameEn: newTypeNameEn.trim() || undefined,
+      });
+      setNewTypeNameAr("");
+      setNewTypeNameEn("");
+      setIsTypesModalOpen(false);
+    } catch (err) {
+      alert(isEn ? "Failed to add type" : "حدث خطأ أثناء إضافة النوع");
+    } finally {
+      setIsSubmittingType(false);
+    }
+  };
 
   const filteredEquipments = equipments.filter((eq) => {
     if (search && !eq.qrCode.includes(search) && !eq.brandModel.toLowerCase().includes(search.toLowerCase())) {
@@ -34,13 +63,15 @@ export default function EquipmentBoard({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "WORKING":
+      case "GOOD":
         return "bg-green-100 text-green-800";
+      case "FAIR":
+        return "bg-blue-100 text-blue-800";
       case "NEEDS_REPAIR":
-        return "bg-red-100 text-red-800";
-      case "IN_MAINTENANCE":
         return "bg-orange-100 text-orange-800";
-      case "RETIRED":
+      case "NEEDS_REPLACEMENT":
+        return "bg-red-100 text-red-800";
+      case "BROKEN":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -64,6 +95,13 @@ export default function EquipmentBoard({
         
         {/* Actions */}
         <div className="flex gap-2">
+          <button
+            onClick={() => setIsTypesModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            <Settings className="w-4 h-4" />
+            {isEn ? "Manage Types" : "إدارة الأنواع"}
+          </button>
           <Link
             href={`/${locale}/admin/maintenance/scan`}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -120,9 +158,11 @@ export default function EquipmentBoard({
           className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">{isEn ? "All Statuses" : "جميع الحالات"}</option>
-          <option value="WORKING">{isEn ? "Working" : "يعمل"}</option>
+          <option value="GOOD">{isEn ? "Good" : "جيد"}</option>
+          <option value="FAIR">{isEn ? "Fair" : "متوسط"}</option>
           <option value="NEEDS_REPAIR">{isEn ? "Needs Repair" : "يحتاج صيانة"}</option>
-          <option value="IN_MAINTENANCE">{isEn ? "In Maintenance" : "قيد الصيانة"}</option>
+          <option value="NEEDS_REPLACEMENT">{isEn ? "Needs Replacement" : "يحتاج استبدال"}</option>
+          <option value="BROKEN">{isEn ? "Broken" : "معطل"}</option>
         </select>
         <select
           value={buildingFilter}
@@ -165,7 +205,7 @@ export default function EquipmentBoard({
                   <tr key={eq.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4 font-mono text-gray-900">{eq.qrCode}</td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{eq.type}</div>
+                      <div className="font-medium text-gray-900">{isEn ? eq.type?.nameEn || eq.type?.nameAr : eq.type?.nameAr}</div>
                       <div className="text-gray-500 text-xs mt-0.5">{eq.brandModel}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -209,6 +249,79 @@ export default function EquipmentBoard({
           </table>
         </div>
       </div>
+
+      {/* Manage Types Modal */}
+      {isTypesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-900">
+                {isEn ? "Manage Equipment Types" : "إدارة أنواع الأجهزة"}
+              </h2>
+              <button
+                onClick={() => setIsTypesModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="space-y-2 mb-6">
+                <h3 className="text-sm font-medium text-gray-500 uppercase">
+                  {isEn ? "Current Types" : "الأنواع الحالية"}
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {equipmentTypes.map((type) => (
+                    <span key={type.id} className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                      {isEn ? type.nameEn || type.nameAr : type.nameAr}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleAddType} className="space-y-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-medium text-gray-500 uppercase">
+                  {isEn ? "Add New Type" : "إضافة نوع جديد"}
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Type Name (Arabic)" : "اسم النوع (عربي)"} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newTypeNameAr}
+                    onChange={(e) => setNewTypeNameAr(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-right"
+                    placeholder="مثال: مكيف نافذة"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEn ? "Type Name (English)" : "اسم النوع (إنجليزي)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={newTypeNameEn}
+                    onChange={(e) => setNewTypeNameEn(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-left"
+                    placeholder="e.g. Window AC"
+                    dir="ltr"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmittingType}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isSubmittingType ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEn ? "Add Type" : "إضافة النوع")}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

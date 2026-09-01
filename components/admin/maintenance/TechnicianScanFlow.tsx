@@ -119,7 +119,7 @@ export default function TechnicianScanFlow({ locale, currentUserId }: Props) {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-gray-50 border-b border-gray-200 p-4">
             <h2 className="font-bold text-gray-900 flex justify-between items-center">
-              <span>{equipment.type} - {equipment.brandModel}</span>
+              <span>{isEn ? equipment.type?.nameEn || equipment.type?.nameAr : equipment.type?.nameAr} - {equipment.brandModel}</span>
               <span className="font-mono text-sm px-2 py-1 bg-white rounded-md border border-gray-200 text-gray-600">
                 {equipment.qrCode}
               </span>

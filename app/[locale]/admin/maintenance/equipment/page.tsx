@@ -14,10 +14,11 @@ export default async function AdminEquipmentPage({ params }: PageProps) {
 
   if (!adminUser) return null; // middleware redirects to login
 
-  const [equipments, buildings] = await Promise.all([
+  const [equipments, buildings, equipmentTypes] = await Promise.all([
     prisma.equipment.findMany({
       include: {
         building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
+        type: true,
         visits: {
           orderBy: { visitDate: "desc" },
           take: 1,
@@ -30,6 +31,9 @@ export default async function AdminEquipmentPage({ params }: PageProps) {
       select: { id: true, nameEn: true, nameAr: true, shortName: true },
       orderBy: { nameEn: "asc" },
     }),
+    prisma.equipmentType.findMany({
+      orderBy: { nameAr: "asc" }
+    })
   ]);
 
   // Serialize Prisma Date objects for client component props
@@ -48,6 +52,7 @@ export default async function AdminEquipmentPage({ params }: PageProps) {
   return (
     <EquipmentBoard
       equipments={serializedEquipments}
+      equipmentTypes={equipmentTypes}
       buildings={buildings}
       locale={locale}
       currentUserRole={adminUser.role}

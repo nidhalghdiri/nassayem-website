@@ -164,10 +164,11 @@ enum RecommendationCategory {
 // ------------------------------------------------------
 
 enum EquipmentStatus {
-  WORKING
+  GOOD
+  FAIR
   NEEDS_REPAIR
-  IN_MAINTENANCE
-  RETIRED
+  NEEDS_REPLACEMENT
+  BROKEN
 }
 
 enum EquipmentVisitStatus {
@@ -1088,6 +1089,17 @@ model CampaignCustomer {
 // MODELS — Maintenance & Equipment
 // ------------------------------------------------------
 
+model EquipmentType {
+  id        String @id @default(uuid())
+  nameEn    String?
+  nameAr    String
+  
+  equipments Equipment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Equipment {
   id         String @id @default(uuid())
   qrCode     String @unique
@@ -1097,9 +1109,11 @@ model Equipment {
   
   unitNumber String?
   
-  type       String
-  brandModel String
-  status     EquipmentStatus @default(WORKING)
+  typeId     String
+  type       EquipmentType @relation(fields: [typeId], references: [id])
+  
+  brandModel String?
+  status     EquipmentStatus @default(GOOD)
   
   visits     EquipmentVisit[]
   
@@ -1108,6 +1122,7 @@ model Equipment {
   
   @@index([buildingId])
   @@index([status])
+  @@index([typeId])
 }
 
 model EquipmentVisit {
