@@ -160,6 +160,23 @@ enum RecommendationCategory {
 }
 
 // ------------------------------------------------------
+// ENUMS — Maintenance
+// ------------------------------------------------------
+
+enum EquipmentStatus {
+  WORKING
+  NEEDS_REPAIR
+  IN_MAINTENANCE
+  RETIRED
+}
+
+enum EquipmentVisitStatus {
+  RESOLVED
+  NEEDS_PARTS
+  UNRESOLVED
+}
+
+// ------------------------------------------------------
 // MODELS — Property rental
 // ------------------------------------------------------
 
@@ -191,6 +208,7 @@ model Building {
   unitTypeDailyPrices UnitTypeDailyPrice[]
   netsuitePayments    NetsuitePayment[]
   laundryOrders       LaundryOrder[]
+  equipments          Equipment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -472,6 +490,9 @@ model AdminUser {
   laundrySupervised LaundryOrder[] @relation("LaundrySupervisor")
   laundryProcessed  LaundryOrder[] @relation("LaundryUser")
   laundryEvents     LaundryEvent[]
+
+  // Maintenance relations
+  equipmentVisits   EquipmentVisit[]
 
   // Receptionist building scope
   assignedBuildings AdminUserBuilding[]
@@ -1061,4 +1082,50 @@ model CampaignCustomer {
   @@index([campaignId])
   @@index([status])
   @@index([phone])
+}
+
+// ------------------------------------------------------
+// MODELS — Maintenance & Equipment
+// ------------------------------------------------------
+
+model Equipment {
+  id         String @id @default(uuid())
+  qrCode     String @unique
+  
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  
+  unitNumber String?
+  
+  type       String
+  brandModel String
+  status     EquipmentStatus @default(WORKING)
+  
+  visits     EquipmentVisit[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([buildingId])
+  @@index([status])
+}
+
+model EquipmentVisit {
+  id               String @id @default(uuid())
+  equipmentId      String
+  equipment        Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  
+  technicianId     String
+  technician       AdminUser @relation(fields: [technicianId], references: [id])
+  
+  visitDate        DateTime
+  issueDescription String @db.Text
+  actionTaken      String @db.Text
+  status           EquipmentVisitStatus
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([equipmentId])
+  @@index([technicianId])
 }
