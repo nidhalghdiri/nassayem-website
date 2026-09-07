@@ -15,6 +15,8 @@ export type PromptContext = {
   channel: "WEB" | "WHATSAPP";
   /** Salalah-local current date, YYYY-MM-DD. */
   todayISO: string;
+  featuredBuildingNameEn?: string;
+  featuredBuildingNameAr?: string;
 };
 
 export function buildSystemPrompt(
@@ -132,15 +134,6 @@ When sharing a property, include its page link matching the customer's language 
 </workflow>`.trim(),
   );
 
-  if (settings.featured_building.trim()) {
-    parts.push(
-      `
-<sales_focus>
-We currently want to fill "${settings.featured_building.trim()}". When it genuinely fits the customer's request (right type, available for their dates), present it FIRST and give a real selling point (location, space, value). HONESTY RULES: if it doesn't fit their needs, doesn't have availability, or the customer prefers something else, drop it immediately — never push twice, never misrepresent it, and never hide a better-fitting option the customer would clearly prefer.
-</sales_focus>`.trim(),
-    );
-  }
-
   if (settings.prioritize_vacant_buildings) {
     parts.push(
       `
@@ -205,13 +198,15 @@ Pricing & discount rules:
     `<context>\nToday's date in Salalah is ${ctx.todayISO}. Resolve relative dates ("tonight", "next Thursday", "بكرة") against this date before calling tools. Tools take dates as YYYY-MM-DD.\n</context>`,
   );
 
-  parts.push(
-    `
+  if (settings.featured_building && ctx.featuredBuildingNameEn && ctx.featuredBuildingNameAr) {
+    parts.push(
+      `
 <temporary_preferred_focus>
-PROACTIVE SUGGESTION RULE: For the time being, proactively suggest and highlight the building "Nassayem Salalah Hotel Apartments & Suites Downtown" (الحي التجاري نسائم صلاله للأجنحة والشقق الفاخرة) with ID: a967194c-ba82-46d4-b602-46b4ec973b42 as your primary recommendation when customers ask for available apartments or options.
+PROACTIVE SUGGESTION RULE: For the time being, proactively suggest and highlight the building "${ctx.featuredBuildingNameEn}" (${ctx.featuredBuildingNameAr}) with ID: ${settings.featured_building} as your primary recommendation when customers ask for available apartments or options.
 However, do NOT restrict the customer: if they inquire about other buildings, different areas/locations, or specific properties, cater to their requests and provide options across all available buildings.
 </temporary_preferred_focus>`.trim()
-  );
+    );
+  }
 
   return parts.join("\n\n");
 }

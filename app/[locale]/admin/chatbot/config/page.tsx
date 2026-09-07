@@ -3,6 +3,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canManageChatbotConfig } from "@/lib/chatbot/permissions";
 import { getChatbotSettings, invalidateChatbotSettingsCache } from "@/lib/chatbot/config";
 import ConfigForm from "@/components/admin/chatbot/ConfigForm";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,11 @@ export default async function ChatbotConfigPage({ params }: PageProps) {
   invalidateChatbotSettingsCache();
   const settings = await getChatbotSettings();
 
+  const buildings = await prisma.building.findMany({
+    select: { id: true, nameEn: true, nameAr: true },
+    orderBy: { nameEn: "asc" },
+  });
+
   return (
     <div className="p-4 lg:p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-gray-900">
@@ -30,7 +36,7 @@ export default async function ChatbotConfigPage({ params }: PageProps) {
           ? "Changes apply live within ~1 minute — no redeploy needed. Grounding and safety rules are fixed in code and cannot be weakened here."
           : "التغييرات تُطبق مباشرة خلال دقيقة تقريباً — دون إعادة نشر. قواعد الأمان والدقة ثابتة في الكود ولا يمكن تجاوزها من هنا."}
       </p>
-      <ConfigForm locale={locale} settings={settings} />
+      <ConfigForm locale={locale} settings={settings} buildings={buildings} />
     </div>
   );
 }

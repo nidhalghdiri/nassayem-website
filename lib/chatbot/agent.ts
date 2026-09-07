@@ -350,9 +350,24 @@ export async function generateReply(params: {
     }
   }
 
+  let featuredBuildingNameEn: string | undefined;
+  let featuredBuildingNameAr: string | undefined;
+  if (settings.featured_building) {
+    const b = await prisma.building.findUnique({
+      where: { id: settings.featured_building },
+      select: { nameEn: true, nameAr: true },
+    });
+    if (b) {
+      featuredBuildingNameEn = b.nameEn;
+      featuredBuildingNameAr = b.nameAr;
+    }
+  }
+
   let system = buildSystemPrompt(settings, {
     channel,
     todayISO: salalahTodayISO(),
+    featuredBuildingNameEn,
+    featuredBuildingNameAr,
   });
 
   // --- CAMPAIGN CUSTOMER SURVEY OVERRIDE ---

@@ -634,12 +634,10 @@ const searchUnits = defineTool({
     // Featured building (admin config) floats to the top of results — the
     // prompt tells the model to present it first when it fits. It stays pinned
     // above the vacancy ranking applied further below.
-    const featured = settings.featured_building.trim().toLowerCase();
+    const featuredId = settings.featured_building;
     const isFeaturedUnit = (u: (typeof units)[number]) =>
-      featured.length > 0 &&
-      (u.building.nameEn.toLowerCase().includes(featured) ||
-        u.building.nameAr.includes(settings.featured_building.trim()));
-    if (featured) {
+      featuredId && u.buildingId === featuredId;
+    if (featuredId) {
       units.sort((a, b) => Number(isFeaturedUnit(b)) - Number(isFeaturedUnit(a)));
     }
 

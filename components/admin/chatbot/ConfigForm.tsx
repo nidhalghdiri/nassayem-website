@@ -4,13 +4,17 @@ import { useState, useTransition } from "react";
 import { saveChatbotSettings } from "@/app/actions/chatbot";
 import type { ChatbotSettings } from "@/lib/chatbot/config";
 
-type Props = { locale: string; settings: ChatbotSettings };
+type Props = { 
+  locale: string; 
+  settings: ChatbotSettings;
+  buildings: { id: string; nameEn: string; nameAr: string }[];
+};
 
 const inputCls =
   "w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-nassayem/50";
 const labelCls = "block text-sm font-medium text-gray-700 mb-1";
 
-export default function ConfigForm({ locale, settings }: Props) {
+export default function ConfigForm({ locale, settings, buildings }: Props) {
   const isEn = locale === "en";
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -114,16 +118,22 @@ export default function ConfigForm({ locale, settings }: Props) {
         <div className="md:col-span-2">
           <label className={labelCls}>
             {t(
-              "Featured building — recommended first when it fits (exact English name, empty = off)",
-              "المبنى المُروَّج — يُقترح أولاً عندما يناسب العميل (الاسم الإنجليزي كما هو، فارغ = إيقاف)",
+              "Featured building — recommended first when it fits (select 'None' to disable)",
+              "المبنى المُروَّج — يُقترح أولاً عندما يناسب العميل (اختر 'لا يوجد' للإيقاف)",
             )}
           </label>
-          <input
+          <select
             name="featured_building"
             defaultValue={settings.featured_building}
-            placeholder="Awqad Building"
             className={inputCls}
-          />
+          >
+            <option value="">{t("None", "لا يوجد")}</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {isEn ? b.nameEn : b.nameAr}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className={labelCls}>{t("Call center number", "رقم مركز الاتصال")}</label>

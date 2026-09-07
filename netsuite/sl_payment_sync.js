@@ -75,17 +75,24 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         var paymentPdfUrl = null;
         var paymentId = null;
 
-        // 1. Get the Customer ID from the Reservation
+        // 1. Get the Customer ID, Location, and Reservation Number from the Reservation
         var resLookup = search.lookupFields({
           type: "customsale_ns_reservations",
           id: body.netsuiteReservationId,
-          columns: ["entity", RESERVATION_PAYMENTS_FIELD_ID]
+          columns: ["entity", RESERVATION_PAYMENTS_FIELD_ID, "location", "tranid", "name"]
         });
-        
+
         var customerId = null;
         if (resLookup.entity && resLookup.entity.length > 0) {
           customerId = resLookup.entity[0].value;
         }
+
+        var locationId = null;
+        if (resLookup.location && resLookup.location.length > 0) {
+          locationId = resLookup.location[0].value;
+        }
+
+        var reservationNo = resLookup.tranid || resLookup.name || body.netsuiteReservationId;
 
         if (customerId) {
           // 2. Create the unapplied Customer Payment
@@ -96,8 +103,24 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
           paymentRec.setValue({ fieldId: "customer", value: customerId });
           paymentRec.setValue({ fieldId: "payment", value: body.amount });
           paymentRec.setValue({ fieldId: "autoapply", value: false });
-          paymentRec.setValue({ fieldId: "memo", value: "SmartPay: " + refNo });
-          
+
+          if (locationId) {
+            paymentRec.setValue({ fieldId: "location", value: locationId });
+          }
+
+          // Direct payment to bank account id 317 instead of undeposited funds
+          paymentRec.setValue({ fieldId: "undepfunds", value: "F" });
+          paymentRec.setValue({ fieldId: "account", value: 317 });
+
+          var now = new Date();
+          var day = ("0" + now.getDate()).slice(-2);
+          var month = ("0" + (now.getMonth() + 1)).slice(-2);
+          var year = now.getFullYear();
+          var dateStr = day + "/" + month + "/" + year;
+
+          var memoText = "حوالة بنكية عبر الرابط تاريخ " + dateStr + " | الرقم: " + refNo + " | الحجز: " + reservationNo;
+          paymentRec.setValue({ fieldId: "memo", value: memoText });
+
           paymentId = paymentRec.save({ enableSourcing: true, ignoreMandatoryFields: true });
           log.audit("Customer Payment Created", "Payment ID: " + paymentId);
 
@@ -106,12 +129,12 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
             var pdfRenderer = render.create();
             pdfRenderer.setTemplateById(PAYMENT_PDF_TEMPLATE_ID);
             pdfRenderer.addRecord({ templateName: 'record', record: record.load({ type: record.Type.CUSTOMER_PAYMENT, id: paymentId }) });
-            
+
             var pdf = pdfRenderer.renderAsPdf();
             pdf.name = "PaymentReceipt_" + paymentId + ".pdf";
             pdf.folder = FILE_CABINET_FOLDER_ID;
             pdf.isOnline = true;
-            
+
             var fileId = pdf.save();
             var savedFile = file.load({ id: fileId });
             var accountDomain = url.resolveDomain({ hostType: url.HostType.APPLICATION });
@@ -128,7 +151,7 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         // We append the new payment to the multiselect field if it was created
         var existingPayments = [];
         if (resLookup[RESERVATION_PAYMENTS_FIELD_ID]) {
-          existingPayments = resLookup[RESERVATION_PAYMENTS_FIELD_ID].map(function(obj) { return obj.value; });
+          existingPayments = resLookup[RESERVATION_PAYMENTS_FIELD_ID].map(function (obj) { return obj.value; });
         }
         if (paymentId) {
           existingPayments.push(paymentId);

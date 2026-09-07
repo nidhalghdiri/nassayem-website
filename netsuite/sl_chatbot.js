@@ -451,28 +451,28 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         pdfRenderer.setTemplateById(RESERVATION_PDF_TEMPLATE_ID);
         var resRecord = record.load({ type: R.recordType, id: id });
         pdfRenderer.addRecord({ templateName: 'record', record: resRecord });
-        
+
         var pdf = pdfRenderer.renderAsPdf();
         pdf.name = "Reservation_" + ref + ".pdf";
         pdf.folder = FILE_CABINET_FOLDER_ID;
         pdf.isOnline = true;
-        
+
         var fileId = pdf.save();
         var savedFile = file.load({ id: fileId });
         var accountDomain = url.resolveDomain({ hostType: url.HostType.APPLICATION });
         reservationPdfUrl = "https://" + accountDomain + savedFile.url;
-        
+
         log.audit("PDF generated", "File ID=" + fileId + " URL=" + reservationPdfUrl);
       } catch (e) {
         log.error("Failed to generate reservation PDF", e);
       }
 
-      return { 
-        ok: true, 
-        reservationId: String(id), 
-        reservationRef: ref, 
+      return {
+        ok: true,
+        reservationId: String(id),
+        reservationRef: ref,
         unitCode: unit.code,
-        reservationPdfUrl: reservationPdfUrl 
+        reservationPdfUrl: reservationPdfUrl
       };
     }
 
