@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Search, MapPin, Activity, Wrench, MoreVertical, Plus } from "lucide-react";
+import { Search, MapPin, Activity, Wrench, MoreVertical, Plus, Loader2, Settings, X, Edit } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 
 import { createEquipmentType, createEquipment, updateEquipment } from "@/app/actions/maintenance";
-import { Loader2, Settings, X, Edit, Activity, Plus, MapPin, Wrench, MoreVertical } from "lucide-react";
 
 type Props = {
   equipments: any[];
