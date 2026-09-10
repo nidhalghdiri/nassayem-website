@@ -26,6 +26,7 @@ export default function EquipmentBoard({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [buildingFilter, setBuildingFilter] = useState("");
+  const [unitFilter, setUnitFilter] = useState("");
 
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [newTypeNameAr, setNewTypeNameAr] = useState("");
@@ -137,8 +138,20 @@ export default function EquipmentBoard({
     }
     if (statusFilter && eq.status !== statusFilter) return false;
     if (buildingFilter && eq.buildingId !== buildingFilter) return false;
+    if (unitFilter && eq.unitNumber !== unitFilter) return false;
     return true;
   });
+
+  // Calculate unique units based on selected building
+  const buildingEquipments = buildingFilter 
+    ? equipments.filter(eq => eq.buildingId === buildingFilter)
+    : equipments;
+  const uniqueUnits = Array.from(new Set(buildingEquipments.map(eq => eq.unitNumber).filter(Boolean))) as string[];
+
+  // Prepare KPI data
+  const kpiEquipments = buildingFilter 
+    ? equipments.filter(eq => eq.buildingId === buildingFilter)
+    : equipments;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -198,28 +211,78 @@ export default function EquipmentBoard({
         </div>
       </div>
 
+      {/* Building Filter Header */}
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
+        <div className="text-sm font-medium text-gray-700">
+          {isEn ? "Select Building:" : "اختر المبنى:"}
+        </div>
+        <select
+          value={buildingFilter}
+          onChange={(e) => {
+            setBuildingFilter(e.target.value);
+            setUnitFilter(""); // Reset unit filter when building changes
+          }}
+          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-sm"
+        >
+          <option value="">{isEn ? "All Buildings" : "جميع المباني"}</option>
+          {buildings.map((b) => (
+            <option key={b.id} value={b.id}>
+              {isEn ? b.nameEn : b.nameAr}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Stats/Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Cards */}
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0">
             <Activity className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{equipments.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{kpiEquipments.length}</div>
             <div className="text-sm text-gray-500">{isEn ? "Total Equipment" : "إجمالي الأجهزة"}</div>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center shrink-0">
             <Wrench className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-bold text-gray-900">
-              {equipments.filter(e => e.status === "NEEDS_REPAIR").length}
+              {kpiEquipments.filter(e => e.status === "NEEDS_REPAIR").length}
             </div>
             <div className="text-sm text-gray-500">{isEn ? "Needs Repair" : "يحتاج صيانة"}</div>
           </div>
         </div>
+        
+        {/* Dynamic Type Cards */}
+        {equipmentTypes.map(type => {
+          const typeEqs = kpiEquipments.filter(e => e.typeId === type.id);
+          if (typeEqs.length === 0) return null;
+          const typeNeedsRepair = typeEqs.filter(e => e.status === "NEEDS_REPAIR").length;
+          
+          return (
+            <div key={type.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-medium text-gray-900">
+                  {isEn ? type.nameEn || type.nameAr : type.nameAr}
+                </div>
+                <div className="flex gap-4 mt-1">
+                  <div>
+                    <span className="text-xs text-gray-500">{isEn ? "Total" : "الإجمالي"}: </span>
+                    <span className="text-sm font-semibold">{typeEqs.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">{isEn ? "Repair" : "صيانة"}: </span>
+                    <span className="text-sm font-semibold text-red-600">{typeNeedsRepair}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -235,9 +298,21 @@ export default function EquipmentBoard({
           />
         </div>
         <select
+          value={unitFilter}
+          onChange={(e) => setUnitFilter(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
+        >
+          <option value="">{isEn ? "All Units" : "جميع الشقق"}</option>
+          {uniqueUnits.map((u) => (
+            <option key={u} value={u}>
+              {isEn ? "Unit" : "شقة"} {u}
+            </option>
+          ))}
+        </select>
+        <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
         >
           <option value="">{isEn ? "All Statuses" : "جميع الحالات"}</option>
           <option value="GOOD">{isEn ? "Good" : "جيد"}</option>
@@ -245,18 +320,6 @@ export default function EquipmentBoard({
           <option value="NEEDS_REPAIR">{isEn ? "Needs Repair" : "يحتاج صيانة"}</option>
           <option value="NEEDS_REPLACEMENT">{isEn ? "Needs Replacement" : "يحتاج استبدال"}</option>
           <option value="BROKEN">{isEn ? "Broken" : "معطل"}</option>
-        </select>
-        <select
-          value={buildingFilter}
-          onChange={(e) => setBuildingFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">{isEn ? "All Buildings" : "جميع المباني"}</option>
-          {buildings.map((b) => (
-            <option key={b.id} value={b.id}>
-              {isEn ? b.nameEn : b.nameAr}
-            </option>
-          ))}
         </select>
       </div>
 
