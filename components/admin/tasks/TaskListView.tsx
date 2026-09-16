@@ -57,6 +57,9 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
               <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 {isEn ? "Status" : "الحالة"}
               </th>
+              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">
+                {isEn ? "Progress" : "التقدم"}
+              </th>
               <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 {isEn ? "Due" : "الموعد"}
               </th>
@@ -113,9 +116,21 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConf.badge}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${statusConf.badge}`}>
                       {isEn ? statusConf.labelEn : statusConf.labelAr}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${
+                          isTerminal 
+                            ? (task.status === "CANCELLED" ? "bg-red-400" : "bg-green-500") 
+                            : (task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "bg-blue-500" : "bg-gray-300")
+                        }`} 
+                        style={{ width: isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%" }} 
+                      />
+                    </div>
                   </td>
                   <td className={`px-4 py-3 text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
                     {isOverdue && <span className="me-0.5">⚠</span>}
@@ -147,7 +162,7 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeConf.bg} ${typeConf.text}`}>
                   {isEn ? typeConf.labelEn : typeConf.labelAr}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConf.badge}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${statusConf.badge}`}>
                   {isEn ? statusConf.labelEn : statusConf.labelAr}
                 </span>
               </div>
@@ -172,6 +187,26 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                 <span className={isOverdue ? "text-red-600 font-medium" : "text-gray-400"}>
                   {isOverdue && "⚠ "}{formatDate(task.dueDate)}
                 </span>
+              </div>
+              <div className="pt-2 mt-3 border-t border-gray-50">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    {isEn ? "Progress" : "التقدم"}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-500">
+                    {isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%"}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      isTerminal 
+                        ? (task.status === "CANCELLED" ? "bg-red-400" : "bg-green-500") 
+                        : (task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "bg-blue-500" : "bg-gray-300")
+                    }`} 
+                    style={{ width: isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%" }} 
+                  />
+                </div>
               </div>
             </div>
           );

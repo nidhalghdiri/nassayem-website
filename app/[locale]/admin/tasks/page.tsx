@@ -39,6 +39,9 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
   const buildingId = sp.buildingId as string | undefined;
   const assignedToId = sp.assignedToId as string | undefined;
   const search = sp.search as string | undefined;
+  const unitNumber = sp.unitNumber as string | undefined;
+  const dateStr = sp.date as string | undefined;
+  const statusGroup = (sp.statusGroup as string) || "ACTIVE"; // "ACTIVE" | "COMPLETED" | "ALL"
 
   const canSeeAll = adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR";
 
@@ -65,9 +68,30 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         ...(type ? { type } : {}),
         ...(priority ? { priority } : {}),
         ...(status ? { status } : {}),
+        ...(!status && statusGroup === "ACTIVE"
+          ? {
+              OR: [
+                { status: { notIn: TERMINAL_STATUSES } },
+                {
+                  status: { in: TERMINAL_STATUSES },
+                  updatedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+                },
+              ],
+            }
+          : {}),
+        ...(!status && statusGroup === "COMPLETED" ? { status: { in: TERMINAL_STATUSES } } : {}),
         ...(buildingId ? { buildingId } : {}),
+        ...(unitNumber ? { unitNumber: { contains: unitNumber, mode: "insensitive" } } : {}),
         ...(assignedToId ? { assignedToId } : {}),
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
+        ...(dateStr
+          ? {
+              createdAt: {
+                gte: new Date(dateStr + "T00:00:00.000Z"),
+                lte: new Date(dateStr + "T23:59:59.999Z"),
+              },
+            }
+          : {}),
       },
       include: {
         building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },

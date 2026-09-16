@@ -140,23 +140,23 @@ const TaskCard = memo(function TaskCard({
 
         {/* Status + attachment counts + mobile move button */}
         <div className="flex items-center justify-between">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConf.badge}`}>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${statusConf.badge}`}>
             {isEn ? statusConf.labelEn : statusConf.labelAr}
           </span>
           <div className="flex items-center gap-2">
             {(task._count.notes > 0 || task._count.photos > 0) && (
               <div className="flex items-center gap-2 text-gray-400">
                 {task._count.notes > 0 && (
-                  <span className="flex items-center gap-0.5 text-xs">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex items-center gap-0.5 text-xs font-medium">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     {task._count.notes}
                   </span>
                 )}
                 {task._count.photos > 0 && (
-                  <span className="flex items-center gap-0.5 text-xs">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex items-center gap-0.5 text-xs font-medium">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     {task._count.photos}
@@ -170,10 +170,10 @@ const TaskCard = memo(function TaskCard({
               <div className="relative sm:hidden" data-move-btn="1">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowMoveMenu(!showMoveMenu); }}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded bg-gray-50 border border-gray-100"
                   title={isEn ? "Move to…" : "نقل إلى…"}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
                 </button>
@@ -192,7 +192,7 @@ const TaskCard = memo(function TaskCard({
                             setShowMoveMenu(false);
                             onMobileMove(task.id, s);
                           }}
-                          className="w-full text-start px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                          className="w-full text-start px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 font-medium"
                         >
                           {lbl ? (isEn ? lbl.labelEn : lbl.labelAr) : s}
                         </button>
@@ -202,6 +202,28 @@ const TaskCard = memo(function TaskCard({
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Visual Progress Bar */}
+        <div className="pt-2 mt-1 border-t border-gray-50">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              {isEn ? "Progress" : "التقدم"}
+            </span>
+            <span className="text-[10px] font-bold text-gray-500">
+              {isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%"}
+            </span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-500 ${
+                isTerminal 
+                  ? (task.status === "CANCELLED" ? "bg-red-400" : "bg-green-500") 
+                  : (task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "bg-blue-500" : "bg-gray-300")
+              }`} 
+              style={{ width: isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%" }} 
+            />
           </div>
         </div>
       </div>

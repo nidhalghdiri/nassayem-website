@@ -33,15 +33,20 @@ const BoardFilters = memo(({
   currentType, 
   currentPriority, 
   currentAssignedTo, 
-  currentSearch, 
-  staffUsers, 
+  currentSearch,
+  currentBuildingId,
+  currentUnitNumber,
+  currentDate,
+  currentStatusGroup,
+  staffUsers,
+  buildings,
   currentUserRole,
   updateFilter,
   clearFilters,
   hasActiveFilters 
 }: any) => {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[160px]">
           <svg
@@ -98,10 +103,55 @@ const BoardFilters = memo(({
           </select>
         )}
 
+        <select
+          value={currentStatusGroup}
+          onChange={(e) => updateFilter("statusGroup", e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+        >
+          <option value="ACTIVE">{isEn ? "Active & Recent" : "نشطة وحديثة"}</option>
+          <option value="COMPLETED">{isEn ? "Completed Tasks" : "مهام مكتملة"}</option>
+          <option value="ALL">{isEn ? "All Tasks" : "كل المهام"}</option>
+        </select>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {buildings?.length > 0 && (
+          <select
+            value={currentBuildingId}
+            onChange={(e) => updateFilter("buildingId", e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white min-w-[140px]"
+          >
+            <option value="">{isEn ? "All Buildings" : "كل المباني"}</option>
+            {buildings.map((b: any) => (
+              <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
+            ))}
+          </select>
+        )}
+
+        <input
+          type="text"
+          defaultValue={currentUnitNumber}
+          placeholder={isEn ? "Unit No." : "رقم الوحدة"}
+          className="w-28 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") updateFilter("unitNumber", (e.target as HTMLInputElement).value.trim());
+          }}
+          onBlur={(e) => updateFilter("unitNumber", e.target.value.trim())}
+        />
+
+        <div className="relative">
+          <input
+            type="date"
+            value={currentDate}
+            onChange={(e) => updateFilter("date", e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          />
+        </div>
+
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-medium"
+            className="ms-auto px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-medium"
           >
             {isEn ? "Clear filters" : "مسح الفلاتر"}
           </button>
@@ -195,7 +245,21 @@ export default function TaskBoard({
   const currentPriority = searchParams.get("priority") ?? "";
   const currentAssignedTo = searchParams.get("assignedToId") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
-  const hasActiveFilters = !!(currentType || currentPriority || currentAssignedTo || currentSearch);
+  const currentBuildingId = searchParams.get("buildingId") ?? "";
+  const currentUnitNumber = searchParams.get("unitNumber") ?? "";
+  const currentDate = searchParams.get("date") ?? "";
+  const currentStatusGroup = searchParams.get("statusGroup") ?? "ACTIVE";
+
+  const hasActiveFilters = !!(
+    currentType ||
+    currentPriority ||
+    currentAssignedTo ||
+    currentSearch ||
+    currentBuildingId ||
+    currentUnitNumber ||
+    currentDate ||
+    currentStatusGroup !== "ACTIVE"
+  );
 
   // ── Stats cards ──────────────────────────────────────────────────────────────
   const statCards = useMemo(() => {
@@ -275,7 +339,12 @@ export default function TaskBoard({
           currentPriority={currentPriority}
           currentAssignedTo={currentAssignedTo}
           currentSearch={currentSearch}
+          currentBuildingId={currentBuildingId}
+          currentUnitNumber={currentUnitNumber}
+          currentDate={currentDate}
+          currentStatusGroup={currentStatusGroup}
           staffUsers={staffUsers}
+          buildings={buildings}
           currentUserRole={currentUserRole}
           updateFilter={updateFilter}
           clearFilters={clearFilters}
