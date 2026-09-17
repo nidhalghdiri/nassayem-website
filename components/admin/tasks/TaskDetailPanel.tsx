@@ -56,7 +56,9 @@ type FullTask = {
   status: string;
   dueDate: string;
   building: { id: string; nameEn: string; nameAr: string; shortName?: string | null } | null;
+  unit: { id: string; name: string } | null;
   unitNumber: string | null;
+  cleaningType: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
   parentTask: { id: string; title: string; type: string } | null;
@@ -544,6 +546,13 @@ export default function TaskDetailPanel({
                     ? TASK_TYPE_CONFIG[task.type as TTaskType].labelEn
                     : TASK_TYPE_CONFIG[task.type as TTaskType].labelAr}
                 </span>
+                {task.cleaningType && (
+                  <span className="mt-0.5 shrink-0 inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                    {task.cleaningType === "DEEP" ? (isEn ? "Deep Cleaning" : "تنظيف عميق") :
+                     task.cleaningType === "MEDIUM" ? (isEn ? "Medium Cleaning" : "تنظيف متوسط") :
+                     (isEn ? "Regular Cleaning" : "تنظيف عادي")}
+                  </span>
+                )}
                 <h2 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 pt-0.5">
                   {task.title}
                 </h2>
@@ -719,8 +728,12 @@ export default function TaskDetailPanel({
                     <dd className="font-medium text-gray-800">
                       {buildingLabel(task.building, isEn)}
                     </dd>
-                    {task.unitNumber && (
-                      <dd className="text-xs text-gray-500 mt-1 truncate">{task.unitNumber}</dd>
+                    {(task.unit?.name || task.unitNumber) && (
+                      <dd className="text-xs text-gray-500 mt-1 truncate">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-semibold bg-nassayem/10 text-nassayem">
+                          {task.unit?.name || task.unitNumber}
+                        </span>
+                      </dd>
                     )}
                   </div>
 

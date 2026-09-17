@@ -10,7 +10,10 @@ export type SerializedTask = {
   status: TTaskStatus;
   dueDate: string;
   building: { id: string; nameEn: string; nameAr: string; shortName?: string | null } | null;
+  unitId: string | null;
+  unit: { id: string; name: string } | null;
   unitNumber: string | null;
+  cleaningType: string | null;
   assignedTo: { id: string; name: string | null; email: string; role: string } | null;
   createdBy: { id: string; name: string | null; email: string } | null;
   _count: { notes: number; photos: number; subTasks: number };

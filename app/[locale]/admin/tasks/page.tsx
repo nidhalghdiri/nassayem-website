@@ -95,6 +95,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
       },
       include: {
         building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
+        unit: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, name: true, email: true, role: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         _count: { select: { notes: true, photos: true, subTasks: true } },

@@ -27,6 +27,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     where: { id },
     include: {
       building:   { select: { id: true, nameEn: true, nameAr: true } },
+      unit:       { select: { id: true, name: true } },
       createdBy:  { select: { id: true, name: true, email: true, role: true } },
       assignedTo: { select: { id: true, name: true, email: true, role: true } },
       parentTask: { select: { id: true, title: true, type: true } },

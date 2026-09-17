@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canOpenCreateTask, isSelfOnlyCreator, canSeeAllTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
 import { getInitialStatus } from "@/lib/tasks/statuses";
-import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
+import type { TaskType, TaskPriority, StaffRole, CleaningType } from "@prisma/client";
 
 // ── GET /api/tasks ────────────────────────────────────────────────────────────
 // Returns tasks visible to the current user, with optional query filters:
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       ...(type       ? { type }                                   : {}),
       ...(status     ? { status: status as never }                : {}),
       ...(buildingId ? { buildingId }                             : {}),
-      ...(unitId     ? { unitNumber: { contains: unitId, mode: "insensitive" as const } } : {}),
+      ...(unitId     ? { OR: [{ unitId }, { unitNumber: { contains: unitId, mode: "insensitive" as const } }] } : {}),
       ...(assignedToId ? { assignedToId }                         : {}),
       ...(priority   ? { priority }                               : {}),
       ...(dueBefore  ? { dueDate: { lte: new Date(dueBefore) } }  : {}),
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
     },
     include: {
       building:   { select: { id: true, nameEn: true, nameAr: true } },
+      unit:       { select: { id: true, name: true } },
       createdBy:  { select: { id: true, name: true, email: true, role: true } },
       assignedTo: { select: { id: true, name: true, email: true, role: true } },
       _count:     { select: { notes: true, photos: true, subTasks: true } },
@@ -126,7 +127,9 @@ export async function POST(request: Request) {
       title:        title as string,
       description:  (body.description as string) ?? null,
       buildingId:   buildingId as string,
+      unitId:       (body.unitId as string) ?? null,
       unitNumber:   (body.unitNumber as string) ?? null,
+      cleaningType: (body.cleaningType as CleaningType) ?? null,
       priority:     (body.priority as TaskPriority) ?? "MEDIUM",
       status:       getInitialStatus(type as TaskType),
       createdById:  adminUser.id,

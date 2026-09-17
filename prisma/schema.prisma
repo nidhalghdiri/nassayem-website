@@ -90,6 +90,12 @@ enum TaskPriority {
   URGENT
 }
 
+enum CleaningType {
+  DEEP
+  MEDIUM
+  REGULAR
+}
+
 // Unified status enum — valid values depend on TaskType (enforced in app logic)
 enum TaskStatus {
   ASSIGNED // Task created and assigned, work not started
@@ -210,9 +216,27 @@ model Building {
   netsuitePayments    NetsuitePayment[]
   laundryOrders       LaundryOrder[]
   equipments          Equipment[]
+  buildingUnits       BuildingUnit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model BuildingUnit {
+  id         String @id @default(uuid())
+  buildingId String
+  netsuiteId String? @unique
+  name       String // e.g. "101", "Villa 5"
+  type       UnitType? // e.g. STUDIO, ONE_BEDROOM
+  
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  
+  tasks      Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([buildingId, name])
 }
 
 model Unit {
@@ -521,7 +545,10 @@ model Task {
 
   // Location
   buildingId String
-  unitNumber String? // free-text unit name/code, null = common area
+  unitId     String? // optional relation to structured BuildingUnit
+  unitNumber String? // free-text fallback, null = common area
+
+  cleaningType CleaningType?
 
   // Priority & status
   priority TaskPriority @default(MEDIUM)
@@ -538,7 +565,8 @@ model Task {
 
   // Relations
   building   Building  @relation(fields: [buildingId], references: [id])
-  // (no Unit relation — unitNumber is free text)
+  unit       BuildingUnit? @relation(fields: [unitId], references: [id])
+  // (unitNumber is free text fallback)
   createdBy  AdminUser @relation("TaskCreatedBy", fields: [createdById], references: [id])
   assignedTo AdminUser @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
   parentTask Task?     @relation("SubTasks", fields: [parentTaskId], references: [id])

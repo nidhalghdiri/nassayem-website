@@ -11,6 +11,7 @@ type Building = {
   nameEn: string;
   nameAr: string;
   shortName?: string | null;
+  buildingUnits?: { id: string; name: string }[];
 };
 
 type StaffUser = { id: string; name: string | null; email: string; role: string };
@@ -32,6 +33,11 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const [selectedType, setSelectedType] = useState("");
+  const [selectedBuildingId, setSelectedBuildingId] = useState("");
+  const [unitMode, setUnitMode] = useState<"dropdown" | "custom">("dropdown");
+
+  const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
+  const units = selectedBuilding?.buildingUnits || [];
 
   return (
     <form action={formAction} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
@@ -101,6 +107,33 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         </div>
       </div>
 
+      {/* ── Cleaning Type (Conditional) ─────────────────────────────────── */}
+      {selectedType === "CLEANING" && (
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {isEn ? "Cleaning Type" : "نوع التنظيف"} <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { id: "DEEP", labelEn: "Deep Cleaning", labelAr: "تنظيف عميق" },
+              { id: "MEDIUM", labelEn: "Medium Cleaning", labelAr: "تنظيف متوسط" },
+              { id: "REGULAR", labelEn: "Regular Cleaning", labelAr: "تنظيف عادي" },
+            ].map((ct) => (
+              <label key={ct.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="cleaningType"
+                  value={ct.id}
+                  required
+                  className="w-4 h-4 text-nassayem border-gray-300 focus:ring-nassayem"
+                />
+                <span className="text-gray-800">{isEn ? ct.labelEn : ct.labelAr}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Title ───────────────────────────────────────────────────────── */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="title">
@@ -144,6 +177,11 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
             id="buildingId"
             name="buildingId"
             required
+            value={selectedBuildingId}
+            onChange={(e) => {
+              setSelectedBuildingId(e.target.value);
+              setUnitMode("dropdown");
+            }}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "Select building…" : "اختر المبنى…"}</option>
@@ -156,18 +194,50 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="unitNumber">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             {isEn ? "Unit" : "الوحدة"} <span className="text-red-500">*</span>
           </label>
-          <input
-            id="unitNumber"
-            name="unitNumber"
-            type="text"
-            required
-            maxLength={100}
-            placeholder={isEn ? "e.g. 302, Villa 5, Block A…" : "مثال: 302، فيلا 5، بلوك أ…"}
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
-          />
+          {unitMode === "dropdown" ? (
+            <select
+              id="unitId"
+              name="unitId"
+              required
+              onChange={(e) => {
+                if (e.target.value === "CUSTOM") {
+                  setUnitMode("custom");
+                }
+              }}
+              disabled={!selectedBuildingId}
+              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+            >
+              <option value="">{isEn ? "Select unit…" : "اختر الوحدة…"}</option>
+              {units.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+              <option value="CUSTOM">{isEn ? "Other / Common Area..." : "أخرى / منطقة مشتركة..."}</option>
+            </select>
+          ) : (
+            <div className="relative">
+              <input
+                id="unitNumber"
+                name="unitNumber"
+                type="text"
+                required
+                maxLength={100}
+                placeholder={isEn ? "e.g. Corridor, Lobby, Pool..." : "مثال: الممر، اللوبي، المسبح..."}
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem pr-10"
+                autoFocus
+              />
+              <button 
+                type="button" 
+                onClick={() => setUnitMode("dropdown")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                title={isEn ? "Back to list" : "العودة للقائمة"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

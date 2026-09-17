@@ -9,7 +9,7 @@ import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
 import type { TStaffRole } from "@/lib/tasks/constants";
-import type { TaskType, TaskPriority, StaffRole } from "@prisma/client";
+import type { TaskType, TaskPriority, StaffRole, CleaningType } from "@prisma/client";
 
 // ── Create a new task ─────────────────────────────────────────────────────────
 export async function createTask(
@@ -29,15 +29,21 @@ export async function createTask(
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const buildingId = formData.get("buildingId") as string;
+  const unitId = (formData.get("unitId") as string) || null;
   const unitNumber = (formData.get("unitNumber") as string)?.trim() || null;
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
+  const cleaningType = (formData.get("cleaningType") as CleaningType) || null;
   // Self-only creators always assign to themselves — ignore any submitted value.
   const assignedToId = selfOnly ? adminUser.id : (formData.get("assignedToId") as string);
   const dueDate = formData.get("dueDate") as string;
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
-  if (!type || !title || !buildingId || !unitNumber || !assignedToId || !dueDate) {
+  if (!type || !title || !buildingId || (!unitNumber && !unitId) || !assignedToId || !dueDate) {
     return { error: "Please fill in all required fields." };
+  }
+
+  if (type === "CLEANING" && !cleaningType) {
+    return { error: "Cleaning type is required for cleaning tasks." };
   }
 
   const assignee = await prisma.adminUser.findUnique({ where: { id: assignedToId } });
@@ -57,8 +63,10 @@ export async function createTask(
       title,
       description,
       buildingId,
+      unitId,
       unitNumber,
       priority,
+      cleaningType: type === "CLEANING" ? cleaningType : null,
       status: getInitialStatus(type),
       createdById: adminUser.id,
       assignedToId,

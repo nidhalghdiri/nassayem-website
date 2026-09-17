@@ -77,12 +77,21 @@ const TaskCard = memo(function TaskCard({
       <div className="p-3.5 space-y-2.5">
         {/* Type + Priority dot + drag grip */}
         <div className="flex items-center justify-between gap-2">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeConf.bg} ${typeConf.text}`}>
-            <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={typeConf.iconPath} />
-            </svg>
-            {isEn ? typeConf.labelEn : typeConf.labelAr}
-          </span>
+          <div className="flex flex-wrap gap-1 items-center">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeConf.bg} ${typeConf.text}`}>
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={typeConf.iconPath} />
+              </svg>
+              {isEn ? typeConf.labelEn : typeConf.labelAr}
+            </span>
+            {task.cleaningType && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                {task.cleaningType === "DEEP" ? (isEn ? "Deep" : "عميق") :
+                 task.cleaningType === "MEDIUM" ? (isEn ? "Medium" : "متوسط") :
+                 (isEn ? "Regular" : "عادي")}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {/* Drag grip — desktop hint */}
             {onDragStart && !isTerminal && (
@@ -110,9 +119,9 @@ const TaskCard = memo(function TaskCard({
             <p className="text-xs text-gray-500 truncate">
               {buildingLabel(task.building, isEn)}
             </p>
-            {task.unitNumber && (
+            {(task.unit?.name || task.unitNumber) && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem shrink-0">
-                {task.unitNumber}
+                {task.unit?.name || task.unitNumber}
               </span>
             )}
           </div>
