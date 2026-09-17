@@ -118,8 +118,8 @@ export default function TechnicianScanFlow({ locale, currentUserId, buildings, e
 
   const handleSubmitVisit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalIssue = form.issueDescription === "Other" ? form.customIssueDescription : form.issueDescription;
-    const finalAction = form.actionTaken === "Other" ? form.customActionTaken : form.actionTaken;
+    const finalIssue = (form.issueDescription === "Other" || form.issueDescription === "أخرى") ? form.customIssueDescription : form.issueDescription;
+    const finalAction = (form.actionTaken === "Other" || form.actionTaken === "أخرى") ? form.customActionTaken : form.actionTaken;
 
     if (!equipment || !finalIssue || !finalAction) return;
 
@@ -323,7 +323,7 @@ export default function TechnicianScanFlow({ locale, currentUserId, buildings, e
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              {form.issueDescription === "Other" && (
+              {(form.issueDescription === "Other" || form.issueDescription === "أخرى") && (
                 <textarea
                   required
                   value={form.customIssueDescription}
@@ -349,7 +349,7 @@ export default function TechnicianScanFlow({ locale, currentUserId, buildings, e
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              {form.actionTaken === "Other" && (
+              {(form.actionTaken === "Other" || form.actionTaken === "أخرى") && (
                 <textarea
                   required
                   value={form.customActionTaken}

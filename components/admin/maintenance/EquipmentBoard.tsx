@@ -27,6 +27,7 @@ export default function EquipmentBoard({
   const [statusFilter, setStatusFilter] = useState("");
   const [buildingFilter, setBuildingFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
+  const [visitDateFilter, setVisitDateFilter] = useState("");
 
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [newTypeNameAr, setNewTypeNameAr] = useState("");
@@ -139,6 +140,12 @@ export default function EquipmentBoard({
     if (statusFilter && eq.status !== statusFilter) return false;
     if (buildingFilter && eq.buildingId !== buildingFilter) return false;
     if (unitFilter && eq.unitNumber !== unitFilter) return false;
+    if (visitDateFilter) {
+      if (!eq.visits || eq.visits.length === 0) return false;
+      const visitDate = new Date(eq.visits[0].visitDate);
+      const formattedVisitDate = format(visitDate, "yyyy-MM-dd");
+      if (formattedVisitDate !== visitDateFilter) return false;
+    }
     return true;
   });
 
@@ -321,6 +328,13 @@ export default function EquipmentBoard({
           <option value="NEEDS_REPLACEMENT">{isEn ? "Needs Replacement" : "يحتاج استبدال"}</option>
           <option value="BROKEN">{isEn ? "Broken" : "معطل"}</option>
         </select>
+        <input
+          type="date"
+          value={visitDateFilter}
+          onChange={(e) => setVisitDateFilter(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
+          title={isEn ? "Visit Date" : "تاريخ الزيارة"}
+        />
       </div>
 
       {/* Table */}
