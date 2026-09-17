@@ -12,7 +12,7 @@ export default async function BuildingsPage({ params }: PageProps) {
   const buildings = await prisma.building.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { units: true } },
+      _count: { select: { units: true, buildingUnits: true } },
     },
   });
 
@@ -99,9 +99,14 @@ export default async function BuildingsPage({ params }: PageProps) {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
-                          {building._count.units}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold" title={isEn ? "Public Listings" : "الوحدات العامة"}>
+                            {building._count.units} {isEn ? "public" : "عامة"}
+                          </span>
+                          <span className="inline-flex items-center justify-center bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-xs font-bold" title={isEn ? "Operational Units" : "الوحدات التشغيلية"}>
+                            {building._count.buildingUnits} {isEn ? "operational" : "تشغيلية"}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-400">
                         {new Date(building.createdAt).toLocaleDateString(isEn ? "en-US" : "ar-OM")}
@@ -116,6 +121,15 @@ export default async function BuildingsPage({ params }: PageProps) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             {isEn ? "Edit" : "تعديل"}
+                          </Link>
+                          <Link
+                            href={`/${locale}/admin/buildings/${building.id}/units`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            {isEn ? "Units" : "الوحدات"}
                           </Link>
                         </div>
                       </td>
@@ -141,9 +155,14 @@ export default async function BuildingsPage({ params }: PageProps) {
                         {isEn ? building.locationEn : building.locationAr}
                       </div>
                     </div>
-                    <span className="shrink-0 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold">
-                      {building._count.units} {isEn ? "units" : "وحدة"}
-                    </span>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className="shrink-0 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {building._count.units} {isEn ? "public" : "عامة"}
+                      </span>
+                      <span className="shrink-0 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {building._count.buildingUnits} {isEn ? "operational" : "تشغيلية"}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">
@@ -157,6 +176,12 @@ export default async function BuildingsPage({ params }: PageProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                       {isEn ? "Edit" : "تعديل"}
+                    </Link>
+                    <Link
+                      href={`/${locale}/admin/buildings/${building.id}/units`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                    >
+                      {isEn ? "Units" : "الوحدات"}
                     </Link>
                   </div>
                 </div>

@@ -36,9 +36,20 @@ export default async function EditBuildingPage({
           </svg>
           {isEn ? "Back to Buildings" : "العودة إلى المباني"}
         </Link>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          {isEn ? "Edit Building" : "تعديل المبنى"}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            {isEn ? "Edit Building" : "تعديل المبنى"}
+          </h1>
+          <Link
+            href={`/${locale}/admin/buildings/${id}/units`}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-xl hover:bg-purple-100 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            {isEn ? "Manage Units" : "إدارة الوحدات"}
+          </Link>
+        </div>
       </div>
 
       {/* Pass initialData to your existing BuildingForm (make sure to update the form to use it) */}
