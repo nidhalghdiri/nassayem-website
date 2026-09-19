@@ -23,7 +23,7 @@ type Props = {
 const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: Props) {
   const isEn = locale === "en";
 
-  if (tasks.length === 0) {
+  if (!tasks || tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
         <svg className="w-14 h-14 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">

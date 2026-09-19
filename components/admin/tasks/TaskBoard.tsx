@@ -127,7 +127,7 @@ const BoardFilters = memo(({
           ))}
         </select>
 
-        {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && staffUsers.length > 0 && (
+        {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && staffUsers?.length > 0 && (
           <select
             value={currentAssignedTo}
             onChange={(e) => updateFilter("assignedToId", e.target.value)}
@@ -230,8 +230,8 @@ export default function TaskBoard({
   const [isPending, startTransition] = useTransition();
 
   // ── Local tasks state for optimistic updates ──────────────────────────────
-  const [localTasks, setLocalTasks] = useState<SerializedTask[]>(tasks);
-  useEffect(() => { setLocalTasks(tasks); }, [tasks]);
+  const [localTasks, setLocalTasks] = useState<SerializedTask[]>(tasks || []);
+  useEffect(() => { setLocalTasks(tasks || []); }, [tasks]);
 
   // Toast
   const [toast, setToast] = useState<ToastData | null>(null);
