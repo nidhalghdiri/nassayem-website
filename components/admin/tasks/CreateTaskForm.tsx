@@ -278,7 +278,7 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
               </span>
               <input type="hidden" name="assignedToId" value={assignableStaff[0]?.id ?? ""} />
             </div>
-          ) : assignableStaff.length === 0 ? (
+          ) : !assignableStaff || assignableStaff.length === 0 ? (
             <p className="px-4 py-2.5 text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl">
               {isEn ? "No assignable staff found." : "لا يوجد موظفون للتعيين."}
             </p>

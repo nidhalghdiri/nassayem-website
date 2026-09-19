@@ -197,7 +197,7 @@ const TaskKanbanView = memo(function TaskKanbanView({
   return (
     <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 320px)" }}>
       {KANBAN_COLUMNS.map((col) => {
-        const colTasks = col.statuses.flatMap((s) => tasksByStatus.get(s) ?? []);
+        const colTasks = (tasks || []).filter((t) => col.statuses.includes(t.status as TTaskStatus));
         const isDragOver = dragOverColId === col.id;
         const isValidDrop = isDragOver && dropValid;
         const isInvalidDrop = isDragOver && !dropValid;
@@ -217,7 +217,7 @@ const TaskKanbanView = memo(function TaskKanbanView({
                 {isEn ? col.labelEn : col.labelAr}
               </span>
               <span className="text-xs font-medium text-gray-500 bg-white/80 px-2 py-0.5 rounded-full border border-white/60">
-                {colTasks.length}
+                {colTasks?.length || 0}
               </span>
             </div>
 
@@ -231,7 +231,7 @@ const TaskKanbanView = memo(function TaskKanbanView({
                     : ""
               }`}
             >
-              {colTasks.length === 0 ? (
+              {!colTasks || colTasks.length === 0 ? (
                 <div
                   className={`flex flex-col items-center justify-center h-32 text-gray-400 border-2 border-dashed rounded-xl bg-gray-50/50 transition-colors ${
                     isValidDrop ? "border-green-400 bg-green-50/30 text-green-600" : "border-gray-200"

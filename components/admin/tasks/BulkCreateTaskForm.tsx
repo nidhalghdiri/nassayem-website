@@ -464,7 +464,7 @@ function TaskRowCard({
             <label className="block text-xs font-medium text-gray-600 mb-1">
               {isEn ? "Assign To" : "تعيين إلى"} <span className="text-red-500">*</span>
             </label>
-            {assignableStaff.length === 0 ? (
+            {!assignableStaff || assignableStaff.length === 0 ? (
               <p className="px-3 py-2 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
                 {isEn ? "No staff available." : "لا يوجد موظفون."}
               </p>
