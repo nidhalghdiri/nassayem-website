@@ -47,8 +47,19 @@ const BoardFilters = memo(({
   isPending
 }: any) => {
   const [unitSearch, setUnitSearch] = useState(false);
-  const selectedBuilding = buildings?.find((b: any) => b.id === currentBuildingId);
-  const buildingUnits = selectedBuilding?.buildingUnits || [];
+
+  const allUnits = useMemo(() => {
+    if (currentBuildingId) {
+      const b = buildings?.find((b: any) => b.id === currentBuildingId);
+      return (b?.buildingUnits || []).map((u: any) => ({ ...u, label: u.name }));
+    }
+    return buildings?.flatMap((b: any) => 
+      (b.buildingUnits || []).map((u: any) => ({
+        ...u,
+        label: `${u.name} - ${isEn ? b.shortName || b.nameEn : b.shortName || b.nameAr}`
+      }))
+    ) || [];
+  }, [buildings, currentBuildingId, isEn]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4 transition-all">
@@ -157,7 +168,7 @@ const BoardFilters = memo(({
           </select>
         )}
 
-        {currentBuildingId && !unitSearch ? (
+        {!unitSearch ? (
           <select
             value={currentUnitNumber}
             onChange={(e) => {
@@ -167,8 +178,8 @@ const BoardFilters = memo(({
             className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "All Units" : "كل الوحدات"}</option>
-            {buildingUnits.map((u: any) => (
-              <option key={u.id} value={u.name}>{u.name}</option>
+            {allUnits.map((u: any) => (
+              <option key={u.id} value={u.name}>{u.label}</option>
             ))}
             <option value="CUSTOM">{isEn ? "Other / Text..." : "أخرى / بحث..."}</option>
           </select>
@@ -184,18 +195,16 @@ const BoardFilters = memo(({
               }}
               onBlur={(e) => updateFilter("unitNumber", e.target.value.trim())}
             />
-            {currentBuildingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setUnitSearch(false);
-                  updateFilter("unitNumber", "");
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setUnitSearch(false);
+                updateFilter("unitNumber", "");
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
           </div>
         )}
 
