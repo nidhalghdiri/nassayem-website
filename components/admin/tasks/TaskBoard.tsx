@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, memo, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, memo, useMemo, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import TaskKanbanView from "./TaskKanbanView";
 import TaskListView from "./TaskListView";
@@ -43,12 +43,37 @@ const BoardFilters = memo(({
   currentUserRole,
   updateFilter,
   clearFilters,
-  hasActiveFilters 
+  hasActiveFilters,
+  isPending
 }: any) => {
+  const [unitSearch, setUnitSearch] = useState(false);
+  const selectedBuilding = buildings?.find((b: any) => b.id === currentBuildingId);
+  const buildingUnits = selectedBuilding?.buildingUnits || [];
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[160px]">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4 transition-all">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-800">{isEn ? "Filters" : "الفلاتر"}</h3>
+          {isPending && (
+            <svg className="w-4 h-4 animate-spin text-nassayem" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
+        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+          >
+            {isEn ? "Clear filters" : "مسح الفلاتر"}
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <svg
             className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -58,8 +83,8 @@ const BoardFilters = memo(({
           <input
             type="text"
             defaultValue={currentSearch}
-            placeholder={isEn ? "Search tasks…" : "ابحث عن مهمة…"}
-            className="w-full ps-9 pe-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+            placeholder={isEn ? "Search tasks by title…" : "ابحث عن مهمة بالعنوان…"}
+            className="w-full ps-9 pe-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-gray-50 hover:bg-white transition-colors"
             onKeyDown={(e) => {
               if (e.key === "Enter")
                 updateFilter("search", (e.target as HTMLInputElement).value.trim());
@@ -69,9 +94,21 @@ const BoardFilters = memo(({
         </div>
 
         <select
+          value={currentStatusGroup}
+          onChange={(e) => updateFilter("statusGroup", e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-gray-50 hover:bg-white transition-colors"
+        >
+          <option value="ACTIVE">{isEn ? "Active & Recent" : "نشطة وحديثة"}</option>
+          <option value="COMPLETED">{isEn ? "Completed Tasks" : "مهام مكتملة"}</option>
+          <option value="ALL">{isEn ? "All Tasks" : "كل المهام"}</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <select
           value={currentType}
           onChange={(e) => updateFilter("type", e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
         >
           <option value="">{isEn ? "All Types" : "كل الأنواع"}</option>
           {Object.entries(TASK_TYPE_CONFIG).map(([key, conf]: any) => (
@@ -82,7 +119,7 @@ const BoardFilters = memo(({
         <select
           value={currentPriority}
           onChange={(e) => updateFilter("priority", e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
         >
           <option value="">{isEn ? "All Priorities" : "كل الأولويات"}</option>
           {Object.entries(TASK_PRIORITY_CONFIG).map(([key, conf]: any) => (
@@ -94,7 +131,7 @@ const BoardFilters = memo(({
           <select
             value={currentAssignedTo}
             onChange={(e) => updateFilter("assignedToId", e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+            className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "All Staff" : "كل الموظفين"}</option>
             {staffUsers.map((u: any) => (
@@ -103,23 +140,15 @@ const BoardFilters = memo(({
           </select>
         )}
 
-        <select
-          value={currentStatusGroup}
-          onChange={(e) => updateFilter("statusGroup", e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
-        >
-          <option value="ACTIVE">{isEn ? "Active & Recent" : "نشطة وحديثة"}</option>
-          <option value="COMPLETED">{isEn ? "Completed Tasks" : "مهام مكتملة"}</option>
-          <option value="ALL">{isEn ? "All Tasks" : "كل المهام"}</option>
-        </select>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
         {buildings?.length > 0 && (
           <select
             value={currentBuildingId}
-            onChange={(e) => updateFilter("buildingId", e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white min-w-[140px]"
+            onChange={(e) => {
+              updateFilter("buildingId", e.target.value);
+              updateFilter("unitNumber", ""); // Clear unit when building changes
+              setUnitSearch(false);
+            }}
+            className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           >
             <option value="">{isEn ? "All Buildings" : "كل المباني"}</option>
             {buildings.map((b: any) => (
@@ -128,34 +157,56 @@ const BoardFilters = memo(({
           </select>
         )}
 
-        <input
-          type="text"
-          defaultValue={currentUnitNumber}
-          placeholder={isEn ? "Unit No." : "رقم الوحدة"}
-          className="w-28 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") updateFilter("unitNumber", (e.target as HTMLInputElement).value.trim());
-          }}
-          onBlur={(e) => updateFilter("unitNumber", e.target.value.trim())}
-        />
+        {currentBuildingId && !unitSearch ? (
+          <select
+            value={currentUnitNumber}
+            onChange={(e) => {
+              if (e.target.value === "CUSTOM") setUnitSearch(true);
+              else updateFilter("unitNumber", e.target.value);
+            }}
+            className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          >
+            <option value="">{isEn ? "All Units" : "كل الوحدات"}</option>
+            {buildingUnits.map((u: any) => (
+              <option key={u.id} value={u.name}>{u.name}</option>
+            ))}
+            <option value="CUSTOM">{isEn ? "Other / Text..." : "أخرى / بحث..."}</option>
+          </select>
+        ) : (
+          <div className="relative col-span-1">
+            <input
+              type="text"
+              defaultValue={currentUnitNumber}
+              placeholder={isEn ? "Unit No." : "رقم الوحدة"}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white pr-8"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") updateFilter("unitNumber", (e.target as HTMLInputElement).value.trim());
+              }}
+              onBlur={(e) => updateFilter("unitNumber", e.target.value.trim())}
+            />
+            {currentBuildingId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setUnitSearch(false);
+                  updateFilter("unitNumber", "");
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            )}
+          </div>
+        )}
 
-        <div className="relative">
+        <div className="col-span-1 relative">
           <input
             type="date"
             value={currentDate}
             onChange={(e) => updateFilter("date", e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
           />
         </div>
-
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="ms-auto px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-medium"
-          >
-            {isEn ? "Clear filters" : "مسح الفلاتر"}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -175,7 +226,8 @@ export default function TaskBoard({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("list");
+  const [isPending, startTransition] = useTransition();
 
   // ── Local tasks state for optimistic updates ──────────────────────────────
   const [localTasks, setLocalTasks] = useState<SerializedTask[]>(tasks);
@@ -196,11 +248,15 @@ export default function TaskBoard({
     const params = new URLSearchParams(window.location.search);
     if (value) params.set(key, value);
     else params.delete(key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   }, [router, pathname]);
 
   const clearFilters = useCallback(() => {
-    router.push(pathname, { scroll: false });
+    startTransition(() => {
+      router.push(pathname, { scroll: false });
+    });
   }, [router, pathname]);
 
   const handleTaskClick = useCallback((id: string) => {
@@ -349,6 +405,7 @@ export default function TaskBoard({
           updateFilter={updateFilter}
           clearFilters={clearFilters}
           hasActiveFilters={hasActiveFilters}
+          isPending={isPending}
         />
 
         {view === "kanban" ? (
@@ -370,6 +427,7 @@ export default function TaskBoard({
         locale={locale}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
+        initialTask={localTasks.find((t) => t.id === searchParams.get("taskId")) || null}
       />
     </>
   );

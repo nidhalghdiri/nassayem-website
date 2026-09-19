@@ -38,34 +38,34 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-100 shadow-sm bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50/80 border-b border-gray-100 backdrop-blur-sm">
             <tr>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-[35%]">
-                {isEn ? "Task" : "المهمة"}
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[35%]">
+                {isEn ? "Task details" : "تفاصيل المهمة"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {isEn ? "Building" : "المبنى"}
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {isEn ? "Location" : "الموقع"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {isEn ? "Assigned To" : "مُعيَّن إلى"}
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {isEn ? "Assignee" : "المُعيَّن"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {isEn ? "Priority" : "الأولوية"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {isEn ? "Status" : "الحالة"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">
                 {isEn ? "Progress" : "التقدم"}
               </th>
-              <th className="text-start px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {isEn ? "Due" : "الموعد"}
+              <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {isEn ? "Due Date" : "الموعد"}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-50">
             {tasks.map((task) => {
               const typeConf = TASK_TYPE_CONFIG[task.type];
               const prioConf = TASK_PRIORITY_CONFIG[task.priority];
@@ -77,64 +77,86 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                 <tr
                   key={task.id}
                   onClick={() => onTaskClick(task.id)}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="hover:bg-gray-50/80 cursor-pointer transition-all group"
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1 h-10 rounded-full shrink-0 ${typeConf.border.replace("border-", "bg-")}`} />
+                  <td className="px-6 py-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-1.5 h-10 rounded-full shrink-0 mt-0.5 shadow-sm ${typeConf.border.replace("border-", "bg-")}`} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${typeConf.bg} ${typeConf.text}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase ${typeConf.bg} ${typeConf.text}`}>
                             {isEn ? typeConf.labelEn : typeConf.labelAr}
                           </span>
                         </div>
-                        <p className="font-medium text-gray-800 line-clamp-1 text-sm">{task.title}</p>
+                        <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-nassayem transition-colors">{task.title}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-6 py-4">
                     {task.building ? (
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{buildingLabel(task.building, isEn)}</p>
+                        <p className="font-medium text-gray-800 text-sm truncate">{buildingLabel(task.building, isEn)}</p>
                         {(task.unit?.name || task.unitNumber) && (
-                          <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded-md text-xs font-semibold bg-nassayem/10 text-nassayem">
+                          <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 shadow-sm">
+                            <svg className="w-3 h-3 me-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                             {task.unit?.name || task.unitNumber}
                           </span>
                         )}
                       </div>
-                    ) : "—"}
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
-                    {task.assignedTo
-                      ? (task.assignedTo.name ?? task.assignedTo.email.split("@")[0])
-                      : "—"}
+                  <td className="px-6 py-4">
+                    {task.assignedTo ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-nassayem/10 flex items-center justify-center text-nassayem font-bold text-xs uppercase shadow-sm border border-nassayem/20">
+                          {(task.assignedTo.name ?? task.assignedTo.email).charAt(0)}
+                        </div>
+                        <span className="font-medium text-gray-700 text-sm">
+                          {task.assignedTo.name ?? task.assignedTo.email.split("@")[0]}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${prioConf.badge}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${prioConf.dot}`} />
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm border border-white/50 ${prioConf.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${prioConf.dot} shadow-sm`} />
                       {isEn ? prioConf.labelEn : prioConf.labelAr}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${statusConf.badge}`}>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase shadow-sm border border-white/50 ${statusConf.badge}`}>
                       {isEn ? statusConf.labelEn : statusConf.labelAr}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${
-                          isTerminal 
-                            ? (task.status === "CANCELLED" ? "bg-red-400" : "bg-green-500") 
-                            : (task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "bg-blue-500" : "bg-gray-300")
-                        }`} 
-                        style={{ width: isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%" }} 
-                      />
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">{isEn ? "Progress" : "تقدم"}</span>
+                        <span className="text-[10px] font-bold text-gray-700">
+                          {isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%"}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden shadow-inner">
+                        <div 
+                          className={`h-full transition-all duration-700 ease-out ${
+                            isTerminal 
+                              ? (task.status === "CANCELLED" ? "bg-red-500" : "bg-emerald-500") 
+                              : (task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "bg-blue-500" : "bg-gray-300")
+                          }`} 
+                          style={{ width: isTerminal ? "100%" : task.status !== "ASSIGNED" && task.status !== "ON_HOLD" ? "50%" : "0%" }} 
+                        />
+                      </div>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
-                    {isOverdue && <span className="me-0.5">⚠</span>}
-                    {formatDate(task.dueDate)}
+                  <td className="px-6 py-4">
+                    <div className={`flex items-center gap-1.5 text-sm font-semibold ${isOverdue ? "text-red-600 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 inline-flex" : "text-gray-600"}`}>
+                      {isOverdue && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
+                      {formatDate(task.dueDate)}
+                    </div>
                   </td>
                 </tr>
               );

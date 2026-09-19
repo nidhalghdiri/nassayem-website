@@ -21,5 +21,5 @@ export type SerializedTask = {
   updatedAt: string;
 };
 
-export type Building = { id: string; nameEn: string; nameAr: string; shortName?: string | null };
+export type Building = { id: string; nameEn: string; nameAr: string; shortName?: string | null; buildingUnits?: { id: string; name: string }[] };
 export type StaffUser = { id: string; name: string | null; email: string; role: string };

@@ -103,7 +103,13 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
       orderBy: [{ createdAt: "desc" }],
     }),
     prisma.building.findMany({
-      select: { id: true, nameEn: true, nameAr: true, shortName: true },
+      select: { 
+        id: true, 
+        nameEn: true, 
+        nameAr: true, 
+        shortName: true,
+        buildingUnits: { select: { id: true, name: true } }
+      },
       orderBy: { nameEn: "asc" },
     }),
     prisma.adminUser.findMany({

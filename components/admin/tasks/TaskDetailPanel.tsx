@@ -85,6 +85,7 @@ type Props = {
   locale: string;
   currentUserId: string;
   currentUserRole: string;
+  initialTask?: any;
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -249,6 +250,7 @@ export default function TaskDetailPanel({
   locale,
   currentUserId,
   currentUserRole,
+  initialTask,
 }: Props) {
   const isEn = locale === "en";
   const router = useRouter();
@@ -301,7 +303,14 @@ export default function TaskDetailPanel({
       setLightboxIndex(null);
       return;
     }
-    setLoading(true);
+    
+    if (initialTask && initialTask.id === taskId) {
+      // Optimistically show what we have (photos, notes, activities will be missing until fetch finishes)
+      setTask((prev: any) => prev?.id === taskId ? prev : initialTask);
+    } else {
+      setLoading(true);
+    }
+    
     setFetchError(null);
     loadTask(taskId)
       .then(setTask)
@@ -309,7 +318,7 @@ export default function TaskDetailPanel({
         setFetchError(isEn ? "Could not load task." : "تعذّر تحميل المهمة."),
       )
       .finally(() => setLoading(false));
-  }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [taskId]); // Omit initialTask from deps to avoid refetch loops if initialTask ref changes
 
   const refresh = useCallback(async () => {
     if (!task) return;

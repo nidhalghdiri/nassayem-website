@@ -30,7 +30,7 @@ export async function createTask(
   const description = (formData.get("description") as string)?.trim() || null;
   const buildingId = formData.get("buildingId") as string;
   const unitId = (formData.get("unitId") as string) || null;
-  const unitNumber = (formData.get("unitNumber") as string)?.trim() || null;
+  let finalUnitNumber = (formData.get("unitNumber") as string)?.trim() || null;
   const priority = (formData.get("priority") as TaskPriority) || "MEDIUM";
   const cleaningType = (formData.get("cleaningType") as CleaningType) || null;
   // Self-only creators always assign to themselves — ignore any submitted value.
@@ -38,8 +38,17 @@ export async function createTask(
   const dueDate = formData.get("dueDate") as string;
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
-  if (!type || !title || !buildingId || (!unitNumber && !unitId) || !assignedToId || !dueDate) {
+  if (!type || !title || !buildingId || (!finalUnitNumber && !unitId) || !assignedToId || !dueDate) {
     return { error: "Please fill in all required fields." };
+  }
+
+  // If unitId is provided but unitNumber is not, fetch the unit name from the DB
+  if (!finalUnitNumber && unitId) {
+    const unit = await prisma.buildingUnit.findUnique({
+      where: { id: unitId },
+      select: { name: true },
+    });
+    if (unit) finalUnitNumber = unit.name;
   }
 
   if (type === "CLEANING" && !cleaningType) {
@@ -64,7 +73,7 @@ export async function createTask(
       description,
       buildingId,
       unitId,
-      unitNumber,
+      unitNumber: finalUnitNumber,
       priority,
       cleaningType: type === "CLEANING" ? cleaningType : null,
       status: getInitialStatus(type),
@@ -129,7 +138,7 @@ export async function createTask(
     },
     taskTitle: title,
     buildingName: building?.nameEn ?? "",
-    unitName: unitNumber ?? "",
+    unitName: finalUnitNumber ?? "",
     dueDate: new Date(dueDate),
     priority,
     taskId: task.id,
