@@ -2,6 +2,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashboard";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
+import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -31,7 +32,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
-  const [totalAssigned, active, completed, delayed, buildings, staffUsers, topEmployees] = await Promise.all([
+  const [totalAssigned, active, completed, delayed, buildings, staffUsers, topEmployees, buildingPerformance] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
@@ -57,6 +58,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       orderBy: { name: "asc" },
     }),
     getEmployeeRanking(7),
+    getBuildingPerformance(30),
   ]);
 
   const stats = { totalAssigned, active, completed, delayed };
@@ -71,6 +73,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       buildings={buildings}
       assignableStaff={staffUsers}
       topEmployees={topEmployees}
+      buildingPerformance={buildingPerformance}
     />
   );
 }

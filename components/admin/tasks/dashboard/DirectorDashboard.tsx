@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
+import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
 
 type Building = {
   id: string;
@@ -30,9 +31,10 @@ type Props = {
   buildings: Building[];
   assignableStaff: StaffUser[];
   topEmployees: LeaderboardEmployee[];
+  buildingPerformance: BuildingPerformance[];
 };
 
-export default function DirectorDashboard({ locale, stats, buildings, assignableStaff, topEmployees }: Props) {
+export default function DirectorDashboard({ locale, stats, buildings, assignableStaff, topEmployees, buildingPerformance }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -177,27 +179,26 @@ export default function DirectorDashboard({ locale, stats, buildings, assignable
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2">
             <h2 className="text-base font-bold text-slate-800 mb-6">{t.buildingPerf}</h2>
             <div className="space-y-6">
-              {[
-                { label: isEn ? "Commercial" : "الحي التجاري", val: 92, color: "bg-nassayem" },
-                { label: isEn ? "Complexes" : "المجمعات", val: 87, color: "bg-teal-700" },
-                { label: isEn ? "Al Faisaliyah" : "الفيصلية", val: 81, color: "bg-amber-600" },
-                { label: isEn ? "Al Wadi" : "الوادي", val: 78, color: "bg-amber-700" },
-                { label: isEn ? "Al Mahara" : "المحارة", val: 90, color: "bg-teal-600" },
-                { label: isEn ? "Awqad" : "عوقد", val: 69, color: "bg-red-600" },
-                { label: isEn ? "Awqad South" : "عوقد جنوب", val: 84, color: "bg-amber-600" },
-                { label: isEn ? "Nasmo" : "نسمو", val: 95, color: "bg-teal-800" },
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-4 text-sm">
-                  <span className="w-24 font-medium text-slate-700 truncate" title={item.label}>{item.label}</span>
-                  <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden relative">
-                    <div
-                      className={`absolute top-0 bottom-0 ${isEn ? "left-0" : "right-0"} rounded-full ${item.color}`}
-                      style={{ width: `${item.val}%` }}
-                    />
+              {buildingPerformance.length > 0 ? (
+                buildingPerformance.map((item) => (
+                  <div key={item.id} className="flex items-center gap-4 text-sm">
+                    <span className="w-24 font-medium text-slate-700 truncate" title={isEn ? item.labelEn : item.labelAr}>
+                      {isEn ? item.labelEn : item.labelAr}
+                    </span>
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden relative">
+                      <div
+                        className={`absolute top-0 bottom-0 ${isEn ? "left-0" : "right-0"} rounded-full ${item.color}`}
+                        style={{ width: `${item.val}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-end font-bold text-slate-600">{item.val}%</span>
                   </div>
-                  <span className="w-8 text-end font-bold text-slate-600">{item.val}%</span>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-500 text-sm">
+                  {isEn ? "No completed tasks in the last 30 days." : "لا توجد مهام منجزة في آخر 30 يوماً."}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
