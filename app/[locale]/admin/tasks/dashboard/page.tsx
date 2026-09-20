@@ -1,6 +1,7 @@
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashboard";
+import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const [{ locale }, adminUser] = await Promise.all([
@@ -10,8 +11,8 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
 
   if (!adminUser) return null;
 
-  const TERMINAL_STATUSES = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED"];
-  const ACTIVE_STATUSES = ["ASSIGNED", "CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"];
+  const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED"];
+  const ACTIVE_STATUSES: TaskStatus[] = ["ASSIGNED", "CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"];
 
   let visibilityFilter: object = {};
   if (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") {
