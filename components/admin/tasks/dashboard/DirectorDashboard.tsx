@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
+import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 
 type Building = {
   id: string;
@@ -28,9 +29,10 @@ type Props = {
   stats: Stats;
   buildings: Building[];
   assignableStaff: StaffUser[];
+  topEmployees: LeaderboardEmployee[];
 };
 
-export default function DirectorDashboard({ locale, stats, buildings, assignableStaff }: Props) {
+export default function DirectorDashboard({ locale, stats, buildings, assignableStaff, topEmployees }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -134,34 +136,40 @@ export default function DirectorDashboard({ locale, stats, buildings, assignable
               <span className="text-xs text-slate-500">{t.last7Days}</span>
             </div>
             <div className="space-y-5">
-              {[
-                { name: isEn ? "Fouad Abdullah" : "فؤاد عبدالله يحيى", role: isEn ? "Maintenance" : "موظف صيانة", score: 97, best: true, initial: isEn ? "F" : "ف" },
-                { name: isEn ? "Mohammad Abu" : "محمد أبو نور الدين", role: isEn ? "Accommodation Sup." : "مشرف سكن العمال", score: 95, initial: isEn ? "M" : "م" },
-                { name: isEn ? "Ashraf Khan" : "أشقر خان", role: isEn ? "Al Wadi Sup." : "مشرف الوادي", score: 90, initial: isEn ? "A" : "أ" },
-                { name: isEn ? "Rashed Balushi" : "راشد البلوشي", role: isEn ? "Reception" : "استقبال - مقيم", score: 88, initial: isEn ? "R" : "ر" },
-                { name: isEn ? "Mohammad Mohi" : "محمد محي الدين", role: isEn ? "Cleaning" : "نظافة - الواحة", score: 85, initial: isEn ? "M" : "م" },
-              ].map((emp, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-400 w-4">{idx + 1}</span>
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
-                      {emp.initial}
+              {topEmployees.length > 0 ? (
+                topEmployees.map((emp, idx) => (
+                  <div key={emp.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-slate-400 w-4">{idx + 1}</span>
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
+                        {emp.initial}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{emp.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {emp.role === "HOUSEKEEPING" ? (isEn ? "Housekeeping" : "نظافة") : 
+                           emp.role === "MAINTENANCE" ? (isEn ? "Maintenance" : "صيانة") : 
+                           emp.role === "SUPERVISOR" ? (isEn ? "Supervisor" : "مشرف") : 
+                           emp.role === "RECEPTIONIST" ? (isEn ? "Receptionist" : "استقبال") : 
+                           emp.role === "MANAGER" ? (isEn ? "Manager" : "مدير") : emp.role}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{emp.name}</p>
-                      <p className="text-xs text-slate-500">{emp.role}</p>
+                    <div className="flex items-center gap-3">
+                      {emp.best && (
+                        <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+                          {t.best} {emp.score}
+                        </span>
+                      )}
+                      {!emp.best && <span className="text-sm font-bold text-slate-700">{emp.score}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {emp.best && (
-                      <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-                        {t.best} {emp.score}
-                      </span>
-                    )}
-                    {!emp.best && <span className="text-sm font-bold text-slate-700">{emp.score}</span>}
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-500 text-sm">
+                  {isEn ? "No tasks completed in the last 7 days." : "لا توجد مهام منجزة في آخر 7 أيام."}
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
