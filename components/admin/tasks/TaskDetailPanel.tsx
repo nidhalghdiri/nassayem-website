@@ -306,7 +306,13 @@ export default function TaskDetailPanel({
     
     if (initialTask && initialTask.id === taskId) {
       // Optimistically show what we have (photos, notes, activities will be missing until fetch finishes)
-      setTask((prev: any) => prev?.id === taskId ? prev : initialTask);
+      setTask((prev: any) => prev?.id === taskId ? prev : {
+        ...initialTask,
+        notes: initialTask.notes || [],
+        photos: initialTask.photos || [],
+        activities: initialTask.activities || [],
+        subTasks: initialTask.subTasks || []
+      });
     } else {
       setLoading(true);
     }
