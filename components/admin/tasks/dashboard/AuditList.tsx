@@ -24,9 +24,17 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
     high: isEn ? "High" : "مرتفع",
     minsAgo: isEn ? "mins ago" : "منذ د",
     noTasks: isEn ? "No tasks awaiting audit." : "لا توجد مهام بانتظار التدقيق.",
+    allBuildings: isEn ? "All Buildings" : "جميع المباني",
+    confirmApprove: isEn ? "Confirm Approval" : "تأكيد الاعتماد",
+    cancel: isEn ? "Cancel" : "إلغاء",
+    noteOptional: isEn ? "Note (Optional)" : "ملاحظة (اختياري)",
   };
 
-  const handleApprove = async (auditId: string, rating: number) => {
+  const [selectedBuilding, setSelectedBuilding] = useState<string>("ALL");
+  const uniqueBuildings = Array.from(new Set(audits.map(a => a.buildingName)));
+  const filteredAudits = selectedBuilding === "ALL" ? audits : audits.filter(a => a.buildingName === selectedBuilding);
+
+  const handleApprove = async (auditId: string, rating: number, note: string) => {
     setLoadingId(auditId);
     try {
       await fetch(`/api/tasks/${auditId}/activity`, {
@@ -36,7 +44,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
           action: "approved",
           details: "Supervisor approved the completed task.",
           rating,
-          notes: "Approved directly from dashboard."
+          notes: note || "Approved directly from dashboard."
         })
       });
       router.refresh();
@@ -71,24 +79,39 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h2 className="font-bold text-slate-800">{t.title}</h2>
-        <span className="text-xs font-medium text-slate-500">{t.pending}</span>
+      <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-wrap gap-4">
+        <div>
+          <h2 className="font-bold text-slate-800">{t.title}</h2>
+          <span className="text-xs font-medium text-slate-500">{t.pending}</span>
+        </div>
+        
+        {uniqueBuildings.length > 0 && (
+          <select 
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-nassayem"
+          >
+            <option value="ALL">{t.allBuildings}</option>
+            {uniqueBuildings.map(b => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="p-4 space-y-4">
-        {audits.length === 0 ? (
+        {filteredAudits.length === 0 ? (
           <div className="text-center py-8 text-slate-500 text-sm">
             {t.noTasks}
           </div>
-        ) : audits.map((audit) => (
+        ) : filteredAudits.map((audit) => (
           <AuditCard 
             key={audit.id} 
             audit={audit} 
             t={t} 
             isEn={isEn} 
             isLoading={loadingId === audit.id}
-            onApprove={(rating: number) => handleApprove(audit.id, rating)}
+            onApprove={(rating: number, note: string) => handleApprove(audit.id, rating, note)}
             onReject={() => handleReject(audit.id, audit.taskType)}
           />
         ))}
@@ -98,7 +121,9 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
 }
 
 function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
+  const [isApproving, setIsApproving] = useState(false);
   const [rating, setRating] = useState(5);
+  const [note, setNote] = useState("");
 
   const completedTime = new Date(audit.completedAt);
   const now = new Date();
@@ -151,34 +176,62 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
         )}
       </div>
 
-      {/* Photo Placeholders */}
+      {/* Photos */}
       <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
-            {audit.photos[i-1] ? (
-              <img src={audit.photos[i-1].url} alt="" className="w-full h-full object-cover rounded-xl" />
-            ) : (
-              <ImageIcon className="w-6 h-6 text-slate-300" />
-            )}
+        {audit.photos.length > 0 ? (
+          audit.photos.map((photo: any) => (
+            <div key={photo.id} className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden">
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+            </div>
+          ))
+        ) : (
+          <div className="w-20 h-20 shrink-0 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 border-dashed">
+            <ImageIcon className="w-6 h-6 text-slate-300" />
           </div>
-        ))}
+        )}
       </div>
 
       {/* Action Area */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-50">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-sm font-bold text-slate-700">{t.workQuality}</span>
-          <div className="flex gap-1" dir="ltr">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button key={star} onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
-                <Star className={`w-5 h-5 ${star <= rating ? 'fill-orange-400 text-orange-400' : 'text-slate-300'}`} />
-              </button>
-            ))}
+      {isApproving ? (
+        <div className="flex flex-col gap-4 pt-4 border-t border-slate-50 bg-emerald-50/30 p-4 rounded-xl mt-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-slate-700">{t.workQuality}</span>
+              <div className="flex gap-1" dir="ltr">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
+                    <Star className={`w-6 h-6 ${star <= rating ? 'fill-orange-400 text-orange-400' : 'text-slate-300'}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          {isNew && <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-2">{t.new}</span>}
+          <textarea 
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t.noteOptional}
+            rows={2}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 resize-none"
+          />
+          <div className="flex w-full gap-2 justify-end">
+            <button 
+              disabled={isLoading}
+              onClick={() => setIsApproving(false)}
+              className="border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+            >
+              {t.cancel}
+            </button>
+            <button 
+              disabled={isLoading}
+              onClick={() => onApprove(rating, note)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+            >
+              {t.confirmApprove}
+            </button>
+          </div>
         </div>
-        
-        <div className="flex w-full md:w-auto gap-2">
+      ) : (
+        <div className="flex flex-col md:flex-row items-center justify-end gap-2 pt-4 border-t border-slate-50">
           <button 
             disabled={isLoading}
             onClick={onReject}
@@ -188,13 +241,14 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
           </button>
           <button 
             disabled={isLoading}
-            onClick={() => onApprove(rating)}
-            className="flex-1 md:flex-none bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+            onClick={() => setIsApproving(true)}
+            className="flex-1 md:flex-none bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
+            <CheckCircle2 className="w-4 h-4" />
             {t.approve}
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
