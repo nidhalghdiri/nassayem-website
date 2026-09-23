@@ -88,7 +88,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
             t={t} 
             isEn={isEn} 
             isLoading={loadingId === audit.id}
-            onApprove={(rating) => handleApprove(audit.id, rating)}
+            onApprove={(rating: number) => handleApprove(audit.id, rating)}
             onReject={() => handleReject(audit.id)}
           />
         ))}
