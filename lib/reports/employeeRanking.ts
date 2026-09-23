@@ -4,26 +4,40 @@ import type { TaskStatus, StaffRole } from "@prisma/client";
 export type LeaderboardEmployee = {
   id: string;
   name: string;
-  role: StaffRole;
-  score: number;
-  best?: boolean;
-  initial: string;
-  breakdown: {
-    productivity: number;
-    completion: number;
-    initiative: number;
-    collaboration: number;
-  };
+  role: string;
+  location: string;
+  taskCount: number;
+  dateRange: string;
+  totalScore: number;
+  rank: number;
+  totalEmployees: number;
+  isEmployeeOfWeek: boolean;
+  productivity: { score: number; note: string };
+  timeAdherence: { score: number; note: string };
+  workQuality: { score: number; note: string };
+  docAndResponse: { score: number; note: string };
+  supervisorEval: { score: number; note: string };
+  supervisorNotes: {
+    id: string;
+    text: string;
+    category: string;
+    timeAgo: string;
+    type: "positive" | "negative";
+  }[];
 };
 
 const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED"];
 
-export async function getEmployeeRanking(days: number = 7): Promise<LeaderboardEmployee[]> {
-  const startDate = new Date();
+export async function getEmployeeRanking(days: number = 7, offsetDays: number = 0): Promise<LeaderboardEmployee[]> {
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() - offsetDays);
+  
+  const startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - days);
+  
   const now = new Date();
+  const dateRangeStr = `من ${startDate.getDate()}/${startDate.getMonth() + 1} إلى ${endDate.getDate()}/${endDate.getMonth() + 1}`;
 
-  // Fetch active staff with their tasks that were active/completed in the last X days
   const users = await prisma.adminUser.findMany({
     where: {
       role: { in: ["HOUSEKEEPING", "MAINTENANCE", "RECEPTIONIST", "SUPERVISOR", "MANAGER"] }
@@ -33,18 +47,27 @@ export async function getEmployeeRanking(days: number = 7): Promise<LeaderboardE
       name: true,
       email: true,
       role: true,
+      assignedBuildings: {
+        include: { building: true },
+        take: 1
+      },
       assignedTasks: {
         where: {
           OR: [
-            { createdAt: { gte: startDate } },
-            { updatedAt: { gte: startDate } },
-            { dueDate: { gte: startDate } },
-            { status: { notIn: [...TERMINAL_STATUSES, "CANCELLED"] } } // Active tasks (overdue check)
+            { createdAt: { gte: startDate, lte: endDate } },
+            { updatedAt: { gte: startDate, lte: endDate } },
+            { dueDate: { gte: startDate, lte: endDate } },
+            { 
+              status: { notIn: [...TERMINAL_STATUSES, "CANCELLED"] },
+              createdAt: { lte: endDate }
+            }
           ]
         },
         include: {
-          activities: true,
-          notes: true,
+          activities: { orderBy: { createdAt: 'asc' } }, // Get activities ordered by time
+          notes: {
+            include: { user: { select: { role: true, name: true } } }
+          },
           photos: true,
           createdBy: { select: { role: true } }
         }
@@ -53,119 +76,159 @@ export async function getEmployeeRanking(days: number = 7): Promise<LeaderboardE
   });
 
   const leaderboard: LeaderboardEmployee[] = [];
+  const arabicRoles: Record<string, string> = {
+    "HOUSEKEEPING": "تنظيف",
+    "MAINTENANCE": "صيانة",
+    "RECEPTIONIST": "استقبال",
+    "SUPERVISOR": "مشرف",
+    "MANAGER": "مدير"
+  };
+
+  // Calculate team average tasks completed for productivity baseline
+  let totalTasksCompletedByTeam = 0;
+  let activeUsersCount = 0;
+  for (const u of users) {
+    const cTasks = u.assignedTasks.filter(t => TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.updatedAt >= startDate && t.updatedAt <= endDate).length;
+    if (cTasks > 0 || u.assignedTasks.length > 0) {
+      activeUsersCount++;
+      totalTasksCompletedByTeam += cTasks;
+    }
+  }
+  const teamAverageTasks = activeUsersCount > 0 ? (totalTasksCompletedByTeam / activeUsersCount) : 1;
 
   for (const user of users) {
-    let productivityScore = 0;
-    let completionScore = 0;
-    let initiativeScore = 0;
-    let collaborationScore = 0;
-
     const relevantTasks = user.assignedTasks;
-    const completedTasks = relevantTasks.filter(t => TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.updatedAt >= startDate);
-    const activeTasks = relevantTasks.filter(t => !TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.status !== "CANCELLED");
+    const completedTasks = relevantTasks.filter(t => TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.updatedAt >= startDate && t.updatedAt <= endDate);
+    const activeTasks = relevantTasks.filter(t => !TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.status !== "CANCELLED" && t.createdAt <= endDate);
     
-    // Skip if they have no involvement in the last 7 days
     if (completedTasks.length === 0 && activeTasks.length === 0) continue;
 
-    // 1. Productivity & Speed (25%) - Reaction time
-    let reactionTimeScores = 0;
-    let reactionTimeCount = 0;
+    const taskCount = completedTasks.length;
     
-    for (const task of relevantTasks) {
-      if (task.createdAt >= startDate) {
-        // Find first activity by THIS user
-        const firstActivity = task.activities.find(a => a.userId === user.id);
-        if (firstActivity) {
-          const diffMs = firstActivity.createdAt.getTime() - task.createdAt.getTime();
-          const diffMins = diffMs / (1000 * 60);
-          
-          if (diffMins <= 30) reactionTimeScores += 100;
-          else if (diffMins <= 120) reactionTimeScores += 80;
-          else if (diffMins <= 720) reactionTimeScores += 50;
-          else reactionTimeScores += 0;
-        } else {
-          // No activity yet
-          reactionTimeScores += 0;
-        }
-        reactionTimeCount++;
-      }
+    // 1. Productivity Volume (Max 30)
+    let prodScore = 0;
+    if (taskCount > 0) {
+      // If team average is 0, just give max points. Otherwise scale to average
+      const ratio = teamAverageTasks > 0 ? (taskCount / teamAverageTasks) : 1;
+      prodScore = Math.min(30, ratio * 30);
     }
-    productivityScore = reactionTimeCount > 0 ? (reactionTimeScores / reactionTimeCount) : 0;
-    if (reactionTimeCount === 0 && completedTasks.length > 0) productivityScore = 80; // default if no tasks created recently but completed some
+    const prodNote = `${taskCount} مهام (المتوسط ${teamAverageTasks.toFixed(1)})`;
 
-    // 2. Task Completion (35%)
+    // 2. Time Adherence (Max 30)
+    let timeScore = 0;
     let onTimeCount = 0;
     for (const task of completedTasks) {
       if (task.updatedAt <= task.dueDate) {
         onTimeCount++;
       }
     }
-    let baseCompletion = completedTasks.length > 0 ? (onTimeCount / completedTasks.length) * 100 : 0;
-    
-    // Penalty for overdue active tasks
     const overdueCount = activeTasks.filter(t => t.dueDate < now).length;
-    baseCompletion = Math.max(0, baseCompletion - (overdueCount * 10)); // -10 points per overdue task
-    if (completedTasks.length === 0 && overdueCount > 0) baseCompletion = 0;
-    else if (completedTasks.length === 0) baseCompletion = 100; // default if no tasks completed but none overdue
-
-    completionScore = baseCompletion;
-
-    // 3. Initiative & Problem Solving (20%)
-    let totalNotesPhotos = 0;
-    for (const task of completedTasks) {
-      const userNotes = task.notes.filter(n => n.userId === user.id).length;
-      const userPhotos = task.photos.filter(p => p.userId === user.id).length;
-      totalNotesPhotos += (userNotes + userPhotos);
+    
+    if (taskCount > 0) {
+      let timePct = (onTimeCount / taskCount);
+      timeScore = Math.max(0, (timePct * 30) - (overdueCount * 2));
+    } else if (overdueCount > 0) {
+      timeScore = 0;
+    } else {
+      timeScore = 30; // no tasks, no delays
     }
-    const avgNotesPhotos = completedTasks.length > 0 ? totalNotesPhotos / completedTasks.length : 0;
-    // Cap at 1.0 avg for 100 points
-    initiativeScore = completedTasks.length > 0 ? Math.min(100, (avgNotesPhotos / 1.0) * 100) : 0;
+    const timePctStr = taskCount > 0 ? Math.round((onTimeCount / taskCount) * 100) : 100;
+    const timeNote = overdueCount > 0 ? `${timePctStr}% في الموعد - ${overdueCount} متأخرة` : `${timePctStr}% في الموعد`;
 
-    // 4. Team Collaboration (20%)
-    let collabCount = 0;
-    for (const task of relevantTasks) {
-      if (task.createdBy.role === "SUPERVISOR" || task.createdBy.role === "MANAGER") {
-        const hasInteracted = task.activities.some(a => a.userId === user.id);
-        if (hasInteracted) collabCount++;
+    // 3. Work Quality (Max 20)
+    let qualityScore = 0;
+    let noIssuesCount = completedTasks.filter(t => t.status === "NO_ISSUES" || t.status === "COMPLETED").length;
+    if (taskCount > 0) {
+      qualityScore = (noIssuesCount / taskCount) * 20;
+    } else {
+      qualityScore = 20;
+    }
+    const qualityNote = `★${((qualityScore / 20) * 5).toFixed(1)}`;
+
+    // 4. Documentation & Response (Max 10)
+    // 5 points for photos on tasks, 5 points for fast response
+    let photoPoints = 0;
+    let responsePoints = 0;
+    let tasksWithPhotos = 0;
+    let tasksWithFastResponse = 0;
+
+    for (const task of completedTasks) {
+      if (task.photos && task.photos.length > 0) tasksWithPhotos++;
+      
+      // Response Speed: Check if they performed an activity within 30 minutes of creation
+      const firstActivity = task.activities.find(a => a.userId === user.id);
+      if (firstActivity) {
+        const timeDiffMins = (firstActivity.createdAt.getTime() - task.createdAt.getTime()) / (1000 * 60);
+        if (timeDiffMins <= 30) {
+          tasksWithFastResponse++;
+        }
       }
     }
-    // Baseline: say 3 collaborative interactions a week is 100
-    collaborationScore = Math.min(100, (collabCount / 3) * 100);
 
-    // Weighted Total
-    const totalScore = 
-      (productivityScore * 0.25) + 
-      (completionScore * 0.35) + 
-      (initiativeScore * 0.20) + 
-      (collaborationScore * 0.20);
-
-    // Only include if they actually have a score > 0 and completed at least 1 task
-    if (totalScore > 0 && completedTasks.length > 0) {
-      const displayName = user.name || user.email.split('@')[0];
-      leaderboard.push({
-        id: user.id,
-        name: displayName,
-        role: user.role,
-        score: Math.round(totalScore),
-        initial: displayName.charAt(0).toUpperCase(),
-        breakdown: {
-          productivity: Math.round(productivityScore),
-          completion: Math.round(completionScore),
-          initiative: Math.round(initiativeScore),
-          collaboration: Math.round(collaborationScore)
-        }
-      });
+    if (taskCount > 0) {
+      photoPoints = (tasksWithPhotos / taskCount) * 5;
+      responsePoints = (tasksWithFastResponse / taskCount) * 5;
+    } else {
+      photoPoints = 5;
+      responsePoints = 5;
     }
+    const docScore = photoPoints + responsePoints;
+    const docNote = `${tasksWithPhotos} صور، ${tasksWithFastResponse} استجابة سريعة`;
+
+    // 5. Supervisor Evaluation (Max 10)
+    let supScore = 5; // baseline
+    const supervisorNotes: LeaderboardEmployee["supervisorNotes"] = [];
+    
+    for (const task of relevantTasks) {
+      const positiveNotes = task.notes.filter(n => n.userId !== user.id && (n.user.role === "SUPERVISOR" || n.user.role === "MANAGER"));
+      
+      for (const n of positiveNotes) {
+        supScore = Math.min(10, supScore + 2.5);
+        supervisorNotes.push({
+          id: n.id,
+          text: n.text,
+          category: "تقييم المشرف",
+          timeAgo: "منذ " + Math.round((now.getTime() - n.createdAt.getTime()) / (1000 * 60 * 60)) + " ساعة",
+          type: "positive"
+        });
+      }
+    }
+    const supNote = supScore > 5 ? `+${(supScore - 5).toFixed(1)}` : (supScore < 5 ? `${(supScore - 5).toFixed(1)}` : "أساسي");
+
+    const totalScore = prodScore + timeScore + qualityScore + docScore + supScore;
+    const displayName = user.name || user.email.split('@')[0];
+    const locationName = user.assignedBuildings.length > 0 ? (user.assignedBuildings[0].building.nameAr || user.assignedBuildings[0].building.nameEn) : "عام";
+
+    leaderboard.push({
+      id: user.id,
+      name: displayName,
+      role: arabicRoles[user.role] || user.role,
+      location: locationName,
+      taskCount,
+      dateRange: dateRangeStr,
+      totalScore: Number(totalScore.toFixed(1)),
+      rank: 0,
+      totalEmployees: 0,
+      isEmployeeOfWeek: false,
+      productivity: { score: Number(prodScore.toFixed(1)), note: prodNote },
+      timeAdherence: { score: Number(timeScore.toFixed(1)), note: timeNote },
+      workQuality: { score: Number(qualityScore.toFixed(1)), note: qualityNote },
+      docAndResponse: { score: Number(docScore.toFixed(1)), note: docNote },
+      supervisorEval: { score: Number(supScore.toFixed(1)), note: supNote },
+      supervisorNotes: supervisorNotes.slice(0, 4) // cap to 4 for UI
+    });
   }
 
-  // Sort descending
-  leaderboard.sort((a, b) => b.score - a.score);
+  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  
+  const totalEmps = leaderboard.length;
+  leaderboard.forEach((emp, index) => {
+    emp.rank = index + 1;
+    emp.totalEmployees = totalEmps;
+    if (index === 0 && emp.totalScore >= 70 && totalEmps > 0) {
+      emp.isEmployeeOfWeek = true;
+    }
+  });
 
-  // Top 5
-  const top5 = leaderboard.slice(0, 5);
-  if (top5.length > 0) {
-    top5[0].best = true;
-  }
-
-  return top5;
+  return leaderboard.slice(0, 7); // Return top 7
 }

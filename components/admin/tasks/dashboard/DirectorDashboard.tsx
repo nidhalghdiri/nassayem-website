@@ -3,8 +3,12 @@
 import React, { useState } from "react";
 import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
+import EmployeeOfTheWeekReport from "../reports/EmployeeOfTheWeekReport";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
+import type { DashboardAlert } from "@/lib/reports/alerts";
+import NominationCriteriaReport from "../reports/NominationCriteriaReport";
+import RecentSupervisorNotes, { SupervisorNote } from "../reports/RecentSupervisorNotes";
 
 type Building = {
   id: string;
@@ -31,10 +35,13 @@ type Props = {
   buildings: Building[];
   assignableStaff: StaffUser[];
   topEmployees: LeaderboardEmployee[];
+  lastWeekEmployees: LeaderboardEmployee[];
   buildingPerformance: BuildingPerformance[];
+  recentNotes: SupervisorNote[];
+  alerts: DashboardAlert[];
 };
 
-export default function DirectorDashboard({ locale, stats, buildings, assignableStaff, topEmployees, buildingPerformance }: Props) {
+export default function DirectorDashboard({ locale, stats, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -66,7 +73,7 @@ export default function DirectorDashboard({ locale, stats, buildings, assignable
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 md:p-8" dir={isEn ? "ltr" : "rtl"}>
+    <div className="min-h-screen bg-slate-50/50 p-4 md:p-8 font-sans" dir={isEn ? "ltr" : "rtl"}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Top Navigation */}
@@ -129,54 +136,11 @@ export default function DirectorDashboard({ locale, stats, buildings, assignable
           </div>
         </div>
 
-        {/* Middle Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Top Employees Leaderboard */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-1">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-base font-bold text-slate-800">{t.employeeOfWeek}</h2>
-              <span className="text-xs text-slate-500">{t.last7Days}</span>
-            </div>
-            <div className="space-y-5">
-              {topEmployees.length > 0 ? (
-                topEmployees.map((emp, idx) => (
-                  <div key={emp.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-slate-400 w-4">{idx + 1}</span>
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
-                        {emp.initial}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{emp.name}</p>
-                        <p className="text-xs text-slate-500">
-                          {emp.role === "HOUSEKEEPING" ? (isEn ? "Housekeeping" : "نظافة") : 
-                           emp.role === "MAINTENANCE" ? (isEn ? "Maintenance" : "صيانة") : 
-                           emp.role === "SUPERVISOR" ? (isEn ? "Supervisor" : "مشرف") : 
-                           emp.role === "RECEPTIONIST" ? (isEn ? "Receptionist" : "استقبال") : 
-                           emp.role === "MANAGER" ? (isEn ? "Manager" : "مدير") : emp.role}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {emp.best && (
-                        <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-                          {t.best} {emp.score}
-                        </span>
-                      )}
-                      {!emp.best && <span className="text-sm font-bold text-slate-700">{emp.score}</span>}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-500 text-sm">
-                  {isEn ? "No tasks completed in the last 7 days." : "لا توجد مهام منجزة في آخر 7 أيام."}
-                </div>
-              )}
-            </div>
-          </div>
-
+        {/* Middle Section: Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
           {/* Building Performance Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 className="text-base font-bold text-slate-800 mb-6">{t.buildingPerf}</h2>
             <div className="space-y-6">
               {buildingPerformance.length > 0 ? (
@@ -201,116 +165,37 @@ export default function DirectorDashboard({ locale, stats, buildings, assignable
               )}
             </div>
           </div>
+
+          {/* Nomination Criteria Report */}
+          <NominationCriteriaReport employees={topEmployees} />
         </div>
 
-        {/* Bottom Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Trend Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-base font-bold text-slate-800">{t.trendTitle}</h2>
-              <span className="text-xs text-slate-500">{t.last30Days}</span>
-            </div>
-            <div className="flex-1 min-h-[160px] w-full relative flex items-end pt-4">
-              <svg className="w-full h-full absolute inset-0" preserveAspectRatio="none" viewBox="0 0 100 100">
-                <defs>
-                  <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d9488" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#0d9488" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M0,80 L10,60 L20,70 L30,40 L40,50 L50,20 L60,35 L70,10 L80,25 L90,15 L100,5 L100,100 L0,100 Z"
-                  fill="url(#gradientArea)"
-                />
-                <polyline
-                  points="0,80 10,60 20,70 30,40 40,50 50,20 60,35 70,10 80,25 90,15 100,5"
-                  fill="none"
-                  stroke="#0d9488"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
+        {/* Employee of the Week Detailed Report */}
+        <div className="mt-8 -mx-4 md:-mx-8">
+          <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} />
+        </div>
 
-          {/* Criteria & Notes */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-base font-bold text-slate-800 mb-4">{t.criteriaTitle}</h2>
-              <div className="space-y-3">
-                {[
-                  { id: 1, title: isEn ? "Productivity & Speed" : "الإنتاجية والسرعة", desc: isEn ? "In responding to task reports" : "في التفاعل مع بلاغات المهام" },
-                  { id: 2, title: isEn ? "Task Completion" : "إتمام المهام", desc: isEn ? "Without delays or extensions" : "دون تأخير أو تمديد عن المطلوب" },
-                  { id: 3, title: isEn ? "Initiative & Problem Solving" : "المبادرة وحل المشكلات", desc: isEn ? "In solving difficult problems" : "في حل المشكلات الصعبة" },
-                  { id: 4, title: isEn ? "Team Collaboration" : "التعاون مع الفريق", desc: isEn ? "In supporting supervisor notes" : "في دعم ملاحظات المشرف" },
-                ].map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <span className="w-6 text-center text-sm font-bold text-slate-400">{item.id}</span>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{item.title}</p>
-                      <p className="text-xs text-slate-500">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-base font-bold text-slate-800 mb-4">{t.notesTitle}</h2>
-              <div className="space-y-3">
-                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-emerald-900">{isEn ? "Fouad — Excellent start in Unit 501" : "فؤاد عبدالله يحيى — ممتازة للبدء بإنهاء مهام التنظيف في الوحدة 501"}</p>
-                    <p className="text-xs text-emerald-700 mt-1">{isEn ? "Deserves reward — 2 hours ago" : "يستحق مكافأة — قبل 2 ساعة"}</p>
-                  </div>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-emerald-900">{isEn ? "Rashed — Helped clean 6 units" : "راشد البلوشي — ساعد فريق التنظيف في إنهاء تجهيز 6 وحدات"}</p>
-                    <p className="text-xs text-emerald-700 mt-1">{isEn ? "Great teamwork — 3 hours ago" : "تعاون مع الفريق — قبل 3 ساعات"}</p>
-                  </div>
-                </div>
-                <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-red-900">{isEn ? "Mohammad — Delayed scheduled maintenance" : "محمد محي الدين — تأخر عن بدء مهمة صيانة مجدولة دون إشعار مسبق"}</p>
-                    <p className="text-xs text-red-700 mt-1">{isEn ? "Needs warning — 5 hours ago" : "يحتاج إلى تنبيه — قبل 5 ساعات"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Bottom Section: Notes & Alerts */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RecentSupervisorNotes notes={recentNotes} locale={locale} />
 
           {/* Alerts Feed */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 className="text-base font-bold text-slate-800 mb-4">{t.alertsTitle}</h2>
             <div className="space-y-3">
-              <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{isEn ? "Unit 501: No deep clean in 30 days" : "الوحدة 501 - استضافة 30: لم تنظف تنظيفاً عميقاً منذ 30 يوماً"}</p>
-                  <p className="text-xs text-slate-500 mt-1">{isEn ? "Alert" : "تنبيه"}</p>
+              {alerts.length > 0 ? alerts.map((alert) => (
+                <div key={alert.id} className={`border p-3 rounded-xl flex items-start gap-3 ${alert.severity === 'high' ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                  <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${alert.severity === 'high' ? 'text-red-600' : 'text-orange-600'}`} />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{isEn ? alert.textEn : alert.textAr}</p>
+                    <p className="text-xs text-slate-500 mt-1">{isEn ? "Alert" : "تنبيه"}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{isEn ? "Awqad Building: Time adherence < 75%" : "مبنى عوقد: نسبة الالتزام بالوقت أقل من 75% لأسبوعين متتاليين"}</p>
-                  <p className="text-xs text-slate-500 mt-1">{isEn ? "Alert" : "تنبيه"}</p>
+              )) : (
+                <div className="text-center py-6 text-slate-500 text-sm">
+                  {isEn ? "No alerts at this time." : "لا توجد تنبيهات في الوقت الحالي."}
                 </div>
-              </div>
-              <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{isEn ? "6 maintenance tasks waiting for parts" : "6 مهام صيانة في الانتظار لقطع غيار منذ أكثر من 4 أيام"}</p>
-                  <p className="text-xs text-slate-500 mt-1">{isEn ? "Follow up" : "متابعة"}</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashboard";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
+import { getDashboardAlerts } from "@/lib/reports/alerts";
 import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -32,7 +33,18 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
-  const [totalAssigned, active, completed, delayed, buildings, staffUsers, topEmployees, buildingPerformance] = await Promise.all([
+  const [
+    totalAssigned, 
+    active, 
+    completed, 
+    delayed, 
+    buildings, 
+    staffUsers, 
+    topEmployees, 
+    lastWeekEmployees,
+    buildingPerformanceRaw,
+    recentNotes
+  ] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
@@ -57,9 +69,30 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       select: { id: true, name: true, email: true, role: true },
       orderBy: { name: "asc" },
     }),
-    getEmployeeRanking(7),
+    getEmployeeRanking(7, 0),
+    getEmployeeRanking(7, 7), // last week
     getBuildingPerformance(30),
+    prisma.taskNote.findMany({
+      where: {
+        user: { role: { in: ["SUPERVISOR", "MANAGER"] } }
+      },
+      include: {
+        user: { select: { name: true, role: true } },
+        task: { 
+          select: { 
+            title: true, 
+            status: true,
+            building: { select: { nameEn: true, nameAr: true } }
+          } 
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
   ]);
+
+  const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
+  const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
 
   const stats = { totalAssigned, active, completed, delayed };
 
@@ -73,7 +106,10 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       buildings={buildings}
       assignableStaff={staffUsers}
       topEmployees={topEmployees}
+      lastWeekEmployees={lastWeekEmployees}
       buildingPerformance={buildingPerformance}
+      recentNotes={recentNotes}
+      alerts={alerts}
     />
   );
 }
