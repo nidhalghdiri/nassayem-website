@@ -136,14 +136,34 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
     const timeNote = overdueCount > 0 ? `${timePctStr}% في الموعد - ${overdueCount} متأخرة` : `${timePctStr}% في الموعد`;
 
     // 3. Work Quality (Max 20)
-    let qualityScore = 0;
-    let noIssuesCount = completedTasks.filter(t => t.status === "NO_ISSUES" || t.status === "COMPLETED").length;
-    if (taskCount > 0) {
-      qualityScore = (noIssuesCount / taskCount) * 20;
-    } else {
-      qualityScore = 20;
+    let totalStars = 0;
+    let starRatedTasksCount = 0;
+
+    for (const task of completedTasks) {
+      const starNotes = task.notes.filter(n => n.text.startsWith("★"));
+      if (starNotes.length > 0) {
+        // Get the most recent star note
+        const latestNote = starNotes[starNotes.length - 1];
+        const match = latestNote.text.match(/★(\d+)/);
+        if (match) {
+          totalStars += parseInt(match[1]);
+          starRatedTasksCount++;
+        }
+      }
     }
-    const qualityNote = `★${((qualityScore / 20) * 5).toFixed(1)}`;
+
+    let qualityScore = 0;
+    let averageStars = 5; // Default to 5 if no tasks are audited yet
+    if (starRatedTasksCount > 0) {
+      averageStars = totalStars / starRatedTasksCount;
+    }
+
+    if (taskCount > 0) {
+      qualityScore = (averageStars / 5) * 20;
+    } else {
+      qualityScore = 20; // Base score if no tasks
+    }
+    const qualityNote = `★${averageStars.toFixed(1)}`;
 
     // 4. Documentation & Response (Max 10)
     // 5 points for photos on tasks, 5 points for fast response
@@ -180,7 +200,16 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
     const supervisorNotes: LeaderboardEmployee["supervisorNotes"] = [];
     
     for (const task of relevantTasks) {
-      const positiveNotes = task.notes.filter(n => n.userId !== user.id && (n.user.role === "SUPERVISOR" || n.user.role === "MANAGER"));
+      const positiveNotes = task.notes.filter(n => {
+        if (n.userId === user.id || !["SUPERVISOR", "MANAGER"].includes(n.user.role)) return false;
+        
+        // If it's a rating note, only consider 4 or 5 stars as a "positive" bonus note
+        if (n.text.startsWith("★")) {
+          const match = n.text.match(/★(\d+)/);
+          if (match && parseInt(match[1]) < 4) return false;
+        }
+        return true;
+      });
       
       for (const n of positiveNotes) {
         supScore = Math.min(10, supScore + 2.5);
