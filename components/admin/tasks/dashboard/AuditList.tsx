@@ -59,7 +59,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
           action: "rejected",
           details: "Supervisor rejected the task.",
           notes: note,
-          newStatus: "WORK_STARTED" // send it back to workers
+          newStatus: audit.taskType === "CLEANING" ? "CLEANING_STARTED" : "WORK_STARTED" // send it back to workers
         })
       });
       router.refresh();
