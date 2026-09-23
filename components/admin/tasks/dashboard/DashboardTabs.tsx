@@ -13,9 +13,10 @@ type Props = {
   currentUserRole: string;
   directorProps: any;
   supervisorProps: any;
+  receptionistProps: any;
 };
 
-export default function DashboardTabs({ locale, currentUserId, currentUserRole, directorProps, supervisorProps }: Props) {
+export default function DashboardTabs({ locale, currentUserId, currentUserRole, directorProps, supervisorProps, receptionistProps }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,7 +73,7 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
         {activeTab === "supervisor" && <SupervisorDashboard {...supervisorProps} />}
         
         {activeTab === "receptionist" && (
-          <ReceptionistDashboard locale={locale} />
+          <ReceptionistDashboard {...receptionistProps} />
         )}
         
         {activeTab === "worker" && (

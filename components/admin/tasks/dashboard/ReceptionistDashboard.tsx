@@ -5,13 +5,31 @@ import ReceptionistReviewSection from "./receptionist/ReceptionistReviewSection"
 import LiveTasksSection from "./receptionist/LiveTasksSection";
 import UnitsStatusSection from "./receptionist/UnitsStatusSection";
 
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import type { ReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
+
 export default function ReceptionistDashboard({
   locale,
+  buildings,
+  data,
+  selectedBuilding,
 }: {
   locale: string;
+  buildings: { id: string; nameEn: string | null; nameAr: string | null; shortName: string | null }[];
+  data: ReceptionistDashboardData;
+  selectedBuilding: string;
 }) {
   const isEn = locale === "en";
-  const [selectedBranch, setSelectedBranch] = useState("branch1");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    const params = new URLSearchParams(searchParams);
+    params.set("building", val);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const t = {
     branch: isEn ? "Branch" : "الفرع",
@@ -24,25 +42,29 @@ export default function ReceptionistDashboard({
         <div className="flex flex-col items-end gap-2">
           <label className="text-xs font-bold text-slate-500">{t.branch}</label>
           <select 
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
+            value={selectedBuilding}
+            onChange={handleBuildingChange}
             className="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-nassayem shadow-sm text-sm font-bold min-w-[200px]"
             dir={isEn ? "ltr" : "rtl"}
           >
-            <option value="branch1">{isEn ? "Al Saadah Reception 25 (New)" : "استقبال السعادة 25 جديد"}</option>
-            <option value="branch2">{isEn ? "Al Saadah Reception 24" : "استقبال السعادة 24"}</option>
+            <option value="ALL">{isEn ? "All Branches" : "جميع الفروع"}</option>
+            {buildings.map(b => (
+              <option key={b.id} value={b.id}>
+                {isEn ? (b.nameEn || b.shortName) : (b.nameAr || b.nameEn)}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
       {/* Main Review Section */}
-      <ReceptionistReviewSection isEn={isEn} />
+      <ReceptionistReviewSection isEn={isEn} stats={data.stats} pendingTasks={data.pendingReviewTasks} approvedTasks={data.approvedPendingSupervisorTasks} />
 
       {/* Live Tasks & Leaderboard */}
-      <LiveTasksSection isEn={isEn} />
+      <LiveTasksSection isEn={isEn} liveTasks={data.liveTasks} staff={data.staffPerformance} />
 
       {/* Units Grid & Timeline */}
-      <UnitsStatusSection isEn={isEn} />
+      <UnitsStatusSection isEn={isEn} units={data.units} timeline={data.timeline} />
     </div>
   );
 }

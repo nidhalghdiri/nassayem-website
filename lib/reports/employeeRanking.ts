@@ -28,7 +28,7 @@ export type LeaderboardEmployee = {
 
 const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED"];
 
-export async function getEmployeeRanking(days: number = 7, offsetDays: number = 0): Promise<LeaderboardEmployee[]> {
+export async function getEmployeeRanking(days: number = 7, offsetDays: number = 0, buildingId?: string): Promise<LeaderboardEmployee[]> {
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - offsetDays);
   
@@ -38,10 +38,18 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
   const now = new Date();
   const dateRangeStr = `من ${startDate.getDate()}/${startDate.getMonth() + 1} إلى ${endDate.getDate()}/${endDate.getMonth() + 1}`;
 
+  const userWhereClause: any = {
+    role: { in: ["HOUSEKEEPING", "MAINTENANCE", "RECEPTIONIST", "SUPERVISOR", "MANAGER"] }
+  };
+  
+  if (buildingId) {
+    userWhereClause.assignedBuildings = {
+      some: { buildingId }
+    };
+  }
+
   const users = await prisma.adminUser.findMany({
-    where: {
-      role: { in: ["HOUSEKEEPING", "MAINTENANCE", "RECEPTIONIST", "SUPERVISOR", "MANAGER"] }
-    },
+    where: userWhereClause,
     select: {
       id: true,
       name: true,

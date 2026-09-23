@@ -4,12 +4,19 @@ import DashboardTabs from "@/components/admin/tasks/dashboard/DashboardTabs";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
-import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
+import { getReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
 import type { TaskStatus } from "@prisma/client";
 
-export default async function TasksDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
-  const [{ locale }, adminUser] = await Promise.all([
+export default async function TasksDashboardPage({ 
+  params,
+  searchParams
+}: { 
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tab?: string; building?: string }>;
+}) {
+  const [{ locale }, { building: selectedBuilding }, adminUser] = await Promise.all([
     params,
+    searchParams,
     getCurrentAdminUser(),
   ]);
 
@@ -45,7 +52,8 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
     lastWeekEmployees,
     buildingPerformanceRaw,
     recentNotes,
-    supervisorAuditData
+    supervisorAuditData,
+    receptionistData
   ] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
@@ -92,6 +100,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       take: 6,
     }),
     getSupervisorAuditData(adminUser.id, adminUser.role),
+    getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
   ]);
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
@@ -124,6 +133,15 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
     buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
   };
 
+  const receptionistProps = {
+    locale,
+    currentUserId: adminUser.id,
+    currentUserRole: adminUser.role,
+    buildings,
+    data: receptionistData,
+    selectedBuilding: selectedBuilding || "ALL",
+  };
+
   return (
     <DashboardTabs
       locale={locale}
@@ -131,6 +149,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       currentUserRole={adminUser.role}
       directorProps={directorProps}
       supervisorProps={supervisorProps}
+      receptionistProps={receptionistProps}
     />
   );
 }

@@ -1,78 +1,30 @@
 "use client";
 
 import React from "react";
-import { Check, AlertCircle } from "lucide-react";
+import type { UnitStatusInfo, TimelineEvent } from "@/lib/reports/receptionistDashboard";
 
-export default function UnitsStatusSection({ isEn }: { isEn: boolean }) {
+export default function UnitsStatusSection({ 
+  isEn,
+  units,
+  timeline
+}: { 
+  isEn: boolean;
+  units: UnitStatusInfo[];
+  timeline: TimelineEvent[];
+}) {
   const t = {
     unitsStatus: isEn ? "Units Status" : "حالة الوحدات",
-    unitsCount: isEn ? "24 units" : "24 وحدة",
-    readiness: isEn ? "Today's Readiness — Check-in/Check-out" : "جاهزية اليوم — دخول وخروج الضيوف",
+    unitsCount: isEn ? `${units.length} units` : `${units.length} وحدة`,
+    readiness: isEn ? "Today's Readiness" : "جاهزية اليوم",
     quickClean: isEn ? "+ Quick Cleaning Task" : "+ مهمة تنظيف سريعة",
     ready: isEn ? "Ready" : "جاهزة",
     pendingAudit: isEn ? "Pending Audit" : "بانتظار تدقيق",
     pendingCleaning: isEn ? "Pending Cleaning" : "بانتظار تنظيف",
     issue: isEn ? "Issue" : "بها مشكلة",
     details: isEn ? "Details" : "تفاصيل",
+    noEvents: isEn ? "No events today" : "لا توجد أحداث اليوم",
+    noUnits: isEn ? "No units in this building" : "لا توجد وحدات في هذا المبنى",
   };
-
-  // Generate 24 dummy units
-  const units = Array.from({ length: 24 }).map((_, i) => {
-    const num = 101 + i + (i > 11 ? 100 - 12 : 0); // 101-112, 201-212 approx, just dummy numbers
-    let status = "ready";
-    let icon = null;
-    
-    // Assign some statuses based on the screenshot
-    if ([104, 110, 117].includes(num)) {
-      status = "pending_cleaning";
-      icon = "🧹";
-    } else if ([106, 114, 122].includes(num)) {
-      status = "pending_audit";
-      icon = "⏳";
-    } else if (num === 108) {
-      status = "issue";
-      icon = "!";
-    } else {
-      icon = "✓";
-    }
-
-    return { num, status, icon };
-  });
-
-  const timeline = [
-    {
-      time: "12:00",
-      unit: "الوحدة 205",
-      desc: "مغادرة ضيف — بانتظار تنظيف",
-      badge: "مطلوب تنظيف",
-      badgeClass: "bg-orange-100 text-orange-700",
-      badgeDot: "bg-orange-500",
-    },
-    {
-      time: "14:00",
-      unit: "الوحدة 310",
-      desc: "وصول ضيف — الوحدة جاهزة",
-      badge: "جاهزة",
-      badgeClass: "bg-emerald-100 text-emerald-700",
-      badgeDot: "bg-emerald-500",
-    },
-    {
-      time: "14:30",
-      unit: "الوحدة 118",
-      desc: "مغادرة ضيف — تنظيف جارِ",
-      badge: "قيد المتابعة",
-      badgeClass: "bg-blue-100 text-blue-700",
-      badgeDot: "bg-blue-500",
-    },
-    {
-      time: "16:00",
-      unit: "الوحدة 402",
-      desc: "وصول ضيف — بانتظار تدقيق نهائي",
-      badge: "قيد المتابعة",
-      badgeClass: "bg-blue-100 text-blue-700",
-      badgeDot: "bg-blue-500",
-    },
-  ];
 
   const getStatusClasses = (status: string) => {
     switch (status) {
@@ -95,8 +47,11 @@ export default function UnitsStatusSection({ isEn }: { isEn: boolean }) {
           </button>
         </div>
         <div className="p-6 overflow-y-auto hide-scrollbar flex-1 relative">
-          {/* Vertical Line */}
-          <div className="absolute right-8 top-6 bottom-6 w-px bg-slate-100"></div>
+          {timeline.length > 0 && <div className="absolute right-8 top-6 bottom-6 w-px bg-slate-100"></div>}
+          
+          {timeline.length === 0 && (
+            <div className="text-center text-slate-500 text-sm mt-8">{t.noEvents}</div>
+          )}
 
           <div className="space-y-8 relative">
             {timeline.map((item, idx) => (
@@ -128,6 +83,9 @@ export default function UnitsStatusSection({ isEn }: { isEn: boolean }) {
           <span className="text-xs text-slate-500 font-medium">{t.unitsCount}</span>
         </div>
         <div className="p-6 flex-1 overflow-y-auto hide-scrollbar">
+          {units.length === 0 && (
+            <div className="text-center text-slate-500 text-sm mt-8">{t.noUnits}</div>
+          )}
           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
             {units.map((u) => (
               <div 
