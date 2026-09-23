@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import DirectorDashboard from "./DirectorDashboard";
 import SupervisorDashboard from "./SupervisorDashboard";
+import ReceptionistDashboard from "./ReceptionistDashboard";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Users, ClipboardCheck, Wrench } from "lucide-react";
 
@@ -71,9 +72,7 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
         {activeTab === "supervisor" && <SupervisorDashboard {...supervisorProps} />}
         
         {activeTab === "receptionist" && (
-          <div className="p-8 text-center text-slate-500">
-            {isEn ? "Receptionist Dashboard (Coming Soon)" : "لوحة تحكم الاستقبال (قريباً)"}
-          </div>
+          <ReceptionistDashboard locale={locale} />
         )}
         
         {activeTab === "worker" && (

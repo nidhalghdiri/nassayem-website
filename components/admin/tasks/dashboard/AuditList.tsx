@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2 } from "lucide-react";
 import type { PendingAudit } from "@/lib/reports/supervisorAudit";
 import { useRouter } from "next/navigation";
 
@@ -218,36 +218,38 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
               disabled={isLoading}
               onClick={() => setIsApproving(false)}
               className="border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-            >
-              {t.cancel}
-            </button>
-            <button 
-              disabled={isLoading}
-              onClick={() => onApprove(rating, note)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
-            >
-              {t.confirmApprove}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col md:flex-row items-center justify-end gap-2 pt-4 border-t border-slate-50">
-          <button 
-            disabled={isLoading}
-            onClick={onReject}
-            className="flex-1 md:flex-none border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
           >
-            {t.reject}
+            {t.cancel}
           </button>
           <button 
             disabled={isLoading}
-            onClick={() => setIsApproving(true)}
-            className="flex-1 md:flex-none bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            onClick={() => onApprove(rating, note)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            {t.approve}
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t.confirmApprove}
           </button>
         </div>
+      </div>
+    ) : (
+      <div className="flex flex-col md:flex-row items-center justify-end gap-2 pt-4 border-t border-slate-50">
+        <button 
+          disabled={isLoading}
+          onClick={onReject}
+          className="flex-1 md:flex-none border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {t.reject}
+        </button>
+        <button 
+          disabled={isLoading}
+          onClick={() => setIsApproving(true)}
+          className="flex-1 md:flex-none bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          {t.approve}
+        </button>
+      </div>
       )}
     </div>
   );
