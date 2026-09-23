@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Check, AlertCircle } from "lucide-react";
 import type { UnitStatusInfo, TimelineEvent } from "@/lib/reports/receptionistDashboard";
 
 export default function UnitsStatusSection({ 
