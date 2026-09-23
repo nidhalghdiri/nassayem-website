@@ -80,18 +80,14 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
   let finalApprovedCount = 0;
 
   for (const t of rawTerminalTasks) {
-    const hasSupervisorApproved = t.activities.some(a => a.action === "approved");
-    const hasSupervisorRejected = t.activities.some(a => a.action === "rejected");
-    const hasReceptionistApproved = t.activities.some(a => a.action === "approved_receptionist");
-    const hasReceptionistRejected = t.activities.some(a => a.action === "rejected_receptionist");
+    const approvalActivities = t.activities.filter(a => 
+      ["approved", "rejected", "approved_receptionist", "rejected_receptionist"].includes(a.action)
+    );
+    const latestAction = approvalActivities[0]?.action;
 
-    if (hasSupervisorApproved) {
+    if (latestAction === "approved") {
       finalApprovedCount++;
       continue; // Done
-    }
-
-    if (hasSupervisorRejected || hasReceptionistRejected) {
-      continue; // Sent back to workers
     }
 
     const completedAct = t.activities.find(a => a.action === "status_changed" && a.details.includes("COMPLETED"));
@@ -113,11 +109,16 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
       photos: t.photos.map(p => ({ id: p.id, url: p.photoUrl })),
     };
 
-    if (hasReceptionistApproved) {
-      const recApp = t.activities.find(a => a.action === "approved_receptionist");
-      dTask.actionTime = recApp?.createdAt;
+    if (latestAction === "rejected" || latestAction === "rejected_receptionist") {
+      // If it was rejected but is currently in a terminal status, it means it was completed again
+      // by the worker. So it needs receptionist review again.
+      pendingReviewTasks.push(dTask);
+    } else if (latestAction === "approved_receptionist") {
+      const recApp = approvalActivities[0];
+      dTask.actionTime = recApp.createdAt;
       approvedPendingSupervisorTasks.push(dTask);
     } else {
+      // No approval actions yet
       pendingReviewTasks.push(dTask);
     }
   }

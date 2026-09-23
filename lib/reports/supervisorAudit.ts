@@ -59,11 +59,8 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
   const rawPendingTasks = await prisma.task.findMany({
     where: {
       ...buildingFilter,
+      ...buildingFilter,
       status: { in: TERMINAL_STATUSES },
-      // Tasks that don't have an "approved" or "rejected" activity yet
-      activities: {
-        none: { action: { in: ["approved", "rejected"] } },
-      },
     },
     include: {
       building: { select: { nameEn: true, nameAr: true } },
@@ -73,7 +70,8 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       activities: {
         where: { OR: [
           { action: "status_changed", details: { contains: "COMPLETED" } },
-          { action: "status_changed", details: { contains: "STARTED" } }
+          { action: "status_changed", details: { contains: "STARTED" } },
+          { action: { in: ["approved", "rejected", "approved_receptionist", "rejected_receptionist"] } }
         ]},
         orderBy: { createdAt: "desc" },
       },
@@ -81,10 +79,28 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
     orderBy: { updatedAt: "desc" },
   });
 
-  const pendingAudits: PendingAudit[] = rawPendingTasks.map(t => {
-    const completedAct = t.activities.find(a => a.details.includes("COMPLETED"));
-    const startedAct = t.activities.find(a => a.details.includes("STARTED"));
-    return {
+  const pendingAudits: PendingAudit[] = [];
+  
+  for (const t of rawPendingTasks) {
+    const approvalActivities = t.activities.filter(a => 
+      ["approved", "rejected", "approved_receptionist", "rejected_receptionist"].includes(a.action)
+    );
+    const latestAction = approvalActivities[0]?.action;
+
+    // If latest action is "approved", it doesn't need audit.
+    if (latestAction === "approved") {
+      continue; 
+    }
+    
+    // If latest action is "rejected", but it's currently in TERMINAL_STATUSES, 
+    // it means it was completed AGAIN after rejection. So it needs audit again.
+    // If latest action is "approved_receptionist", it also needs supervisor audit.
+    // If no approval activities, it obviously needs audit.
+
+    const completedAct = t.activities.find(a => a.action === "status_changed" && a.details.includes("COMPLETED"));
+    const startedAct = t.activities.find(a => a.action === "status_changed" && a.details.includes("STARTED"));
+    
+    pendingAudits.push({
       id: t.id,
       buildingName: t.building.nameAr || t.building.nameEn,
       unitName: t.unit?.name || t.unitNumber || null,
@@ -98,8 +114,8 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       completedAt: completedAct?.createdAt || t.updatedAt,
       startedAt: startedAct?.createdAt || null,
       photos: t.photos.map(p => ({ id: p.id, url: p.photoUrl })),
-    };
-  });
+    });
+  }
 
   // 2. Stats Calculation
   // First-time acceptance rate:
