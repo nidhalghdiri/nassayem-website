@@ -4,6 +4,7 @@ import DashboardTabs from "@/components/admin/tasks/dashboard/DashboardTabs";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
+import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
 import { getReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
 import type { TaskStatus } from "@prisma/client";
 
