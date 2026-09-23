@@ -16,7 +16,7 @@ export default async function TasksDashboardPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ tab?: string; building?: string }>;
 }) {
-  const [{ locale }, { building: selectedBuilding }, adminUser] = await Promise.all([
+  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId }, adminUser] = await Promise.all([
     params,
     searchParams,
     getCurrentAdminUser(),
@@ -104,7 +104,11 @@ export default async function TasksDashboardPage({
     }),
     getSupervisorAuditData(adminUser.id, adminUser.role),
     getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
-    getWorkerDashboardData(adminUser.id),
+    getWorkerDashboardData(
+      (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
+        ? selectedWorkerId 
+        : adminUser.id
+    ),
   ]);
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
@@ -149,7 +153,10 @@ export default async function TasksDashboardPage({
   const workerProps = {
     locale,
     currentUserId: adminUser.id,
+    currentUserRole: adminUser.role,
     data: workerData,
+    staffUsers,
+    selectedWorkerId: selectedWorkerId || adminUser.id,
   };
 
   return (
