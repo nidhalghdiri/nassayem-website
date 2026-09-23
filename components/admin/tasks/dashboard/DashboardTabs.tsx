@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import DirectorDashboard from "./DirectorDashboard";
 import SupervisorDashboard from "./SupervisorDashboard";
 import ReceptionistDashboard from "./ReceptionistDashboard";
+import WorkerDashboard from "./WorkerDashboard";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Users, ClipboardCheck, Wrench } from "lucide-react";
 
@@ -14,9 +15,10 @@ type Props = {
   directorProps: any;
   supervisorProps: any;
   receptionistProps: any;
+  workerProps: any;
 };
 
-export default function DashboardTabs({ locale, currentUserId, currentUserRole, directorProps, supervisorProps, receptionistProps }: Props) {
+export default function DashboardTabs({ locale, currentUserId, currentUserRole, directorProps, supervisorProps, receptionistProps, workerProps }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -77,9 +79,7 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
         )}
         
         {activeTab === "worker" && (
-          <div className="p-8 text-center text-slate-500">
-            {isEn ? "Worker Dashboard (Coming Soon)" : "لوحة تحكم العامل (قريباً)"}
-          </div>
+          <WorkerDashboard {...workerProps} />
         )}
       </div>
     </div>

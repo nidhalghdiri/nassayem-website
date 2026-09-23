@@ -6,6 +6,7 @@ import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
 import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
 import { getReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
+import { getWorkerDashboardData } from "@/lib/reports/workerDashboard";
 import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ 
@@ -54,7 +55,8 @@ export default async function TasksDashboardPage({
     buildingPerformanceRaw,
     recentNotes,
     supervisorAuditData,
-    receptionistData
+    receptionistData,
+    workerData
   ] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
@@ -102,6 +104,7 @@ export default async function TasksDashboardPage({
     }),
     getSupervisorAuditData(adminUser.id, adminUser.role),
     getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
+    getWorkerDashboardData(adminUser.id),
   ]);
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
@@ -143,6 +146,12 @@ export default async function TasksDashboardPage({
     selectedBuilding: selectedBuilding || "ALL",
   };
 
+  const workerProps = {
+    locale,
+    currentUserId: adminUser.id,
+    data: workerData,
+  };
+
   return (
     <DashboardTabs
       locale={locale}
@@ -151,6 +160,7 @@ export default async function TasksDashboardPage({
       directorProps={directorProps}
       supervisorProps={supervisorProps}
       receptionistProps={receptionistProps}
+      workerProps={workerProps}
     />
   );
 }
