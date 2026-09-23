@@ -14,7 +14,7 @@ export default async function TasksDashboardPage({
   searchParams
 }: { 
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string; building?: string }>;
+  searchParams: Promise<{ tab?: string; building?: string; worker?: string }>;
 }) {
   const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId }, adminUser] = await Promise.all([
     params,
