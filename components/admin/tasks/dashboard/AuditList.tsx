@@ -46,7 +46,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
     setLoadingId(null);
   };
 
-  const handleReject = async (auditId: string) => {
+  const handleReject = async (auditId: string, taskType: string) => {
     const note = prompt(isEn ? "Enter rejection reason:" : "أدخل سبب الرفض:");
     if (!note) return;
     
@@ -59,7 +59,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
           action: "rejected",
           details: "Supervisor rejected the task.",
           notes: note,
-          newStatus: audit.taskType === "CLEANING" ? "CLEANING_STARTED" : "WORK_STARTED" // send it back to workers
+          newStatus: taskType === "CLEANING" ? "CLEANING_STARTED" : "WORK_STARTED" // send it back to workers
         })
       });
       router.refresh();
@@ -89,7 +89,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
             isEn={isEn} 
             isLoading={loadingId === audit.id}
             onApprove={(rating: number) => handleApprove(audit.id, rating)}
-            onReject={() => handleReject(audit.id)}
+            onReject={() => handleReject(audit.id, audit.taskType)}
           />
         ))}
       </div>
