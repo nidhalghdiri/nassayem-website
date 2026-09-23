@@ -1,9 +1,10 @@
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
-import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashboard";
+import DashboardTabs from "@/components/admin/tasks/dashboard/DashboardTabs";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
+import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
 import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -43,7 +44,8 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
     topEmployees, 
     lastWeekEmployees,
     buildingPerformanceRaw,
-    recentNotes
+    recentNotes,
+    supervisorAuditData
   ] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
@@ -89,6 +91,7 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
+    getSupervisorAuditData(adminUser.id, adminUser.role),
   ]);
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
@@ -96,20 +99,38 @@ export default async function TasksDashboardPage({ params }: { params: Promise<{
 
   const stats = { totalAssigned, active, completed, delayed };
 
-  // For now, render the Director Dashboard for MANAGER, we can add conditionals for other roles later
+  const directorProps = {
+    locale,
+    currentUserId: adminUser.id,
+    currentUserRole: adminUser.role,
+    stats,
+    buildings,
+    assignableStaff: staffUsers,
+    topEmployees,
+    lastWeekEmployees,
+    buildingPerformance,
+    recentNotes,
+    alerts,
+  };
+
+  const supervisorProps = {
+    locale,
+    currentUserId: adminUser.id,
+    currentUserRole: adminUser.role,
+    buildings,
+    assignableStaff: staffUsers,
+    stats: supervisorAuditData.stats,
+    pendingAudits: supervisorAuditData.pendingAudits,
+    buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+  };
+
   return (
-    <DirectorDashboard
+    <DashboardTabs
       locale={locale}
       currentUserId={adminUser.id}
       currentUserRole={adminUser.role}
-      stats={stats}
-      buildings={buildings}
-      assignableStaff={staffUsers}
-      topEmployees={topEmployees}
-      lastWeekEmployees={lastWeekEmployees}
-      buildingPerformance={buildingPerformance}
-      recentNotes={recentNotes}
-      alerts={alerts}
+      directorProps={directorProps}
+      supervisorProps={supervisorProps}
     />
   );
 }
