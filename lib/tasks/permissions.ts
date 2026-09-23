@@ -69,5 +69,5 @@ export function canUpdateTaskStatus(
   isAssignedToActor: boolean,
 ): boolean {
   if (isAssignedToActor) return true;
-  return actorRole === "MANAGER";
+  return actorRole === "MANAGER" || actorRole === "SUPERVISOR";
 }

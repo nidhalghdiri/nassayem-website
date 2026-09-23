@@ -804,6 +804,21 @@ export default function TaskDetailPanel({
                 </dl>
               </section>
 
+              {/* ── Employee of the Week Criteria ───────────────────────────── */}
+              <section className="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+                <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <span className="text-lg">🏆</span>
+                  {isEn ? "Employee of the Week Criteria" : "معايير ترشيح موظف الأسبوع"}
+                </h3>
+                <ul className="text-xs text-gray-600 space-y-2 list-disc list-inside">
+                  <li><strong className="text-gray-800">{isEn ? "Productivity (30 pts):" : "الإنتاجية (30 نقطة):"}</strong> {isEn ? "Complete tasks within the team average." : "إنجاز مهام ضمن متوسط الفريق."}</li>
+                  <li><strong className="text-gray-800">{isEn ? "Time Adherence (30 pts):" : "الالتزام بالوقت (30 نقطة):"}</strong> {isEn ? "Complete tasks before the deadline." : "إنجاز المهام قبل وقت الاستحقاق."}</li>
+                  <li><strong className="text-gray-800">{isEn ? "Work Quality (20 pts):" : "جودة العمل (20 نقطة):"}</strong> {isEn ? "Maintain high quality to avoid rejections." : "الحفاظ على جودة عالية لتجنب رفض المشرف."}</li>
+                  <li><strong className="text-gray-800">{isEn ? "Documentation (10 pts):" : "التوثيق والاستجابة (10 نقاط):"}</strong> {isEn ? "Upload photos and respond quickly." : "إضافة صور للمهمة والاستجابة السريعة."}</li>
+                  <li><strong className="text-gray-800">{isEn ? "Supervisor Evaluation (10 pts):" : "تقييم المشرف (10 نقاط):"}</strong> {isEn ? "Positive notes and direct approval give bonus points." : "الملاحظات الإيجابية والاعتماد المباشر يعطي نقاط إضافية."}</li>
+                </ul>
+              </section>
+
               {/* ── Description ─────────────────────────────────────────────── */}
               {task.description && (
                 <section className="px-5 py-4">

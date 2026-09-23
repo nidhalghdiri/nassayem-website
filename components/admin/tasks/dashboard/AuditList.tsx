@@ -104,9 +104,15 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
   const now = new Date();
   const diffMins = Math.round((now.getTime() - completedTime.getTime()) / 60000);
   
-  // Fake elapsed time for task execution based on due date if needed, but we'll just show static for UI similarity
-  const taskDurationMins = 50; 
+  // Calculate elapsed time from started to completed
+  let taskDurationMins = 0;
+  if (audit.startedAt) {
+    const startedTime = new Date(audit.startedAt);
+    taskDurationMins = Math.max(0, Math.round((completedTime.getTime() - startedTime.getTime()) / 60000));
+  }
+  
   const isLate = audit.dueDate < completedTime;
+  const isNew = diffMins < 60; // marked as new if completed within the last hour
 
   return (
     <div className="border border-slate-100 rounded-2xl p-4 hover:border-nassayem/30 transition-colors">
@@ -126,10 +132,11 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2 py-1 rounded-md">{t.new}</span>
+        {isNew && <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2 py-1 rounded-md">{t.new}</span>}
         <span className={`text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1 ${isLate ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
           <Clock className="w-3 h-3" />
-          {t.timeElapsed} {taskDurationMins} {isEn ? 'm' : 'د'} — {isLate ? t.late : t.withinSLA}
+          {taskDurationMins > 0 ? `${t.timeElapsed} ${taskDurationMins} ${isEn ? 'm' : 'د'} — ` : ""}
+          {isLate ? t.late : t.withinSLA}
         </span>
         {audit.priority === "HIGH" || audit.priority === "URGENT" ? (
           <span className="bg-orange-50 text-orange-600 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
@@ -168,7 +175,7 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
               </button>
             ))}
           </div>
-          <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-2">{t.new}</span>
+          {isNew && <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-2">{t.new}</span>}
         </div>
         
         <div className="flex w-full md:w-auto gap-2">

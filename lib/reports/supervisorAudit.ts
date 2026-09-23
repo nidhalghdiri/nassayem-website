@@ -13,6 +13,7 @@ export type PendingAudit = {
   status: string;
   dueDate: Date;
   completedAt: Date;
+  startedAt: Date | null;
   photos: { id: string; url: string }[];
 };
 
@@ -70,28 +71,35 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       assignedTo: { select: { name: true, role: true } },
       photos: { select: { id: true, photoUrl: true } },
       activities: {
-        where: { action: "status_changed", details: { contains: "COMPLETED" } },
+        where: { OR: [
+          { action: "status_changed", details: { contains: "COMPLETED" } },
+          { action: "status_changed", details: { contains: "STARTED" } }
+        ]},
         orderBy: { createdAt: "desc" },
-        take: 1,
       },
     },
     orderBy: { updatedAt: "desc" },
   });
 
-  const pendingAudits: PendingAudit[] = rawPendingTasks.map(t => ({
-    id: t.id,
-    buildingName: t.building.nameAr || t.building.nameEn,
-    unitName: t.unit?.name || t.unitNumber || null,
-    assignedUserName: t.assignedTo.name || "Unknown",
-    assignedUserRole: t.assignedTo.role,
-    taskTitle: t.title,
-    taskType: t.type,
-    priority: t.priority,
-    status: t.status,
-    dueDate: t.dueDate,
-    completedAt: t.activities[0]?.createdAt || t.updatedAt,
-    photos: t.photos.map(p => ({ id: p.id, url: p.photoUrl })),
-  }));
+  const pendingAudits: PendingAudit[] = rawPendingTasks.map(t => {
+    const completedAct = t.activities.find(a => a.details.includes("COMPLETED"));
+    const startedAct = t.activities.find(a => a.details.includes("STARTED"));
+    return {
+      id: t.id,
+      buildingName: t.building.nameAr || t.building.nameEn,
+      unitName: t.unit?.name || t.unitNumber || null,
+      assignedUserName: t.assignedTo.name || "Unknown",
+      assignedUserRole: t.assignedTo.role,
+      taskTitle: t.title,
+      taskType: t.type,
+      priority: t.priority,
+      status: t.status,
+      dueDate: t.dueDate,
+      completedAt: completedAct?.createdAt || t.updatedAt,
+      startedAt: startedAct?.createdAt || null,
+      photos: t.photos.map(p => ({ id: p.id, url: p.photoUrl })),
+    };
+  });
 
   // 2. Stats Calculation
   // First-time acceptance rate:
