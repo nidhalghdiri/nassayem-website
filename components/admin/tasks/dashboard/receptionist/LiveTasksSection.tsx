@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Clock } from "lucide-react";
 import type { DashboardTask } from "@/lib/reports/receptionistDashboard";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 
