@@ -34,7 +34,7 @@ export default function WorkerDashboard({
   };
 
   const showFilter = currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR";
-  const workers = staffUsers?.filter(u => u.role === "CLEANER" || u.role === "MAINTENANCE") || [];
+  const workers = staffUsers?.filter(u => u.role === "HOUSEKEEPING" || u.role === "MAINTENANCE") || [];
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
