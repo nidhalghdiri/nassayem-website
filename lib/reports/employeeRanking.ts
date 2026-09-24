@@ -92,12 +92,14 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
     "MANAGER": "مدير"
   };
 
-  // Calculate team average tasks completed for productivity baseline
   let totalTasksCompletedByTeam = 0;
   let activeUsersCount = 0;
   for (const u of users) {
     const cTasks = u.assignedTasks.filter(t => TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.updatedAt >= startDate && t.updatedAt <= endDate).length;
-    if (cTasks > 0 || u.assignedTasks.length > 0) {
+    const aTasks = u.assignedTasks.filter(t => !TERMINAL_STATUSES.includes(t.status as TaskStatus) && t.status !== "CANCELLED" && t.createdAt <= endDate).length;
+    
+    // Only count employees who have at least one active or completed task in the period
+    if (cTasks > 0 || aTasks > 0) {
       activeUsersCount++;
       totalTasksCompletedByTeam += cTasks;
     }
@@ -256,10 +258,15 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
     });
   }
 
-  leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  // Filter out any employees that somehow made it through without tasks
+  const filteredLeaderboard = leaderboard.filter(emp => emp.taskCount > 0 || (emp.totalScore > 0 && emp.totalScore !== 70)); // Or any other strict check, but actually we skipped them on line 112 already.
+  // Wait, line 112 is: if (completedTasks.length === 0 && activeTasks.length === 0) continue;
+  // This already filters them out!
   
-  const totalEmps = leaderboard.length;
-  leaderboard.forEach((emp, index) => {
+  filteredLeaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  
+  const totalEmps = filteredLeaderboard.length;
+  filteredLeaderboard.forEach((emp, index) => {
     emp.rank = index + 1;
     emp.totalEmployees = totalEmps;
     if (index === 0 && emp.totalScore >= 70 && totalEmps > 0) {
@@ -267,5 +274,5 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
     }
   });
 
-  return leaderboard.slice(0, 7); // Return top 7
+  return filteredLeaderboard.slice(0, 7); // Return top 7
 }

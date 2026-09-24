@@ -38,7 +38,14 @@ export async function createTask(
   const dueDate = formData.get("dueDate") as string;
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
 
-  if (!type || !title || !buildingId || (!finalUnitNumber && !unitId) || !assignedToId || !dueDate) {
+  let titleStr = (formData.get("title") as string)?.trim();
+  if (!titleStr) {
+    const typeLabelsEn = { CLEANING: "Cleaning Task", MAINTENANCE: "Maintenance Task", INSPECTION: "Inspection Task" };
+    const typeLabelsAr = { CLEANING: "مهمة تنظيف", MAINTENANCE: "مهمة صيانة", INSPECTION: "مهمة فحص" };
+    titleStr = locale === 'ar' ? (typeLabelsAr[type as keyof typeof typeLabelsAr] || "مهمة") : (typeLabelsEn[type as keyof typeof typeLabelsEn] || "Task");
+  }
+
+  if (!type || !buildingId || (!finalUnitNumber && !unitId) || !assignedToId || !dueDate) {
     return { error: "Please fill in all required fields." };
   }
 
@@ -69,7 +76,7 @@ export async function createTask(
   const task = await prisma.task.create({
     data: {
       type,
-      title,
+      title: titleStr,
       description,
       buildingId,
       unitId,
@@ -136,7 +143,7 @@ export async function createTask(
       whatsappNumber: assignee.whatsappNumber ?? null,
       preferredLanguage: assignee.preferredLanguage,
     },
-    taskTitle: title,
+    taskTitle: titleStr,
     buildingName: building?.nameEn ?? "",
     unitName: finalUnitNumber ?? "",
     dueDate: new Date(dueDate),

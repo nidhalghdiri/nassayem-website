@@ -48,6 +48,9 @@ export default async function TasksDashboardPage({
     active, 
     completed, 
     delayed, 
+    waitingAudit,
+    allCompletedTasks,
+    trendTasksRaw,
     buildings, 
     staffUsers, 
     topEmployees, 
@@ -68,6 +71,29 @@ export default async function TasksDashboardPage({
         ...visibilityFilter,
       },
     }),
+    prisma.task.count({
+      where: {
+        status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] },
+        ...visibilityFilter,
+      },
+    }),
+    prisma.task.findMany({
+      where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter },
+      select: { updatedAt: true, dueDate: true }
+    }),
+    (() => {
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      fourteenDaysAgo.setHours(0,0,0,0);
+      return prisma.task.findMany({
+        where: {
+          status: { in: TERMINAL_STATUSES },
+          updatedAt: { gte: fourteenDaysAgo },
+          ...visibilityFilter
+        },
+        select: { updatedAt: true }
+      });
+    })(),
     prisma.building.findMany({
       select: {
         id: true,
@@ -114,13 +140,35 @@ export default async function TasksDashboardPage({
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
   const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
 
-  const stats = { totalAssigned, active, completed, delayed };
+  let onTime = 0;
+  for (const t of allCompletedTasks) {
+    if (t.updatedAt <= t.dueDate) onTime++;
+  }
+  const timeAdherence = allCompletedTasks.length > 0 ? Math.round((onTime / allCompletedTasks.length) * 100) : 100;
+
+  const trendMap = new Map<string, number>();
+  const now = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    trendMap.set(d.toISOString().split('T')[0], 0);
+  }
+  for (const t of trendTasksRaw) {
+    const dStr = t.updatedAt.toISOString().split('T')[0];
+    if (trendMap.has(dStr)) {
+      trendMap.set(dStr, trendMap.get(dStr)! + 1);
+    }
+  }
+  const trendData = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
+
+  const stats = { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit };
 
   const directorProps = {
     locale,
     currentUserId: adminUser.id,
     currentUserRole: adminUser.role,
     stats,
+    trendData,
     buildings,
     assignableStaff: staffUsers,
     topEmployees,

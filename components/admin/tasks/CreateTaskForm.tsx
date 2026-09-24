@@ -137,13 +137,15 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
       {/* ── Title ───────────────────────────────────────────────────────── */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="title">
-          {isEn ? "Title" : "العنوان"} <span className="text-red-500">*</span>
+          {isEn ? "Title" : "العنوان"}
+          <span className="text-gray-400 font-normal ms-1.5 text-xs">
+            ({isEn ? "optional" : "اختياري"})
+          </span>
         </label>
         <input
           id="title"
           name="title"
           type="text"
-          required
           maxLength={200}
           placeholder={isEn ? "e.g. Deep clean unit 302" : "مثال: تنظيف شامل للوحدة 302"}
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
