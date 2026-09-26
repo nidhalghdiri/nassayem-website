@@ -18,7 +18,12 @@ export default async function AdminCustomerRatingPage({ params }: PageProps) {
 
   // Fetch campaign customers
   const rawCustomers = await prisma.campaignCustomer.findMany({
+    include: { category: true },
     orderBy: { createdAt: "desc" },
+  });
+
+  const categories = await prisma.customerCategory.findMany({
+    orderBy: { name: "asc" },
   });
 
   const conversations = await prisma.chatbotConversation.findMany({
@@ -40,6 +45,7 @@ export default async function AdminCustomerRatingPage({ params }: PageProps) {
       nightRate: c.nightRate ? Number(c.nightRate) : null,
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
+      category: c.category || null,
     };
   });
 
@@ -58,7 +64,7 @@ export default async function AdminCustomerRatingPage({ params }: PageProps) {
         </div>
       </div>
 
-      <CustomerRatingModule initialCustomers={customers} locale={locale} />
+      <CustomerRatingModule initialCustomers={customers} categories={categories} locale={locale} />
     </div>
   );
 }

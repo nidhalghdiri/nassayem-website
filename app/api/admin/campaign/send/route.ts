@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
 
     const customers = await prisma.campaignCustomer.findMany({
       where: { id: { in: customerIds }, status: "PENDING" },
+      include: { category: true },
     });
 
     if (customers.length === 0) {
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
 
     for (const customer of customers) {
       // Send template
-      await sendCustomerSurveyTemplate(customer.phone, customer.name);
+      const templateId = customer.category?.whatsappTemplateId || "ns_customer_survey";
+      await sendCustomerSurveyTemplate(customer.phone, customer.name, templateId);
 
       // Create a conversation for them so the webhook knows who they are when they reply
       // The ingest step in the webhook finds this or creates it, but it's good practice.

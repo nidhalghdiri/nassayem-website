@@ -1397,7 +1397,7 @@ const submitSurveyFeedback = defineTool({
         data: {
           status: "DONE",
           summary: input.summary,
-          category: input.category,
+          feedbackType: input.category,
           subjects: input.subjects,
         },
       });

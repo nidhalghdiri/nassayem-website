@@ -1088,6 +1088,17 @@ enum CampaignCustomerStatus {
   DONE
 }
 
+model CustomerCategory {
+  id                 String   @id @default(uuid())
+  name               String   @unique
+  whatsappTemplateId String?
+
+  customers          CampaignCustomer[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model CampaignCustomer {
   id                 String   @id @default(uuid())
   campaignId         String   @default("KHAREEF_2026")
@@ -1105,7 +1116,9 @@ model CampaignCustomer {
 
   status             CampaignCustomerStatus @default(PENDING)
   summary            String? @db.Text
-  category           String?
+  categoryId         String?
+  category           CustomerCategory? @relation(fields: [categoryId], references: [id])
+  feedbackType       String?
   subjects           String[] @default([])
   sentimentScore     Int?
 

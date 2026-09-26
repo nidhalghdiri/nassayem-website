@@ -694,6 +694,7 @@ export async function notifyLaundryUpdate({
 export async function sendCustomerSurveyTemplate(
   to: string,
   name: string,
+  templateName: string = "ns_customer_survey"
 ): Promise<void> {
   const cleanTo = to.replace(/\D/g, "");
   if (!cleanTo) return;
@@ -702,7 +703,7 @@ export async function sendCustomerSurveyTemplate(
   
   await sendTemplate(
     cleanTo,
-    "ns_customer_survey",
+    templateName,
     "ar",
     [flatName], // Assuming {{1}} is the customer's name. Remove or change if your template has different variables!
   );

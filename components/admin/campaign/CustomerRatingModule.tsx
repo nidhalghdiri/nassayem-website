@@ -12,14 +12,16 @@ export type SerializedCampaignCustomer = Omit<CampaignCustomer, "checkinDate" | 
   createdAt: string;
   updatedAt: string;
   conversationId?: string | null;
+  category?: { id: string; name: string; whatsappTemplateId: string | null } | null;
 };
 
 type Props = {
   initialCustomers: SerializedCampaignCustomer[];
+  categories: { id: string; name: string; whatsappTemplateId: string | null }[];
   locale: string;
 };
 
-export default function CustomerRatingModule({ initialCustomers, locale }: Props) {
+export default function CustomerRatingModule({ initialCustomers, categories: initialCategories, locale }: Props) {
   const isEn = locale === "en";
   const router = useRouter();
 
@@ -32,6 +34,17 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Category Management State
+  const [categories, setCategories] = useState(initialCategories);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatTemplate, setNewCatTemplate] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  // For assigning category to selected customers
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [isAssigningCategory, setIsAssigningCategory] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,13 +78,12 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
 
   const uniqueBuildings = Array.from(new Set(customers.map(c => c.building).filter(Boolean))) as string[];
   const uniqueSubjects = Array.from(new Set(customers.flatMap(c => c.subjects || [])));
-  const uniqueCategories = Array.from(new Set(customers.map(c => c.category).filter(Boolean))) as string[];
-
+  
   const filteredCustomers = customers.filter(c => {
     if (filterStatus !== "ALL" && c.status !== filterStatus) return false;
     if (filterBuilding !== "ALL" && c.building !== filterBuilding) return false;
     if (filterSubject !== "ALL" && !(c.subjects || []).includes(filterSubject)) return false;
-    if (filterCategory !== "ALL" && c.category !== filterCategory) return false;
+    if (filterCategory !== "ALL" && c.categoryId !== filterCategory) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!c.name.toLowerCase().includes(q) && !c.phone.includes(q) && !(c.building?.toLowerCase() || "").includes(q)) {
@@ -213,9 +225,9 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
           >
-            <option value="ALL">{isEn ? "All Feedback Types" : "كل أنواع التقييم"}</option>
-            {uniqueCategories.map(c => (
-              <option key={c} value={c}>{c}</option>
+            <option value="ALL">{isEn ? "All Categories" : "كل الفئات"}</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
           
@@ -261,10 +273,63 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
               </button>
             </>
           )}
+
+          {/* Bulk Assign Category */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 ml-2">
+              <select
+                className="bg-transparent border-none text-sm outline-none text-gray-700"
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+              >
+                <option value="" disabled>{isEn ? "Select Category..." : "اختر فئة..."}</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!selectedCategoryId) return;
+                  setIsAssigningCategory(true);
+                  try {
+                    const res = await fetch("/api/admin/campaign/category/assign", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ customerIds: Array.from(selectedIds), categoryId: selectedCategoryId })
+                    });
+                    if (res.ok) {
+                      const updatedCategory = categories.find(c => c.id === selectedCategoryId);
+                      setCustomers(prev => prev.map(c => 
+                        selectedIds.has(c.id) ? { ...c, category: updatedCategory, categoryId: selectedCategoryId } : c
+                      ));
+                      alert(isEn ? "Categories updated successfully!" : "تم تحديث الفئات بنجاح!");
+                      setSelectedIds(new Set());
+                      setSelectedCategoryId("");
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setIsAssigningCategory(false);
+                  }
+                }}
+                disabled={!selectedCategoryId || isAssigningCategory}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-xs font-bold disabled:opacity-50"
+              >
+                {isAssigningCategory ? "..." : (isEn ? "Assign" : "تعيين")}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Upload Action */}
+        {/* Action Buttons */}
         <div className="flex gap-2">
+          <button
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="border border-nassayem text-nassayem px-4 py-2 rounded-lg text-sm font-medium hover:bg-nassayem/10 transition-colors"
+          >
+            {isEn ? "Manage Categories" : "إدارة الفئات"}
+          </button>
+          
           <label className="bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-nassayem-dark cursor-pointer flex items-center gap-2 transition-colors">
             {isUploading ? (
               <span className="animate-pulse">{isEn ? "Uploading..." : "جاري الرفع..."}</span>
@@ -294,6 +359,7 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                 />
               </th>
               <th className="px-6 py-4">{isEn ? "Customer" : "العميل"}</th>
+              <th className="px-6 py-4">{isEn ? "Category" : "الفئة"}</th>
               <th className="px-6 py-4">{isEn ? "Stay Info" : "معلومات الإقامة"}</th>
               <th className="px-6 py-4">{isEn ? "Status" : "الحالة"}</th>
               <th className="px-6 py-4">{isEn ? "Feedback Summary" : "ملخص التقييم"}</th>
@@ -326,6 +392,15 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                     )}
                   </td>
                   <td className="px-6 py-4">
+                    {customer.category ? (
+                      <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-md">
+                        {customer.category.name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="text-gray-900">{customer.building || "N/A"} - {customer.unitNumber || "N/A"}</div>
                     <div className="text-xs text-gray-500 mt-1">
                       {customer.checkinDate ? new Date(customer.checkinDate).toLocaleDateString() : ""} 
@@ -351,7 +426,7 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
                         <div className="text-gray-900 font-medium whitespace-pre-wrap">{customer.summary}</div>
                         {customer.category && (
                           <span className="inline-block mt-1 mr-1 bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">
-                            {customer.category}
+                            {customer.category.name}
                           </span>
                         )}
                         {customer.subjects && customer.subjects.length > 0 && (
@@ -387,6 +462,84 @@ export default function CustomerRatingModule({ initialCustomers, locale }: Props
           </tbody>
         </table>
       </div>
+
+      {/* Category Management Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative">
+            <button 
+              onClick={() => setIsCategoryModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{isEn ? "Manage Categories" : "إدارة الفئات"}</h2>
+            
+            {/* List Existing */}
+            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
+              {categories.map(c => (
+                <div key={c.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex flex-col gap-1">
+                  <div className="font-bold text-sm text-gray-800">{c.name}</div>
+                  <div className="text-xs text-gray-500">Template ID: {c.whatsappTemplateId || "None"}</div>
+                </div>
+              ))}
+              {categories.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">{isEn ? "No categories yet." : "لا توجد فئات بعد."}</p>
+              )}
+            </div>
+
+            {/* Create New */}
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-bold text-gray-700 mb-3">{isEn ? "Add New Category" : "إضافة فئة جديدة"}</h3>
+              <div className="space-y-3">
+                <input 
+                  type="text"
+                  placeholder={isEn ? "Category Name (e.g. Booking)" : "اسم الفئة (مثل: حجز بوكينج)"}
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nassayem outline-none"
+                />
+                <input 
+                  type="text"
+                  placeholder={isEn ? "WhatsApp Template ID" : "معرف قالب الواتساب"}
+                  value={newCatTemplate}
+                  onChange={e => setNewCatTemplate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nassayem outline-none"
+                />
+                <button
+                  disabled={!newCatName || isCreatingCategory}
+                  onClick={async () => {
+                    setIsCreatingCategory(true);
+                    try {
+                      const res = await fetch("/api/admin/campaign/category", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: newCatName, whatsappTemplateId: newCatTemplate })
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        setCategories([...categories, data]);
+                        setNewCatName("");
+                        setNewCatTemplate("");
+                      } else {
+                        alert(data.error);
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setIsCreatingCategory(false);
+                    }
+                  }}
+                  className="w-full bg-nassayem text-white py-2 rounded-lg text-sm font-bold hover:bg-nassayem-dark transition-colors disabled:opacity-50"
+                >
+                  {isCreatingCategory ? "..." : (isEn ? "Add Category" : "إضافة الفئة")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
