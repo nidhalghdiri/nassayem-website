@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import AuditList from "./AuditList";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
+import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
 import type { PendingAudit, SupervisorStats, BuildingAuditStatus } from "@/lib/reports/supervisorAudit";
 
 type Props = {
@@ -16,9 +17,10 @@ type Props = {
   stats: SupervisorStats;
   pendingAudits: PendingAudit[];
   buildingAuditStatus: BuildingAuditStatus[];
+  todaysEmployeeNotes: EmployeeNoteProps[];
 };
 
-export default function SupervisorDashboard({ locale, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus }: Props) {
+export default function SupervisorDashboard({ locale, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus, todaysEmployeeNotes }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -98,6 +100,11 @@ export default function SupervisorDashboard({ locale, buildings, assignableStaff
           <AuditList audits={pendingAudits} locale={locale} />
         </div>
 
+      </div>
+
+      {/* Employee Daily Notebook */}
+      <div>
+        <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
       </div>
 
       {/* Create Task Modal */}

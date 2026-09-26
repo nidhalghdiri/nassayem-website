@@ -59,7 +59,8 @@ export default async function TasksDashboardPage({
     recentNotes,
     supervisorAuditData,
     receptionistData,
-    workerData
+    workerData,
+    todaysEmployeeNotes
   ] = await Promise.all([
     prisma.task.count({ where: { ...visibilityFilter } }),
     prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
@@ -135,6 +136,16 @@ export default async function TasksDashboardPage({
         ? selectedWorkerId 
         : adminUser.id
     ),
+    prisma.employeeNote.findMany({
+      where: {
+        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+      },
+      include: {
+        employee: { select: { name: true } },
+        author: { select: { name: true, role: true } }
+      },
+      orderBy: { createdAt: "desc" },
+    })
   ]);
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
@@ -176,6 +187,7 @@ export default async function TasksDashboardPage({
     buildingPerformance,
     recentNotes,
     alerts,
+    todaysEmployeeNotes,
   };
 
   const supervisorProps = {
@@ -187,6 +199,7 @@ export default async function TasksDashboardPage({
     stats: supervisorAuditData.stats,
     pendingAudits: supervisorAuditData.pendingAudits,
     buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+    todaysEmployeeNotes,
   };
 
   const receptionistProps = {

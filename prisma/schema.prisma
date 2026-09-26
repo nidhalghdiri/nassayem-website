@@ -509,6 +509,10 @@ model AdminUser {
   taskPhotos     TaskPhoto[]
   taskActivities TaskActivity[]
   posts          Post[]
+  
+  // Employee notes
+  receivedNotes  EmployeeNote[] @relation("NoteReceived")
+  givenNotes     EmployeeNote[] @relation("NoteGiven")
 
   // Laundry relations
   laundryRequested  LaundryOrder[] @relation("LaundryRequestedBy")
@@ -1171,4 +1175,25 @@ model EquipmentVisit {
   
   @@index([equipmentId])
   @@index([technicianId])
+}
+
+model EmployeeNote {
+  id          String    @id @default(uuid())
+  
+  employeeId  String
+  employee    AdminUser @relation("NoteReceived", fields: [employeeId], references: [id])
+  
+  authorId    String
+  author      AdminUser @relation("NoteGiven", fields: [authorId], references: [id])
+  
+  criteria    String    // e.g. "timeAdherence", "workQuality", "docAndResponse", "productivity"
+  isPositive  Boolean   @default(true)
+  text        String    @db.Text
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([authorId])
+  @@index([createdAt])
 }

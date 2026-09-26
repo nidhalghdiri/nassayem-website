@@ -10,6 +10,7 @@ import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
 import type { DashboardAlert } from "@/lib/reports/alerts";
 import NominationCriteriaReport from "../reports/NominationCriteriaReport";
 import RecentSupervisorNotes, { SupervisorNote } from "../reports/RecentSupervisorNotes";
+import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
 
 type Building = {
   id: string;
@@ -42,10 +43,11 @@ type Props = {
   buildingPerformance: BuildingPerformance[];
   recentNotes: SupervisorNote[];
   alerts: DashboardAlert[];
+  todaysEmployeeNotes: EmployeeNoteProps[];
   trendData?: { date: string; count: number }[];
 };
 
-export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts }: Props) {
+export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
@@ -253,6 +255,11 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
         {/* Employee of the Week Detailed Report */}
         <div className="mt-8 -mx-4 md:-mx-8">
           <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} locale={locale} />
+        </div>
+
+        {/* Employee Daily Notebook (Added here) */}
+        <div className="mt-8">
+          <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
         </div>
 
         {/* Bottom Section: Notes & Alerts */}

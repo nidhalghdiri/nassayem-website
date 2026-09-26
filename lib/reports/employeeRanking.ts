@@ -79,6 +79,11 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
           photos: true,
           createdBy: { select: { role: true } }
         }
+      },
+      receivedNotes: {
+        where: {
+          createdAt: { gte: startDate, lte: endDate }
+        }
       }
     }
   });
@@ -222,16 +227,42 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
       });
       
       for (const n of positiveNotes) {
-        supScore = Math.min(10, supScore + 2.5);
+        supScore = Math.min(10, supScore + 1);
         supervisorNotes.push({
           id: n.id,
           text: n.text,
-          category: "تقييم المشرف",
+          category: "ملاحظة مهمة",
           timeAgo: "منذ " + Math.round((now.getTime() - n.createdAt.getTime()) / (1000 * 60 * 60)) + " ساعة",
           type: "positive"
         });
       }
     }
+
+    // Add explicit EmployeeNotes
+    for (const n of user.receivedNotes) {
+      if (n.isPositive) {
+        supScore = Math.min(10, supScore + 2);
+      } else {
+        supScore = Math.max(0, supScore - 2);
+      }
+      
+      const criteriaAr: Record<string, string> = {
+        timeAdherence: "الالتزام بالوقت",
+        workQuality: "جودة العمل",
+        docAndResponse: "التوثيق والاستجابة",
+        productivity: "حجم الإنتاجية",
+        general: "عام"
+      };
+
+      supervisorNotes.push({
+        id: n.id,
+        text: n.text,
+        category: criteriaAr[n.criteria] || n.criteria,
+        timeAgo: "منذ " + Math.round((now.getTime() - n.createdAt.getTime()) / (1000 * 60 * 60)) + " ساعة",
+        type: n.isPositive ? "positive" : "negative"
+      });
+    }
+
     const supNote = supScore > 5 ? `+${(supScore - 5).toFixed(1)}` : (supScore < 5 ? `${(supScore - 5).toFixed(1)}` : "أساسي");
 
     const totalScore = prodScore + timeScore + qualityScore + docScore + supScore;
