@@ -11,6 +11,9 @@ import type { DashboardAlert } from "@/lib/reports/alerts";
 import NominationCriteriaReport from "../reports/NominationCriteriaReport";
 import RecentSupervisorNotes, { SupervisorNote } from "../reports/RecentSupervisorNotes";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
+import LastAuditPerBuilding from "./LastAuditPerBuilding";
+import type { BuildingAuditStatus } from "@/lib/reports/supervisorAudit";
+import { formatTimeAgo } from "../timeUtils";
 
 type Building = {
   id: string;
@@ -45,9 +48,10 @@ type Props = {
   alerts: DashboardAlert[];
   todaysEmployeeNotes: EmployeeNoteProps[];
   trendData?: { date: string; count: number }[];
+  buildingAuditStatus: BuildingAuditStatus[];
 };
 
-export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes }: Props) {
+export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
@@ -108,6 +112,9 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
     criteriaTitle: isEn ? "Employee of the Week Nomination Criteria" : "معايير ترشيح موظف الأسبوع",
     notesTitle: isEn ? "Latest Daily Supervisor Notes" : "آخر ملاحظات المشرف اليومية",
     alertsTitle: isEn ? "Alerts That Need Your Attention" : "تنبيهات تحتاج انتباهك",
+    assignedTo: isEn ? "Assigned To: " : "الموظف: ",
+    dueDate: isEn ? "Due: " : "موعد التسليم: ",
+    elapsed: isEn ? "Elapsed: " : "المدة: ",
   };
 
   return (
@@ -206,7 +213,7 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
                     <stop offset="95%" stopColor="#0f766e" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" hide />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                 <YAxis hide />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -250,6 +257,11 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
 
           {/* Nomination Criteria Report */}
           <NominationCriteriaReport employees={topEmployees} locale={locale} />
+        </div>
+
+        {/* Building Audit Status (حالة الوحدات) */}
+        <div className="mt-8">
+          <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
         </div>
 
         {/* Employee of the Week Detailed Report */}
@@ -345,31 +357,35 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {modalTasks.map((t) => (
-                    <div key={t.id} className="bg-white border border-slate-100 p-4 rounded-xl flex justify-between items-center hover:border-nassayem/30 transition-colors shadow-sm">
+                  {modalTasks.map((t_modal) => (
+                    <div key={t_modal.id} className="bg-white border border-slate-100 p-4 rounded-xl flex justify-between items-center hover:border-nassayem/30 transition-colors shadow-sm">
                       <div>
-                        <h3 className="font-bold text-sm text-slate-800">{t.title}</h3>
+                        <h3 className="font-bold text-sm text-slate-800">{t_modal.title}</h3>
                         <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                          <span>{isEn ? t.building?.nameEn : t.building?.nameAr}</span>
-                          {t.unitNumber && (
+                          <span>{isEn ? t_modal.building?.nameEn : t_modal.building?.nameAr}</span>
+                          {t_modal.unitNumber && (
                             <>
                               <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                              <span>{t.unitNumber}</span>
+                              <span>{t_modal.unitNumber}</span>
                             </>
                           )}
                         </p>
+                        <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
+                          {t_modal.assignedTo?.name && (
+                            <p><span className="font-semibold text-slate-700">{t.assignedTo}</span>{t_modal.assignedTo.name}</p>
+                          )}
+                          <p><span className="font-semibold text-slate-700">{t.dueDate}</span>{new Date(t_modal.dueDate).toLocaleDateString(isEn ? 'en-US' : 'ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          <p><span className="font-semibold text-slate-700">{t.elapsed}</span>{formatTimeAgo(Math.round((new Date().getTime() - new Date(t_modal.createdAt).getTime()) / 60000), isEn)}</p>
+                        </div>
                       </div>
-                      <div className="text-end">
+                      <div className="text-end self-start">
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${
                           modalType === 'DELAYED' ? 'bg-red-50 text-red-600' :
                           modalType === 'WAITING_AUDIT' ? 'bg-orange-50 text-orange-600' :
                           'bg-blue-50 text-blue-600'
                         }`}>
-                          {t.status}
+                          {t_modal.status}
                         </span>
-                        <p className="text-[10px] text-slate-400 mt-1.5">
-                          {new Date(t.dueDate).toLocaleDateString(isEn ? 'en-US' : 'ar-EG', { month: 'short', day: 'numeric' })}
-                        </p>
                       </div>
                     </div>
                   ))}

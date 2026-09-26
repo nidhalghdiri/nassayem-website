@@ -188,6 +188,7 @@ export default async function TasksDashboardPage({
     recentNotes,
     alerts,
     todaysEmployeeNotes,
+    buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
   };
 
   const supervisorProps = {
