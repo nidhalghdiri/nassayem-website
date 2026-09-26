@@ -30,8 +30,8 @@ export default function UnitsStatusSection({
   const getStatusClasses = (status: string) => {
     switch (status) {
       case "ready": return "bg-emerald-50 text-emerald-700 border-emerald-100";
-      case "pending_cleaning": return "bg-orange-50 text-orange-700 border-orange-100";
-      case "pending_audit": return "bg-blue-50 text-blue-700 border-blue-100";
+      case "pending_cleaning": return "bg-blue-50 text-blue-700 border-blue-100";
+      case "pending_audit": return "bg-orange-50 text-orange-700 border-orange-100";
       case "issue": return "bg-red-50 text-red-700 border-red-200";
       default: return "bg-slate-50";
     }
@@ -107,10 +107,10 @@ export default function UnitsStatusSection({
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span> {t.ready}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span> {t.pendingAudit}
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span> {t.pendingAudit}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-500"></span> {t.pendingCleaning}
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> {t.pendingCleaning}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-500"></span> {t.issue}
