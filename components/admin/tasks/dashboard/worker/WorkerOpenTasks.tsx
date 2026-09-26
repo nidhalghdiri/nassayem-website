@@ -21,6 +21,7 @@ export default function WorkerOpenTasks({ isEn, tasks }: { isEn: boolean; tasks:
     hrs: isEn ? "h" : "س",
     mins: isEn ? "m" : "د",
     noTasks: isEn ? "You have no open tasks." : "لا توجد لديك مهام مفتوحة.",
+    rejectedNeedRepeat: isEn ? "Rejected - Needs Repeat" : "مرفوضة - تحتاج إعادة",
   };
 
   const formatLateTime = (timeMins: number) => {
@@ -41,7 +42,7 @@ export default function WorkerOpenTasks({ isEn, tasks }: { isEn: boolean; tasks:
           <div className="text-center py-8 text-slate-500 text-sm">{t.noTasks}</div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} className="border border-slate-100 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-nassayem/30 transition-colors gap-4">
+            <div key={task.id} className={`border ${task.hasRejection ? 'border-red-300 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-nassayem/30 transition-colors gap-4`}>
               
               {/* Task Details */}
               <div className="flex flex-col gap-3 w-full">
@@ -57,9 +58,15 @@ export default function WorkerOpenTasks({ isEn, tasks }: { isEn: boolean; tasks:
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2 py-1 rounded-md">
-                    {t.working}
-                  </span>
+                  {task.hasRejection ? (
+                    <span className="bg-red-100 text-red-700 border border-red-200 text-[11px] font-black px-2 py-1 rounded-md animate-pulse">
+                      {t.rejectedNeedRepeat}
+                    </span>
+                  ) : (
+                    <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2 py-1 rounded-md">
+                      {t.working}
+                    </span>
+                  )}
                   <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2 py-1 rounded-md">
                     {t.buildingMngr} · {task.buildingName}
                   </span>
