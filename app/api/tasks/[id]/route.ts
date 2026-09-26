@@ -129,13 +129,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       }
     }
 
-    // Require at least one photo before completing any task
-    if (COMPLETED_STATUSES.includes(newStatus as never) && task._count.photos === 0) {
-      return NextResponse.json(
-        { error: "You must attach at least one photo before completing this task." },
-        { status: 422 },
-      );
-    }
+    // Require at least one photo before completing any task (TEMPORARILY OPTIONAL)
+    // if (COMPLETED_STATUSES.includes(newStatus as never) && task._count.photos === 0) {
+    //   return NextResponse.json(
+    //     { error: "You must attach at least one photo before completing this task." },
+    //     { status: 422 },
+    //   );
+    // }
 
     updates.status = newStatus;
     activities.push({
