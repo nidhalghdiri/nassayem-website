@@ -5,6 +5,7 @@ import { Image as ImageIcon, CheckCircle2, Clock, Loader2, XCircle } from "lucid
 import { useRouter } from "next/navigation";
 import type { DashboardTask, ReceptionistStats } from "@/lib/reports/receptionistDashboard";
 import { formatTimeAgo } from "../../timeUtils";
+import ImageViewerModal from "../ImageViewerModal";
 
 export default function ReceptionistReviewSection({ 
   isEn,
@@ -134,6 +135,7 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
   const [isApproving, setIsApproving] = useState(false);
   const [note, setNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [photoModalIndex, setPhotoModalIndex] = useState<number | null>(null);
 
   const t = {
     approveBtn: isEn ? "Receptionist Approve" : "اعتماد الاستقبال",
@@ -245,10 +247,10 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
       {/* Photos */}
       <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
         {task.photos.length > 0 ? (
-          task.photos.map((photo: any) => (
-            <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="w-24 h-24 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
+          task.photos.map((photo: any, idx: number) => (
+            <button key={photo.id} onClick={() => setPhotoModalIndex(idx)} className="w-24 h-24 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
               <img src={photo.url} alt="" className="w-full h-full object-cover" />
-            </a>
+            </button>
           ))
         ) : (
           <div className="w-24 h-24 shrink-0 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 border-dashed">
@@ -303,6 +305,15 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
             {t.approveBtn}
           </button>
         </div>
+      )}
+
+      {photoModalIndex !== null && (
+        <ImageViewerModal
+          photos={task.photos}
+          initialIndex={photoModalIndex}
+          onClose={() => setPhotoModalIndex(null)}
+          isEn={isEn}
+        />
       )}
     </div>
   );

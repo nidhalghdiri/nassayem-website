@@ -83,7 +83,7 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
 
   // Translations
   const t = {
-    systemName: isEn ? "Nassayem Staff" : "نسائم عائلة",
+    systemName: isEn ? "Nassayem Staff" : "نسائم صلالة",
     systemDesc: isEn ? "Maintenance Tracking System - Nassayem Staff" : "نظام متابعة الصيانة - موظفي نسائم",
     todayDate: isEn ? new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString("ar-EG", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
     headerTitle: isEn ? "Assign New Task" : "إسناد مهمة جديدة لموظف",

@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2 } from 
 import type { PendingAudit } from "@/lib/reports/supervisorAudit";
 import { useRouter } from "next/navigation";
 import { formatTimeAgo } from "../timeUtils";
+import ImageViewerModal from "./ImageViewerModal";
 
 export default function AuditList({ audits, locale }: { audits: PendingAudit[]; locale: string }) {
   const isEn = locale === "en";
@@ -124,6 +125,7 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
   const [isApproving, setIsApproving] = useState(false);
   const [rating, setRating] = useState(5);
   const [note, setNote] = useState("");
+  const [photoModalIndex, setPhotoModalIndex] = useState<number | null>(null);
 
   const completedTime = new Date(audit.completedAt);
   const now = new Date();
@@ -179,10 +181,10 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
       {/* Photos */}
       <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
         {audit.photos.length > 0 ? (
-          audit.photos.map((photo: any) => (
-            <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
+          audit.photos.map((photo: any, idx: number) => (
+            <button key={photo.id} onClick={() => setPhotoModalIndex(idx)} className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
               <img src={photo.url} alt="" className="w-full h-full object-cover" />
-            </a>
+            </button>
           ))
         ) : (
           <div className="w-20 h-20 shrink-0 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 border-dashed">
@@ -250,6 +252,15 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
           {t.approve}
         </button>
       </div>
+      )}
+
+      {photoModalIndex !== null && (
+        <ImageViewerModal
+          photos={audit.photos}
+          initialIndex={photoModalIndex}
+          onClose={() => setPhotoModalIndex(null)}
+          isEn={isEn}
+        />
       )}
     </div>
   );
