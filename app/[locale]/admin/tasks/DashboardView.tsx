@@ -189,6 +189,8 @@ export default async function TasksDashboardPage({
     alerts,
     todaysEmployeeNotes,
     buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+    unitsStatus: receptionistData.units,
+    readinessTimeline: receptionistData.timeline,
   };
 
   const supervisorProps = {
@@ -201,6 +203,8 @@ export default async function TasksDashboardPage({
     pendingAudits: supervisorAuditData.pendingAudits,
     buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
     todaysEmployeeNotes,
+    unitsStatus: receptionistData.units,
+    readinessTimeline: receptionistData.timeline,
   };
 
   const receptionistProps = {

@@ -12,7 +12,9 @@ import NominationCriteriaReport from "../reports/NominationCriteriaReport";
 import RecentSupervisorNotes, { SupervisorNote } from "../reports/RecentSupervisorNotes";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
+import UnitsStatusSection from "./receptionist/UnitsStatusSection";
 import type { BuildingAuditStatus } from "@/lib/reports/supervisorAudit";
+import type { UnitStatusInfo, TimelineEvent } from "@/lib/reports/receptionistDashboard";
 import { formatTimeAgo } from "../timeUtils";
 
 type Building = {
@@ -49,9 +51,11 @@ type Props = {
   todaysEmployeeNotes: EmployeeNoteProps[];
   trendData?: { date: string; count: number }[];
   buildingAuditStatus: BuildingAuditStatus[];
+  unitsStatus: UnitStatusInfo[];
+  readinessTimeline: TimelineEvent[];
 };
 
-export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus }: Props) {
+export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus, unitsStatus, readinessTimeline }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
@@ -259,9 +263,14 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
           <NominationCriteriaReport employees={topEmployees} locale={locale} />
         </div>
 
-        {/* Building Audit Status (حالة الوحدات) */}
+        {/* Building Audit Status (حالة الوحدات - الجدول) */}
         <div className="mt-8">
           <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
+        </div>
+
+        {/* Units Grid & Timeline (حالة الوحدات - الشبكة) */}
+        <div className="mt-8">
+          <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
         </div>
 
         {/* Employee of the Week Detailed Report */}

@@ -6,7 +6,9 @@ import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import AuditList from "./AuditList";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
+import UnitsStatusSection from "./receptionist/UnitsStatusSection";
 import type { PendingAudit, SupervisorStats, BuildingAuditStatus } from "@/lib/reports/supervisorAudit";
+import type { UnitStatusInfo, TimelineEvent } from "@/lib/reports/receptionistDashboard";
 
 type Props = {
   locale: string;
@@ -18,9 +20,11 @@ type Props = {
   pendingAudits: PendingAudit[];
   buildingAuditStatus: BuildingAuditStatus[];
   todaysEmployeeNotes: EmployeeNoteProps[];
+  unitsStatus: UnitStatusInfo[];
+  readinessTimeline: TimelineEvent[];
 };
 
-export default function SupervisorDashboard({ locale, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus, todaysEmployeeNotes }: Props) {
+export default function SupervisorDashboard({ locale, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus, todaysEmployeeNotes, unitsStatus, readinessTimeline }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -101,6 +105,9 @@ export default function SupervisorDashboard({ locale, buildings, assignableStaff
         </div>
 
       </div>
+
+      {/* Units Grid & Timeline */}
+      <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
 
       {/* Employee Daily Notebook */}
       <div>
