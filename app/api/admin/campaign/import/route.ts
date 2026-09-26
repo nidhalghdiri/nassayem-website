@@ -24,33 +24,67 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Error parsing CSV file', details: errors }, { status: 400 });
     }
 
-    // Map CSV rows to Prisma CampaignCustomer
-    // Assuming CSV columns: netsuiteCustomerId, name, phone, reservationNumber, building, unitType, unitNumber, checkinDate, checkoutDate, stayAmount, nightRate
-    const campaignCustomers = data.map((row: any) => ({
-      campaignId: 'KHAREEF_2026',
-      netsuiteCustomerId: row.netsuiteCustomerId || null,
-      name: row.name || 'Unknown',
-      phone: row.phone ? String(row.phone).trim() : '',
-      reservationNumber: row.reservationNumber || null,
-      building: row.building || null,
-      unitType: row.unitType || null,
-      unitNumber: row.unitNumber || null,
-      checkinDate: row.checkinDate ? new Date(row.checkinDate) : null,
-      checkoutDate: row.checkoutDate ? new Date(row.checkoutDate) : null,
-      stayAmount: row.stayAmount ? parseFloat(row.stayAmount) : null,
-      nightRate: row.nightRate ? parseFloat(row.nightRate) : null,
-      status: 'PENDING' as const, // Uses Prisma CampaignCustomerStatus Enum
-    })).filter((c: any) => c.phone !== ''); // Require a phone number for the WhatsApp campaign
+    // Fetch existing categories and buildings for mapping
+    const existingCategories = await prisma.customerCategory.findMany();
+    const categoryMap = new Map<string, string>();
+    for (const c of existingCategories) {
+      categoryMap.set(c.name.toLowerCase().trim(), c.id);
+    }
+
+    const existingBuildings = await prisma.building.findMany();
+    const buildingMap = new Map<string, string>();
+    for (const b of existingBuildings) {
+      buildingMap.set(b.id, b.shortName || b.nameAr || b.nameEn);
+    }
+
+    // Process rows
+    const campaignCustomers = [];
+    for (const rawRow of data) {
+      const row = rawRow as any;
+      if (!row.phone) continue;
+
+      const categoryName = (row.categoryName || row.category || "").trim();
+      if (!categoryName) {
+        continue; // Skip if no category name
+      }
+
+      let categoryId = categoryMap.get(categoryName.toLowerCase());
+      if (!categoryId) {
+        // Create it on the fly if it doesn't exist
+        const newCat = await prisma.customerCategory.create({
+          data: { name: categoryName, whatsappTemplateId: null }
+        });
+        categoryId = newCat.id;
+        categoryMap.set(categoryName.toLowerCase(), categoryId);
+      }
+
+      const buildingId = row.building || row.buildingId || "";
+      const mappedBuildingName = buildingMap.get(buildingId) || buildingId || null;
+
+      campaignCustomers.push({
+        campaignId: 'KHAREEF_2026',
+        categoryId,
+        netsuiteCustomerId: row.netsuiteCustomerId || null,
+        name: row.name || 'Unknown',
+        phone: String(row.phone).trim(),
+        reservationNumber: row.reservationNumber || null,
+        building: mappedBuildingName,
+        unitType: row.unitType || null,
+        unitNumber: row.unitNumber || null,
+        checkinDate: row.checkinDate ? new Date(row.checkinDate) : null,
+        checkoutDate: row.checkoutDate ? new Date(row.checkoutDate) : null,
+        stayAmount: row.stayAmount ? parseFloat(row.stayAmount) : null,
+        nightRate: row.nightRate ? parseFloat(row.nightRate) : null,
+        status: 'PENDING' as const, 
+      });
+    }
 
     if (campaignCustomers.length === 0) {
-      return NextResponse.json({ error: 'No valid rows with phone numbers found in CSV' }, { status: 400 });
+      return NextResponse.json({ error: 'No valid rows found. Ensure phone and categoryName are provided.' }, { status: 400 });
     }
 
     const result = await prisma.campaignCustomer.createMany({
       data: campaignCustomers,
-      // skipDuplicates: true requires a unique constraint, but we only have ID as unique. 
-      // If we want to prevent duplicates, we might need to check existing by phone + campaignId.
-      // For now, we just insert.
     });
 
     return NextResponse.json({ success: true, count: result.count });
