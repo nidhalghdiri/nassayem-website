@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Image as ImageIcon, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { DashboardTask, ReceptionistStats } from "@/lib/reports/receptionistDashboard";
+import { formatTimeAgo } from "../../timeUtils";
 
 export default function ReceptionistReviewSection({ 
   isEn,
@@ -140,7 +141,6 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
     confirmApprove: isEn ? "Confirm Approval" : "تأكيد الاعتماد",
     cancel: isEn ? "Cancel" : "إلغاء",
     noteOptional: isEn ? "Note (Optional)" : "ملاحظة (اختياري)",
-    minsAgo: isEn ? "mins ago" : "منذ د",
     new: isEn ? "New" : "جديد",
     timeElapsed: isEn ? "Elapsed" : "استغرقت",
     withinSLA: isEn ? "Within deadline" : "ضمن الموعد",
@@ -218,7 +218,7 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
         </div>
         <div className="flex items-center gap-1 text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-lg">
           <Clock className="w-3 h-3" />
-          {isEn ? `${diffMins} ${t.minsAgo}` : `${t.minsAgo} ${diffMins}`}
+          {formatTimeAgo(diffMins, isEn)}
         </div>
       </div>
 
@@ -246,9 +246,9 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
       <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
         {task.photos.length > 0 ? (
           task.photos.map((photo: any) => (
-            <div key={photo.id} className="w-24 h-24 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden">
+            <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="w-24 h-24 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
               <img src={photo.url} alt="" className="w-full h-full object-cover" />
-            </div>
+            </a>
           ))
         ) : (
           <div className="w-24 h-24 shrink-0 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 border-dashed">

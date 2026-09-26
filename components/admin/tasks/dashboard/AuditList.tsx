@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2 } from "lucide-react";
 import type { PendingAudit } from "@/lib/reports/supervisorAudit";
 import { useRouter } from "next/navigation";
+import { formatTimeAgo } from "../timeUtils";
 
 export default function AuditList({ audits, locale }: { audits: PendingAudit[]; locale: string }) {
   const isEn = locale === "en";
@@ -22,7 +23,6 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
     new: isEn ? "New" : "جديد",
     normal: isEn ? "Normal" : "عادي",
     high: isEn ? "High" : "مرتفع",
-    minsAgo: isEn ? "mins ago" : "منذ د",
     noTasks: isEn ? "No tasks awaiting audit." : "لا توجد مهام بانتظار التدقيق.",
     allBuildings: isEn ? "All Buildings" : "جميع المباني",
     confirmApprove: isEn ? "Confirm Approval" : "تأكيد الاعتماد",
@@ -152,7 +152,7 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
         </div>
         <div className="flex items-center gap-1 text-xs text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded-lg">
           <Clock className="w-3 h-3" />
-          {isEn ? `${diffMins} ${t.minsAgo}` : `${t.minsAgo} ${diffMins}`}
+          {formatTimeAgo(diffMins, isEn)}
         </div>
       </div>
 
@@ -180,9 +180,9 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
       <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
         {audit.photos.length > 0 ? (
           audit.photos.map((photo: any) => (
-            <div key={photo.id} className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden">
+            <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="w-20 h-20 shrink-0 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden hover:opacity-90 transition-opacity">
               <img src={photo.url} alt="" className="w-full h-full object-cover" />
-            </div>
+            </a>
           ))
         ) : (
           <div className="w-20 h-20 shrink-0 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 border-dashed">

@@ -247,12 +247,12 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
           </div>
 
           {/* Nomination Criteria Report */}
-          <NominationCriteriaReport employees={topEmployees} />
+          <NominationCriteriaReport employees={topEmployees} locale={locale} />
         </div>
 
         {/* Employee of the Week Detailed Report */}
         <div className="mt-8 -mx-4 md:-mx-8">
-          <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} />
+          <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} locale={locale} />
         </div>
 
         {/* Bottom Section: Notes & Alerts */}

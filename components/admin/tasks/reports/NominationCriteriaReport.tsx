@@ -6,9 +6,11 @@ import { Target, Clock, Star, Zap, UserCheck } from "lucide-react";
 
 interface Props {
   employees: LeaderboardEmployee[];
+  locale?: string;
 }
 
-export default function NominationCriteriaReport({ employees }: Props) {
+export default function NominationCriteriaReport({ employees, locale = "ar" }: Props) {
+  const isEn = locale === "en";
   if (!employees || employees.length === 0) return null;
 
   const getBest = (metric: keyof LeaderboardEmployee) => {
@@ -32,8 +34,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
   const criteria = [
     {
       id: 1,
-      title: "حجم الإنتاجية",
-      description: "عدد المهام مقارنة بالفريق",
+      title: isEn ? "Productivity" : "حجم الإنتاجية",
+      description: isEn ? "Number of tasks compared to team" : "عدد المهام مقارنة بالفريق",
       bestName: bestProductivity.name,
       bestScore: (bestProductivity.productivity as any).score,
       max: 30,
@@ -44,8 +46,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
     },
     {
       id: 2,
-      title: "الالتزام بالوقت",
-      description: "المهام المنجزة في الموعد",
+      title: isEn ? "Time Adherence" : "الالتزام بالوقت",
+      description: isEn ? "Tasks completed on time" : "المهام المنجزة في الموعد",
       bestName: bestTime.name,
       bestScore: (bestTime.timeAdherence as any).score,
       max: 30,
@@ -56,8 +58,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
     },
     {
       id: 3,
-      title: "جودة العمل",
-      description: "المهام بدون ملاحظات",
+      title: isEn ? "Work Quality" : "جودة العمل",
+      description: isEn ? "Tasks without notes" : "المهام بدون ملاحظات",
       bestName: bestQuality.name,
       bestScore: (bestQuality.workQuality as any).score,
       max: 20,
@@ -68,8 +70,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
     },
     {
       id: 4,
-      title: "التوثيق والاستجابة",
-      description: "رفع الصور وسرعة التفاعل",
+      title: isEn ? "Documentation & Response" : "التوثيق والاستجابة",
+      description: isEn ? "Uploading photos & fast interaction" : "رفع الصور وسرعة التفاعل",
       bestName: bestDoc.name,
       bestScore: (bestDoc.docAndResponse as any).score,
       max: 10,
@@ -80,8 +82,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
     },
     {
       id: 5,
-      title: "تقييم المشرف",
-      description: "الملاحظات اليومية",
+      title: isEn ? "Supervisor Evaluation" : "تقييم المشرف",
+      description: isEn ? "Daily notes" : "الملاحظات اليومية",
       bestName: bestSupervisor.name,
       bestScore: (bestSupervisor.supervisorEval as any).score,
       max: 10,
@@ -96,8 +98,8 @@ export default function NominationCriteriaReport({ employees }: Props) {
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">معايير ترشيح موظف الأسبوع</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium">أفضل الموظفين في كل معيار (من إجمالي 100 نقطة)</p>
+          <h2 className="text-lg font-bold text-slate-800">{isEn ? "Employee of the Week Nomination Criteria" : "معايير ترشيح موظف الأسبوع"}</h2>
+          <p className="text-xs text-slate-500 mt-1 font-medium">{isEn ? "Best employees in each criterion (out of 100 points)" : "أفضل الموظفين في كل معيار (من إجمالي 100 نقطة)"}</p>
         </div>
       </div>
       

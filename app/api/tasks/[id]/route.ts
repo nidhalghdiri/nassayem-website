@@ -72,6 +72,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     where: { id },
     include: {
       assignedTo: { select: { role: true } },
+      _count: { select: { photos: true } }
     },
   });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -126,6 +127,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           { status: 422 },
         );
       }
+    }
+
+    // Require at least one photo before completing any task
+    if (COMPLETED_STATUSES.includes(newStatus as never) && task._count.photos === 0) {
+      return NextResponse.json(
+        { error: "You must attach at least one photo before completing this task." },
+        { status: 422 },
+      );
     }
 
     updates.status = newStatus;
