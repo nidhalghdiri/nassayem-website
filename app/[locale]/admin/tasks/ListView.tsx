@@ -61,8 +61,7 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
-  const [tasks, buildings, staffUsers] = await Promise.all([
-    prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
       where: {
         ...visibilityFilter,
         ...(type ? { type } : {}),
@@ -101,8 +100,9 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         _count: { select: { notes: true, photos: true, subTasks: true } },
       },
       orderBy: [{ createdAt: "desc" }],
-    }),
-    prisma.building.findMany({
+    });
+
+  const buildings = await prisma.building.findMany({
       select: { 
         id: true, 
         nameEn: true, 
@@ -111,12 +111,12 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
         buildingUnits: { select: { id: true, name: true } }
       },
       orderBy: { nameEn: "asc" },
-    }),
-    prisma.adminUser.findMany({
+    });
+
+  const staffUsers = await prisma.adminUser.findMany({
       select: { id: true, name: true, email: true, role: true },
       orderBy: { name: "asc" },
-    }),
-  ]);
+    });
 
   // Manager-only stats (across all tasks, not just filtered)
   let stats: {
@@ -126,16 +126,14 @@ export default async function AdminTasksPage({ params, searchParams }: PageProps
   } | null = null;
 
   if (canSeeAll) {
-    const [total, active, overdue] = await Promise.all([
-      prisma.task.count({ where: { status: { notIn: TERMINAL_STATUSES } } }),
-      prisma.task.count({ where: { status: { in: ACTIVE_STATUSES } } }),
-      prisma.task.count({
+    const total = await prisma.task.count({ where: { status: { notIn: TERMINAL_STATUSES } } });
+    const active = await prisma.task.count({ where: { status: { in: ACTIVE_STATUSES } } });
+    const overdue = await prisma.task.count({
         where: {
           dueDate: { lt: new Date() },
           status: { notIn: TERMINAL_STATUSES },
         },
-      }),
-    ]);
+      });
     stats = { total, active, overdue };
   }
 

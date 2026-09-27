@@ -43,110 +43,95 @@ export default async function TasksDashboardPage({
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
-  const [
-    totalAssigned, 
-    active, 
-    completed, 
-    delayed, 
-    waitingAudit,
-    allCompletedTasks,
-    trendTasksRaw,
-    buildings, 
-    staffUsers, 
-    topEmployees, 
-    lastWeekEmployees,
-    buildingPerformanceRaw,
-    recentNotes,
-    supervisorAuditData,
-    receptionistData,
-    workerData,
-    todaysEmployeeNotes
-  ] = await Promise.all([
-    prisma.task.count({ where: { ...visibilityFilter } }),
-    prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
-    prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
-    prisma.task.count({
-      where: {
-        dueDate: { lt: new Date() },
-        status: { notIn: TERMINAL_STATUSES },
-        ...visibilityFilter,
-      },
-    }),
-    prisma.task.count({
-      where: {
-        status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] },
-        ...visibilityFilter,
-      },
-    }),
-    prisma.task.findMany({
-      where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter },
-      select: { updatedAt: true, dueDate: true }
-    }),
-    (() => {
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-      fourteenDaysAgo.setHours(0,0,0,0);
-      return prisma.task.findMany({
-        where: {
-          status: { in: TERMINAL_STATUSES },
-          updatedAt: { gte: fourteenDaysAgo },
-          ...visibilityFilter
-        },
-        select: { updatedAt: true }
-      });
-    })(),
-    prisma.building.findMany({
-      select: {
-        id: true,
-        nameEn: true,
-        nameAr: true,
-        shortName: true,
-        buildingUnits: { select: { id: true, name: true } },
-      },
-      orderBy: { nameEn: "asc" },
-    }),
-    prisma.adminUser.findMany({
-      select: { id: true, name: true, email: true, role: true },
-      orderBy: { name: "asc" },
-    }),
-    getEmployeeRanking(7, 0),
-    getEmployeeRanking(7, 7), // last week
-    getBuildingPerformance(30),
-    prisma.taskNote.findMany({
-      where: {
-        user: { role: { in: ["SUPERVISOR", "MANAGER"] } }
-      },
-      include: {
-        user: { select: { name: true, role: true } },
-        task: { 
-          select: { 
-            title: true, 
-            status: true,
-            building: { select: { nameEn: true, nameAr: true } }
-          } 
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    getSupervisorAuditData(adminUser.id, adminUser.role),
-    getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
-    getWorkerDashboardData(
-      (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
-        ? selectedWorkerId 
-        : adminUser.id
-    ),
-    prisma.employeeNote.findMany({
-      where: {
-        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-      },
-      include: {
-        employee: { select: { name: true } },
-        author: { select: { name: true, role: true } }
-      },
-      orderBy: { createdAt: "desc" },
-    })
-  ]);
+  const totalAssigned = await prisma.task.count({ where: { ...visibilityFilter } });
+  const active = await prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } });
+  const completed = await prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } });
+  const delayed = await prisma.task.count({
+    where: {
+      dueDate: { lt: new Date() },
+      status: { notIn: TERMINAL_STATUSES },
+      ...visibilityFilter,
+    },
+  });
+  const waitingAudit = await prisma.task.count({
+    where: {
+      status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] },
+      ...visibilityFilter,
+    },
+  });
+  const allCompletedTasks = await prisma.task.findMany({
+    where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter },
+    select: { updatedAt: true, dueDate: true }
+  });
+
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  fourteenDaysAgo.setHours(0,0,0,0);
+  const trendTasksRaw = await prisma.task.findMany({
+    where: {
+      status: { in: TERMINAL_STATUSES },
+      updatedAt: { gte: fourteenDaysAgo },
+      ...visibilityFilter
+    },
+    select: { updatedAt: true }
+  });
+
+  const buildings = await prisma.building.findMany({
+    select: {
+      id: true,
+      nameEn: true,
+      nameAr: true,
+      shortName: true,
+      buildingUnits: { select: { id: true, name: true } },
+    },
+    orderBy: { nameEn: "asc" },
+  });
+  
+  const staffUsers = await prisma.adminUser.findMany({
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { name: "asc" },
+  });
+  
+  const topEmployees = await getEmployeeRanking(7, 0);
+  const lastWeekEmployees = await getEmployeeRanking(7, 7); // last week
+  const buildingPerformanceRaw = await getBuildingPerformance(30);
+  
+  const recentNotes = await prisma.taskNote.findMany({
+    where: {
+      user: { role: { in: ["SUPERVISOR", "MANAGER"] } }
+    },
+    include: {
+      user: { select: { name: true, role: true } },
+      task: { 
+        select: { 
+          title: true, 
+          status: true,
+          building: { select: { nameEn: true, nameAr: true } }
+        } 
+      }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+  });
+
+  const supervisorAuditData = await getSupervisorAuditData(adminUser.id, adminUser.role);
+  const receptionistData = await getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL");
+  const workerData = await getWorkerDashboardData(
+    (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
+      ? selectedWorkerId 
+      : adminUser.id
+  );
+
+  const todaysEmployeeNotes = await prisma.employeeNote.findMany({
+    where: {
+      createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+    },
+    include: {
+      employee: { select: { name: true } },
+      author: { select: { name: true, role: true } }
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
   const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
   const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
