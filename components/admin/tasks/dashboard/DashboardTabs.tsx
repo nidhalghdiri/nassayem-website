@@ -24,12 +24,17 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
   const searchParams = useSearchParams();
   const isEn = locale === "en";
 
-  // Default tab based on role, or from URL search params
-  const defaultTab = searchParams.get("tab") || (
-    currentUserRole === "MANAGER" ? "manager" :
-    currentUserRole === "SUPERVISOR" ? "supervisor" :
-    currentUserRole === "RECEPTIONIST" ? "receptionist" : "worker"
-  );
+  let availableTabIds = ["worker"];
+  if (currentUserRole === "RECEPTIONIST") availableTabIds = ["receptionist", "worker"];
+  if (currentUserRole === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
+  if (currentUserRole === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
+
+  const fallbackTab = currentUserRole === "MANAGER" ? "manager" :
+                      currentUserRole === "SUPERVISOR" ? "supervisor" :
+                      currentUserRole === "RECEPTIONIST" ? "receptionist" : "worker";
+
+  const requestedTab = searchParams.get("tab");
+  const defaultTab = requestedTab && availableTabIds.includes(requestedTab) ? requestedTab : fallbackTab;
   
   const [activeTab, setActiveTab] = useState(defaultTab);
 
@@ -38,11 +43,11 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
     { id: "supervisor", labelEn: "Supervisor Dashboard", labelAr: "لوحة تحكم المشرف", icon: <ClipboardCheck className="w-4 h-4" /> },
     { id: "receptionist", labelEn: "Receptionist Dashboard", labelAr: "لوحة تحكم الاستقبال", icon: <Users className="w-4 h-4" /> },
     { id: "worker", labelEn: "Worker Dashboard", labelAr: "لوحة تحكم العامل", icon: <Wrench className="w-4 h-4" /> },
-  ];
+  ].filter(tab => availableTabIds.includes(tab.id));
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tabId);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
