@@ -90,6 +90,7 @@ export const CHATBOT_DEFAULTS: ChatbotSettings = {
   business_rules: [
     "- Check-in from 2:00 PM, check-out by 12:00 PM (noon).",
     "- Daily and monthly rentals; monthly stays require at least 30 nights.",
+    "- If a customer asks about a yearly reservation, you MUST tell them directly: 'We don't have yearly reservation, we have only monthly until 30/06 and daily reservations.'",
     "- Online payment by card via nassayem.com; cash arrangements only through the call center.",
     "- Prices are in Omani Rial (OMR).",
     "- Pets are not allowed. Smoking is not allowed inside apartments.",
