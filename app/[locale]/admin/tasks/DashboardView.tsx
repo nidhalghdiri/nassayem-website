@@ -45,7 +45,7 @@ export default async function TasksDashboardPage({
 
   // 1. Determine active tab to conditionally load only required data
   let availableTabIds = ["worker"];
-  if (adminUser.role === "RECEPTIONIST") availableTabIds = ["receptionist", "worker"];
+  if (adminUser.role === "RECEPTIONIST") availableTabIds = ["receptionist"];
   if (adminUser.role === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
   if (adminUser.role === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
 

@@ -26,7 +26,7 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
   const [isPending, startTransition] = useTransition();
 
   let availableTabIds = ["worker"];
-  if (currentUserRole === "RECEPTIONIST") availableTabIds = ["receptionist", "worker"];
+  if (currentUserRole === "RECEPTIONIST") availableTabIds = ["receptionist"];
   if (currentUserRole === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
   if (currentUserRole === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
 
