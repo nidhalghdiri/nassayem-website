@@ -55,6 +55,16 @@ export default async function TasksDashboardPage({
 
   const activeTab = tab && availableTabIds.includes(tab) ? tab : fallbackTab;
 
+  // Track assigned buildings for Receptionists to scope staff and buildings dropdowns
+  let assignedBuildingIds: string[] | null = null;
+  if (adminUser.role === "RECEPTIONIST") {
+    const assigned = await prisma.adminUserBuilding.findMany({
+      where: { adminUserId: adminUser.id },
+      select: { buildingId: true },
+    });
+    assignedBuildingIds = assigned.map(b => b.buildingId);
+  }
+
   let directorProps: any = null;
   let supervisorProps: any = null;
   let receptionistProps: any = null;
@@ -62,6 +72,7 @@ export default async function TasksDashboardPage({
 
   // Shared fetch functions
   const getBuildings = () => prisma.building.findMany({
+    where: assignedBuildingIds ? { id: { in: assignedBuildingIds } } : {},
     select: {
       id: true,
       nameEn: true,
@@ -73,6 +84,7 @@ export default async function TasksDashboardPage({
   });
 
   const getStaffUsers = () => prisma.adminUser.findMany({
+    where: assignedBuildingIds ? { assignedBuildings: { some: { buildingId: { in: assignedBuildingIds } } } } : {},
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
   });

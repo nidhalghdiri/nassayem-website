@@ -94,25 +94,26 @@ export async function POST(request: Request) {
   }
 
   const { type, title, buildingId, dueDate } = body;
-  // Self-only creators always assign to themselves — ignore any submitted value.
-  const assignedToId = selfOnly ? adminUser.id : (body.assignedToId as string);
-  if (!type || !title || !buildingId || !assignedToId || !dueDate) {
+  const taskBuildingId = buildingId as string;
+  const taskAssignedToId = selfOnly ? adminUser.id : (body.assignedToId as string);
+  if (!type || !title || !taskBuildingId || !taskAssignedToId || !dueDate) {
     return NextResponse.json(
       { error: "type, title, buildingId, assignedToId, and dueDate are required" },
       { status: 400 },
     );
   }
 
-  // Verify the assignee exists and the caller is allowed to assign to their role
+  // Verify the assignee exists
   const assignee = await prisma.adminUser.findUnique({
-    where: { id: assignedToId },
+    where: { id: taskAssignedToId },
   });
   if (!assignee) {
     return NextResponse.json({ error: "Assignee not found" }, { status: 404 });
   }
-  // Self-only creators bypass the role matrix (they can only target themselves).
+
+  // Self-only creators bypass the role matrix
   if (!selfOnly) {
-    const allowedRoles: StaffRole[] = ASSIGNABLE_ROLES[adminUser.role];
+    const allowedRoles: StaffRole[] = ASSIGNABLE_ROLES[adminUser.role] || [];
     if (!allowedRoles.includes(assignee.role)) {
       return NextResponse.json(
         { error: `Your role cannot assign tasks to ${assignee.role}` },
@@ -121,19 +122,48 @@ export async function POST(request: Request) {
     }
   }
 
+  // Enforce building scope for Receptionists
+  if (adminUser.role === "RECEPTIONIST") {
+    const isAssignedToBuilding = await prisma.adminUserBuilding.findUnique({
+      where: {
+        adminUserId_buildingId: {
+          adminUserId: adminUser.id,
+          buildingId: taskBuildingId,
+        }
+      }
+    });
+
+    if (!isAssignedToBuilding) {
+      return NextResponse.json({ error: "You are not authorized to create tasks in this building" }, { status: 403 });
+    }
+
+    const assigneeInBuilding = await prisma.adminUserBuilding.findUnique({
+      where: {
+        adminUserId_buildingId: {
+          adminUserId: taskAssignedToId,
+          buildingId: taskBuildingId,
+        }
+      }
+    });
+
+    if (!assigneeInBuilding) {
+      return NextResponse.json({ error: "The selected assignee is not assigned to this building" }, { status: 403 });
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       type:         type as TaskType,
       title:        title as string,
       description:  (body.description as string) ?? null,
-      buildingId:   buildingId as string,
+      buildingId:   taskBuildingId,
       unitId:       (body.unitId as string) ?? null,
       unitNumber:   (body.unitNumber as string) ?? null,
       cleaningType: (body.cleaningType as CleaningType) ?? null,
       priority:     (body.priority as TaskPriority) ?? "MEDIUM",
       status:       getInitialStatus(type as TaskType),
       createdById:  adminUser.id,
-      assignedToId,
+      assignedToId: taskAssignedToId,
       dueDate:      new Date(dueDate as string),
       parentTaskId: (body.parentTaskId as string) ?? null,
     },
