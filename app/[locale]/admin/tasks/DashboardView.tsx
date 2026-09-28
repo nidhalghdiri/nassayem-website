@@ -184,14 +184,15 @@ export default async function TasksDashboardPage({
       finalSelectedBuilding = assignedBuildingIds[0];
     }
 
-    const [buildings, receptionistData] = await Promise.all([
+    const [buildings, assignableStaff, receptionistData] = await Promise.all([
       getBuildings(),
+      getStaffUsers(),
       getReceptionistDashboardData(adminUser.id, finalSelectedBuilding, assignedBuildingIds)
     ]);
     
     receptionistProps = {
       locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      buildings, data: receptionistData, selectedBuilding: finalSelectedBuilding,
+      buildings, assignableStaff, data: receptionistData, selectedBuilding: finalSelectedBuilding,
     };
   } else if (activeTab === "worker") {
     const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
