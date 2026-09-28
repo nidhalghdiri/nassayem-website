@@ -56,24 +56,73 @@ const ACTIVE_STATUSES: TaskStatus[] = ["ASSIGNED", "CLEANING_STARTED", "INSPECTI
 export async function getReceptionistDashboardData(receptionistId: string, selectedBuildingId: string | null): Promise<ReceptionistDashboardData> {
   const buildingFilter = selectedBuildingId && selectedBuildingId !== "ALL" ? { buildingId: selectedBuildingId } : {};
 
-  // 1. Fetch Terminal Tasks for Stats & Review Lists
-  const rawTerminalTasks = await prisma.task.findMany({
-    where: {
-      ...buildingFilter,
-      status: { in: TERMINAL_STATUSES },
-    },
-    include: {
-      building: { select: { nameEn: true, nameAr: true } },
-      unit: { select: { name: true } },
-      assignedTo: { select: { name: true, role: true } },
-      photos: { select: { id: true, photoUrl: true } },
-      activities: {
-        where: { action: { in: ["approved", "rejected", "approved_receptionist", "rejected_receptionist", "status_changed"] } },
-        orderBy: { createdAt: "desc" },
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [rawTerminalTasks, rawLiveTasks, staffPerformance, dbUnits, todayTasks] = await Promise.all([
+    // 1. Fetch Terminal Tasks for Stats & Review Lists
+    prisma.task.findMany({
+      where: {
+        ...buildingFilter,
+        status: { in: TERMINAL_STATUSES },
       },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      include: {
+        building: { select: { nameEn: true, nameAr: true } },
+        unit: { select: { name: true } },
+        assignedTo: { select: { name: true, role: true } },
+        photos: { select: { id: true, photoUrl: true } },
+        activities: {
+          where: { action: { in: ["approved", "rejected", "approved_receptionist", "rejected_receptionist", "status_changed"] } },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+
+    // 2. Fetch Live Tasks (Active Statuses)
+    prisma.task.findMany({
+      where: {
+        ...buildingFilter,
+        status: { in: ACTIVE_STATUSES },
+      },
+      include: {
+        building: { select: { nameEn: true, nameAr: true } },
+        unit: { select: { name: true } },
+        assignedTo: { select: { name: true, role: true } },
+        photos: { select: { id: true, photoUrl: true } }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50
+    }),
+
+    // 3. Staff Performance Leaderboard
+    getEmployeeRanking(7, 0, selectedBuildingId === "ALL" ? undefined : selectedBuildingId || undefined),
+
+    // 4. Units Status Grid
+    prisma.buildingUnit.findMany({
+      where: buildingFilter,
+      include: {
+        tasks: {
+          where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
+          select: { status: true, priority: true }
+        }
+      },
+      orderBy: { name: "asc" }
+    }),
+
+    // 5. Today's Readiness Timeline
+    prisma.task.findMany({
+      where: {
+        ...buildingFilter,
+        updatedAt: { gte: today }
+      },
+      include: {
+        unit: { select: { name: true } }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 15
+    })
+  ]);
 
   const pendingReviewTasks: DashboardTask[] = [];
   const approvedPendingSupervisorTasks: DashboardTask[] = [];
@@ -123,22 +172,6 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
     }
   }
 
-  // 2. Fetch Live Tasks (Active Statuses)
-  const rawLiveTasks = await prisma.task.findMany({
-    where: {
-      ...buildingFilter,
-      status: { in: ACTIVE_STATUSES },
-    },
-    include: {
-      building: { select: { nameEn: true, nameAr: true } },
-      unit: { select: { name: true } },
-      assignedTo: { select: { name: true, role: true } },
-      photos: { select: { id: true, photoUrl: true } }
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 50
-  });
-
   const liveTasks: DashboardTask[] = rawLiveTasks.map(t => ({
     id: t.id,
     buildingName: t.building.nameAr || t.building.nameEn,
@@ -154,21 +187,6 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
     startedAt: null, // simplification
     photos: []
   }));
-
-  // 3. Staff Performance Leaderboard
-  const staffPerformance = await getEmployeeRanking(7, 0, selectedBuildingId === "ALL" ? undefined : selectedBuildingId || undefined);
-
-  // 4. Units Status Grid
-  const dbUnits = await prisma.buildingUnit.findMany({
-    where: buildingFilter,
-    include: {
-      tasks: {
-        where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
-        select: { status: true, priority: true }
-      }
-    },
-    orderBy: { name: "asc" }
-  });
 
   const units: UnitStatusInfo[] = dbUnits.map(u => {
     let status: UnitStatusInfo["status"] = "ready";
@@ -194,22 +212,6 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
       status,
       icon
     };
-  });
-
-  // 5. Today's Readiness Timeline
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const todayTasks = await prisma.task.findMany({
-    where: {
-      ...buildingFilter,
-      updatedAt: { gte: today }
-    },
-    include: {
-      unit: { select: { name: true } }
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 15
   });
 
   const timeline: TimelineEvent[] = todayTasks.map(t => {

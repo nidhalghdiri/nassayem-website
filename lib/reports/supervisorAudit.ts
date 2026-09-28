@@ -118,20 +118,39 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
   }
 
   // 2. Stats Calculation
-  // First-time acceptance rate:
-  // Look at tasks with at least one "approved" activity.
-  // How many of them have ZERO "rejected" activities?
-  const auditedTasks = await prisma.task.findMany({
-    where: {
-      ...buildingFilter,
-      activities: { some: { action: "approved" } },
-    },
-    include: {
-      activities: {
-        where: { action: { in: ["approved", "rejected"] } }
+  const [auditedTasks, recentStartedTasks, buildings] = await Promise.all([
+    // First-time acceptance rate:
+    prisma.task.findMany({
+      where: {
+        ...buildingFilter,
+        activities: { some: { action: "approved" } },
+      },
+      include: {
+        activities: {
+          where: { action: { in: ["approved", "rejected"] } }
+        }
       }
-    }
-  });
+    }),
+    
+    // Average response time: Time between task assigned and first activity
+    prisma.task.findMany({
+      where: {
+        ...buildingFilter,
+        activities: { some: { action: "status_changed", details: { contains: "STARTED" } } }
+      },
+      include: {
+        activities: { orderBy: { createdAt: "asc" } }
+      },
+      take: 50,
+      orderBy: { createdAt: "desc" }
+    }),
+    
+    // Buildings list for Audit Status
+    prisma.building.findMany({
+      where: buildingFilter,
+      select: { id: true, nameEn: true, nameAr: true },
+    })
+  ]);
 
   let firstTimeAccepted = 0;
   for (const t of auditedTasks) {
@@ -141,20 +160,6 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
   const firstTimeAcceptanceRate = auditedTasks.length > 0 
     ? Math.round((firstTimeAccepted / auditedTasks.length) * 100) 
     : 100;
-
-  // Average response time: Time between task assigned and first activity (like status_changed to STARTED)
-  // For simplicity, let's just mock it or calculate a rough estimate based on recent tasks
-  const recentStartedTasks = await prisma.task.findMany({
-    where: {
-      ...buildingFilter,
-      activities: { some: { action: "status_changed", details: { contains: "STARTED" } } }
-    },
-    include: {
-      activities: { orderBy: { createdAt: "asc" } }
-    },
-    take: 50,
-    orderBy: { createdAt: "desc" }
-  });
 
   let totalMins = 0;
   let responseCount = 0;
@@ -172,10 +177,6 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
 
   // 3. Building Audit Status (Late Buildings)
   // Define "late" as no approved tasks or inspections in the last 24 hours.
-  const buildings = await prisma.building.findMany({
-    where: buildingFilter,
-    select: { id: true, nameEn: true, nameAr: true },
-  });
 
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -183,16 +184,21 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
   const buildingAuditStatus: BuildingAuditStatus[] = [];
   let lateBuildingsCount = 0;
 
-  for (const b of buildings) {
-    // Find the latest approved activity in this building
-    const latestAudit = await prisma.taskActivity.findFirst({
-      where: {
-        action: "approved",
-        task: { buildingId: b.id },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+  // Run all latest audit queries in parallel
+  const latestAudits = await Promise.all(
+    buildings.map(b =>
+      prisma.taskActivity.findFirst({
+        where: {
+          action: "approved",
+          task: { buildingId: b.id },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    )
+  );
 
+  buildings.forEach((b, index) => {
+    const latestAudit = latestAudits[index];
     const isLate = !latestAudit || latestAudit.createdAt < oneDayAgo;
     if (isLate) lateBuildingsCount++;
 
@@ -202,7 +208,7 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       lastAuditAt: latestAudit?.createdAt || null,
       isLate,
     });
-  }
+  });
   
   // Sort buildings: late first, then by lastAuditAt descending
   buildingAuditStatus.sort((a, b) => {

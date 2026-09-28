@@ -16,7 +16,7 @@ export default async function TasksDashboardPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ tab?: string; building?: string; worker?: string }>;
 }) {
-  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId }, adminUser] = await Promise.all([
+  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId, tab }, adminUser] = await Promise.all([
     params,
     searchParams,
     getCurrentAdminUser(),
@@ -43,40 +43,25 @@ export default async function TasksDashboardPage({
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
-  const totalAssigned = await prisma.task.count({ where: { ...visibilityFilter } });
-  const active = await prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } });
-  const completed = await prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } });
-  const delayed = await prisma.task.count({
-    where: {
-      dueDate: { lt: new Date() },
-      status: { notIn: TERMINAL_STATUSES },
-      ...visibilityFilter,
-    },
-  });
-  const waitingAudit = await prisma.task.count({
-    where: {
-      status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] },
-      ...visibilityFilter,
-    },
-  });
-  const allCompletedTasks = await prisma.task.findMany({
-    where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter },
-    select: { updatedAt: true, dueDate: true }
-  });
+  // 1. Determine active tab to conditionally load only required data
+  let availableTabIds = ["worker"];
+  if (adminUser.role === "RECEPTIONIST") availableTabIds = ["receptionist", "worker"];
+  if (adminUser.role === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
+  if (adminUser.role === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
 
-  const fourteenDaysAgo = new Date();
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-  fourteenDaysAgo.setHours(0,0,0,0);
-  const trendTasksRaw = await prisma.task.findMany({
-    where: {
-      status: { in: TERMINAL_STATUSES },
-      updatedAt: { gte: fourteenDaysAgo },
-      ...visibilityFilter
-    },
-    select: { updatedAt: true }
-  });
+  const fallbackTab = adminUser.role === "MANAGER" ? "manager" :
+                      adminUser.role === "SUPERVISOR" ? "supervisor" :
+                      adminUser.role === "RECEPTIONIST" ? "receptionist" : "worker";
 
-  const buildings = await prisma.building.findMany({
+  const activeTab = tab && availableTabIds.includes(tab) ? tab : fallbackTab;
+
+  let directorProps: any = null;
+  let supervisorProps: any = null;
+  let receptionistProps: any = null;
+  let workerProps: any = null;
+
+  // Shared fetch functions
+  const getBuildings = () => prisma.building.findMany({
     select: {
       id: true,
       nameEn: true,
@@ -86,129 +71,126 @@ export default async function TasksDashboardPage({
     },
     orderBy: { nameEn: "asc" },
   });
-  
-  const staffUsers = await prisma.adminUser.findMany({
+
+  const getStaffUsers = () => prisma.adminUser.findMany({
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
   });
-  
-  const topEmployees = await getEmployeeRanking(7, 0);
-  const lastWeekEmployees = await getEmployeeRanking(7, 7); // last week
-  const buildingPerformanceRaw = await getBuildingPerformance(30);
-  
-  const recentNotes = await prisma.taskNote.findMany({
-    where: {
-      user: { role: { in: ["SUPERVISOR", "MANAGER"] } }
-    },
-    include: {
-      user: { select: { name: true, role: true } },
-      task: { 
-        select: { 
-          title: true, 
-          status: true,
-          building: { select: { nameEn: true, nameAr: true } }
-        } 
-      }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 6,
-  });
 
-  const supervisorAuditData = await getSupervisorAuditData(adminUser.id, adminUser.role);
-  const receptionistData = await getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL");
-  const workerData = await getWorkerDashboardData(
-    (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
-      ? selectedWorkerId 
-      : adminUser.id
-  );
+  // 2. Fetch data in parallel for the active tab only
+  if (activeTab === "manager") {
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    fourteenDaysAgo.setHours(0,0,0,0);
 
-  const todaysEmployeeNotes = await prisma.employeeNote.findMany({
-    where: {
-      createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-    },
-    include: {
-      employee: { select: { name: true } },
-      author: { select: { name: true, role: true } }
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    const [
+      totalAssigned, active, completed, delayed, waitingAudit, 
+      allCompletedTasks, trendTasksRaw, buildings, staffUsers, 
+      topEmployees, lastWeekEmployees, buildingPerformanceRaw, 
+      recentNotes, supervisorAuditData, receptionistData, todaysEmployeeNotes
+    ] = await Promise.all([
+      prisma.task.count({ where: { ...visibilityFilter } }),
+      prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
+      prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
+      prisma.task.count({ where: { dueDate: { lt: new Date() }, status: { notIn: TERMINAL_STATUSES }, ...visibilityFilter } }),
+      prisma.task.count({ where: { status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] }, ...visibilityFilter } }),
+      prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter }, select: { updatedAt: true, dueDate: true } }),
+      prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, updatedAt: { gte: fourteenDaysAgo }, ...visibilityFilter }, select: { updatedAt: true } }),
+      getBuildings(),
+      getStaffUsers(),
+      getEmployeeRanking(7, 0),
+      getEmployeeRanking(7, 7),
+      getBuildingPerformance(30),
+      prisma.taskNote.findMany({
+        where: { user: { role: { in: ["SUPERVISOR", "MANAGER"] } } },
+        include: { user: { select: { name: true, role: true } }, task: { select: { title: true, status: true, building: { select: { nameEn: true, nameAr: true } } } } },
+        orderBy: { createdAt: "desc" }, take: 6,
+      }),
+      getSupervisorAuditData(adminUser.id, adminUser.role),
+      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
+      prisma.employeeNote.findMany({
+        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+        include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    ]);
 
-  const buildingPerformance = buildingPerformanceRaw as any; // Type workaround if needed
-  const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
+    const buildingPerformance = buildingPerformanceRaw as any;
+    const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
 
-  let onTime = 0;
-  for (const t of allCompletedTasks) {
-    if (t.updatedAt <= t.dueDate) onTime++;
-  }
-  const timeAdherence = allCompletedTasks.length > 0 ? Math.round((onTime / allCompletedTasks.length) * 100) : 100;
-
-  const trendMap = new Map<string, number>();
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(now.getDate() - i);
-    trendMap.set(d.toISOString().split('T')[0], 0);
-  }
-  for (const t of trendTasksRaw) {
-    const dStr = t.updatedAt.toISOString().split('T')[0];
-    if (trendMap.has(dStr)) {
-      trendMap.set(dStr, trendMap.get(dStr)! + 1);
+    let onTime = 0;
+    for (const t of allCompletedTasks) {
+      if (t.updatedAt <= t.dueDate) onTime++;
     }
+    const timeAdherence = allCompletedTasks.length > 0 ? Math.round((onTime / allCompletedTasks.length) * 100) : 100;
+
+    const trendMap = new Map<string, number>();
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      trendMap.set(d.toISOString().split('T')[0], 0);
+    }
+    for (const t of trendTasksRaw) {
+      const dStr = t.updatedAt.toISOString().split('T')[0];
+      if (trendMap.has(dStr)) {
+        trendMap.set(dStr, trendMap.get(dStr)! + 1);
+      }
+    }
+    const trendData = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
+
+    directorProps = {
+      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+      stats: { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit },
+      trendData, buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
+      buildingPerformance, recentNotes, alerts, todaysEmployeeNotes,
+      buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+      unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
+    };
+  } else if (activeTab === "supervisor") {
+    const [buildings, staffUsers, supervisorAuditData, receptionistData, todaysEmployeeNotes] = await Promise.all([
+      getBuildings(),
+      getStaffUsers(),
+      getSupervisorAuditData(adminUser.id, adminUser.role),
+      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
+      prisma.employeeNote.findMany({
+        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+        include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    ]);
+    
+    supervisorProps = {
+      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+      buildings, assignableStaff: staffUsers, stats: supervisorAuditData.stats,
+      pendingAudits: supervisorAuditData.pendingAudits, buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+      todaysEmployeeNotes, unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
+    };
+  } else if (activeTab === "receptionist") {
+    const [buildings, receptionistData] = await Promise.all([
+      getBuildings(),
+      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL")
+    ]);
+    
+    receptionistProps = {
+      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+      buildings, data: receptionistData, selectedBuilding: selectedBuilding || "ALL",
+    };
+  } else if (activeTab === "worker") {
+    const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
+      ? selectedWorkerId 
+      : adminUser.id;
+      
+    const [workerData, staffUsers] = await Promise.all([
+      getWorkerDashboardData(targetWorkerId),
+      getStaffUsers()
+    ]);
+    
+    workerProps = {
+      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+      data: workerData, staffUsers, selectedWorkerId: targetWorkerId,
+    };
   }
-  const trendData = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
-
-  const stats = { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit };
-
-  const directorProps = {
-    locale,
-    currentUserId: adminUser.id,
-    currentUserRole: adminUser.role,
-    stats,
-    trendData,
-    buildings,
-    assignableStaff: staffUsers,
-    topEmployees,
-    lastWeekEmployees,
-    buildingPerformance,
-    recentNotes,
-    alerts,
-    todaysEmployeeNotes,
-    buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
-    unitsStatus: receptionistData.units,
-    readinessTimeline: receptionistData.timeline,
-  };
-
-  const supervisorProps = {
-    locale,
-    currentUserId: adminUser.id,
-    currentUserRole: adminUser.role,
-    buildings,
-    assignableStaff: staffUsers,
-    stats: supervisorAuditData.stats,
-    pendingAudits: supervisorAuditData.pendingAudits,
-    buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
-    todaysEmployeeNotes,
-    unitsStatus: receptionistData.units,
-    readinessTimeline: receptionistData.timeline,
-  };
-
-  const receptionistProps = {
-    locale,
-    currentUserId: adminUser.id,
-    currentUserRole: adminUser.role,
-    buildings,
-    data: receptionistData,
-    selectedBuilding: selectedBuilding || "ALL",
-  };
-
-  const workerProps = {
-    locale,
-    currentUserId: adminUser.id,
-    currentUserRole: adminUser.role,
-    data: workerData,
-    staffUsers,
-    selectedWorkerId: selectedWorkerId || adminUser.id,
-  };
 
   return (
     <DashboardTabs
