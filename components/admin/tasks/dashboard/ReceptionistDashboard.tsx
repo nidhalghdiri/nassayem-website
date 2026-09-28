@@ -18,7 +18,7 @@ export default function ReceptionistDashboard({
   assignableStaff,
 }: {
   locale: string;
-  buildings: { id: string; nameEn: string | null; nameAr: string | null; shortName: string | null }[];
+  buildings: { id: string; nameEn: string; nameAr: string; shortName: string | null }[];
   data: ReceptionistDashboardData;
   selectedBuilding: string;
   currentUserRole: string;
