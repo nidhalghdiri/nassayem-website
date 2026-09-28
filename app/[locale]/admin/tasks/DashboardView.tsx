@@ -83,8 +83,18 @@ export default async function TasksDashboardPage({
     orderBy: { nameEn: "asc" },
   });
 
+  // Receptionists see staff from their own buildings, plus every Housekeeping
+  // and Maintenance user (these float between buildings, so they must always
+  // be assignable from the Create Task form).
   const getStaffUsers = () => prisma.adminUser.findMany({
-    where: assignedBuildingIds ? { assignedBuildings: { some: { buildingId: { in: assignedBuildingIds } } } } : {},
+    where: assignedBuildingIds
+      ? {
+          OR: [
+            { assignedBuildings: { some: { buildingId: { in: assignedBuildingIds } } } },
+            { role: { in: ["HOUSEKEEPING", "MAINTENANCE"] } },
+          ],
+        }
+      : {},
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
   });
