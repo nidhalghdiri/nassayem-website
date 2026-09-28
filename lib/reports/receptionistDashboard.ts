@@ -53,8 +53,13 @@ export type ReceptionistDashboardData = {
 const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED", "COMPLETED", "NO_ISSUES"];
 const ACTIVE_STATUSES: TaskStatus[] = ["ASSIGNED", "CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"];
 
-export async function getReceptionistDashboardData(receptionistId: string, selectedBuildingId: string | null): Promise<ReceptionistDashboardData> {
-  const buildingFilter = selectedBuildingId && selectedBuildingId !== "ALL" ? { buildingId: selectedBuildingId } : {};
+export async function getReceptionistDashboardData(receptionistId: string, selectedBuildingId: string | null, assignedBuildingIds?: string[] | null): Promise<ReceptionistDashboardData> {
+  let buildingFilter = {};
+  if (selectedBuildingId && selectedBuildingId !== "ALL") {
+    buildingFilter = { buildingId: selectedBuildingId };
+  } else if (assignedBuildingIds && assignedBuildingIds.length > 0) {
+    buildingFilter = { buildingId: { in: assignedBuildingIds } };
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -96,7 +101,7 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
     }),
 
     // 3. Staff Performance Leaderboard
-    getEmployeeRanking(7, 0, selectedBuildingId === "ALL" ? undefined : selectedBuildingId || undefined),
+    getEmployeeRanking(7, 0, selectedBuildingId === "ALL" ? (assignedBuildingIds && assignedBuildingIds.length > 0 ? assignedBuildingIds : undefined) : selectedBuildingId || undefined),
 
     // 4. Units Status Grid
     prisma.buildingUnit.findMany({

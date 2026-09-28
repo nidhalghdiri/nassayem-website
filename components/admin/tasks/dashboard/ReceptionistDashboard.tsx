@@ -13,11 +13,13 @@ export default function ReceptionistDashboard({
   buildings,
   data,
   selectedBuilding,
+  currentUserRole,
 }: {
   locale: string;
   buildings: { id: string; nameEn: string | null; nameAr: string | null; shortName: string | null }[];
   data: ReceptionistDashboardData;
   selectedBuilding: string;
+  currentUserRole: string;
 }) {
   const isEn = locale === "en";
   const router = useRouter();
@@ -47,7 +49,9 @@ export default function ReceptionistDashboard({
             className="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-nassayem shadow-sm text-sm font-bold min-w-[200px]"
             dir={isEn ? "ltr" : "rtl"}
           >
-            <option value="ALL">{isEn ? "All Branches" : "جميع الفروع"}</option>
+            {currentUserRole !== "RECEPTIONIST" && (
+              <option value="ALL">{isEn ? "All Branches" : "جميع الفروع"}</option>
+            )}
             {buildings.map(b => (
               <option key={b.id} value={b.id}>
                 {isEn ? (b.nameEn || b.shortName) : (b.nameAr || b.nameEn)}

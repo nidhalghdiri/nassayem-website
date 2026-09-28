@@ -119,7 +119,7 @@ export default async function TasksDashboardPage({
         orderBy: { createdAt: "desc" }, take: 6,
       }),
       getSupervisorAuditData(adminUser.id, adminUser.role),
-      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
+      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL", assignedBuildingIds),
       prisma.employeeNote.findMany({
         where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
         include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
@@ -164,7 +164,7 @@ export default async function TasksDashboardPage({
       getBuildings(),
       getStaffUsers(),
       getSupervisorAuditData(adminUser.id, adminUser.role),
-      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL"),
+      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL", assignedBuildingIds),
       prisma.employeeNote.findMany({
         where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
         include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
@@ -179,14 +179,19 @@ export default async function TasksDashboardPage({
       todaysEmployeeNotes, unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
     };
   } else if (activeTab === "receptionist") {
+    let finalSelectedBuilding = selectedBuilding || "ALL";
+    if (adminUser.role === "RECEPTIONIST" && !selectedBuilding && assignedBuildingIds && assignedBuildingIds.length > 0) {
+      finalSelectedBuilding = assignedBuildingIds[0];
+    }
+
     const [buildings, receptionistData] = await Promise.all([
       getBuildings(),
-      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL")
+      getReceptionistDashboardData(adminUser.id, finalSelectedBuilding, assignedBuildingIds)
     ]);
     
     receptionistProps = {
       locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      buildings, data: receptionistData, selectedBuilding: selectedBuilding || "ALL",
+      buildings, data: receptionistData, selectedBuilding: finalSelectedBuilding,
     };
   } else if (activeTab === "worker") {
     const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 

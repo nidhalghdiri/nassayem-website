@@ -28,7 +28,7 @@ export type LeaderboardEmployee = {
 
 const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED"];
 
-export async function getEmployeeRanking(days: number = 7, offsetDays: number = 0, buildingId?: string): Promise<LeaderboardEmployee[]> {
+export async function getEmployeeRanking(days: number = 7, offsetDays: number = 0, buildingId?: string | string[]): Promise<LeaderboardEmployee[]> {
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - offsetDays);
   
@@ -43,9 +43,15 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
   };
   
   if (buildingId) {
-    userWhereClause.assignedBuildings = {
-      some: { buildingId }
-    };
+    if (Array.isArray(buildingId)) {
+      userWhereClause.assignedBuildings = {
+        some: { buildingId: { in: buildingId } }
+      };
+    } else {
+      userWhereClause.assignedBuildings = {
+        some: { buildingId }
+      };
+    }
   }
 
   const users = await prisma.adminUser.findMany({
