@@ -24,7 +24,7 @@ const ACTIVE_STATUSES: TaskStatus[] = [
   "IN_PROGRESS",
 ];
 
-export default async function AdminTasksPage({ params, searchParams }: PageProps) {
+export default async function AdminTasksListPage({ params, searchParams }: PageProps) {
   const [{ locale }, sp, adminUser] = await Promise.all([
     params,
     searchParams,

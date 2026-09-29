@@ -7,6 +7,7 @@ import { getDashboardAlerts } from "@/lib/reports/alerts";
 import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
 import { getReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
 import { getWorkerDashboardData } from "@/lib/reports/workerDashboard";
+import { getDashboardTabs } from "@/lib/tasks/permissions";
 import type { TaskStatus } from "@prisma/client";
 
 export default async function TasksDashboardPage({ 
@@ -44,16 +45,8 @@ export default async function TasksDashboardPage({
   }
 
   // 1. Determine active tab to conditionally load only required data
-  let availableTabIds = ["worker"];
-  if (adminUser.role === "RECEPTIONIST") availableTabIds = ["receptionist"];
-  if (adminUser.role === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
-  if (adminUser.role === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
-
-  const fallbackTab = adminUser.role === "MANAGER" ? "manager" :
-                      adminUser.role === "SUPERVISOR" ? "supervisor" :
-                      adminUser.role === "RECEPTIONIST" ? "receptionist" : "worker";
-
-  const activeTab = tab && availableTabIds.includes(tab) ? tab : fallbackTab;
+  const availableTabIds: string[] = getDashboardTabs(adminUser.role);
+  const activeTab = tab && availableTabIds.includes(tab) ? tab : availableTabIds[0];
 
   // Track assigned buildings for Receptionists to scope staff and buildings dropdowns
   let assignedBuildingIds: string[] | null = null;
@@ -106,7 +99,7 @@ export default async function TasksDashboardPage({
     fourteenDaysAgo.setHours(0,0,0,0);
 
     const [
-      totalAssigned, active, completed, delayed, waitingAudit, 
+      totalAssigned, active, completed, delayed,
       allCompletedTasks, trendTasksRaw, buildings, staffUsers, 
       topEmployees, lastWeekEmployees, buildingPerformanceRaw, 
       recentNotes, supervisorAuditData, receptionistData, todaysEmployeeNotes
@@ -115,7 +108,6 @@ export default async function TasksDashboardPage({
       prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
       prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
       prisma.task.count({ where: { dueDate: { lt: new Date() }, status: { notIn: TERMINAL_STATUSES }, ...visibilityFilter } }),
-      prisma.task.count({ where: { status: { in: ["CLEANING_COMPLETED", "WORK_COMPLETED"] }, ...visibilityFilter } }),
       prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter }, select: { updatedAt: true, dueDate: true } }),
       prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, updatedAt: { gte: fourteenDaysAgo }, ...visibilityFilter }, select: { updatedAt: true } }),
       getBuildings(),
@@ -138,6 +130,12 @@ export default async function TasksDashboardPage({
     ]);
 
     const buildingPerformance = buildingPerformanceRaw as any;
+
+    // "Waiting Audit" must match the Supervisor dashboard: completed tasks whose
+    // latest review is not a final supervisor approval (approved tasks keep
+    // their *_COMPLETED status, so a plain status count over-reports).
+    const waitingAudit = supervisorAuditData.stats.pendingAuditsCount;
+    const pendingAuditIds = supervisorAuditData.pendingAudits.map((a) => a.id);
     const alerts = await getDashboardAlerts(visibilityFilter, buildingPerformance);
 
     let onTime = 0;
@@ -165,7 +163,7 @@ export default async function TasksDashboardPage({
       locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
       stats: { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit },
       trendData, buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
-      buildingPerformance, recentNotes, alerts, todaysEmployeeNotes,
+      buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, pendingAuditIds,
       buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
       unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
     };

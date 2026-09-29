@@ -52,10 +52,12 @@ type Props = {
   trendData?: { date: string; count: number }[];
   buildingAuditStatus: BuildingAuditStatus[];
   unitsStatus: UnitStatusInfo[];
+  /** Ids of tasks still awaiting supervisor audit (drives the Waiting Audit pop-up). */
+  pendingAuditIds?: string[];
   readinessTimeline: TimelineEvent[];
 };
 
-export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus, unitsStatus, readinessTimeline }: Props) {
+export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus, unitsStatus, readinessTimeline, pendingAuditIds = [] }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
@@ -81,7 +83,8 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
         } else if (modalType === "DELAYED") {
           filtered = data.filter((t: any) => !TERMINAL.includes(t.status) && new Date(t.dueDate) < new Date());
         } else if (modalType === "WAITING_AUDIT") {
-          filtered = data.filter((t: any) => ["CLEANING_COMPLETED", "WORK_COMPLETED"].includes(t.status));
+          const pending = new Set(pendingAuditIds);
+          filtered = data.filter((t: any) => pending.has(t.id));
         }
         setModalTasks(filtered);
         setIsLoadingTasks(false);

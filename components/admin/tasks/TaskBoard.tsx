@@ -352,7 +352,7 @@ export default function TaskBoard({
       <div className="p-4 md:p-6 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{isEn ? "Tasks" : "المهام"}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{isEn ? "Tasks List" : "قائمة المهام"}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {localTasks.length} {isEn ? (localTasks.length === 1 ? "task" : "tasks") : "مهمة"}
               {hasActiveFilters && <span className="ms-1.5 text-nassayem font-medium">· {isEn ? "filtered" : "مُصفَّى"}</span>}
@@ -369,7 +369,7 @@ export default function TaskBoard({
               </button>
             </div>
             {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST") && (
-              <button onClick={() => router.push(`${pathname}/bulk`)} className="flex items-center gap-1.5 px-3 py-2 border border-nassayem/40 text-nassayem rounded-lg text-sm font-medium hover:bg-nassayem/5 transition-colors">
+              <button onClick={() => router.push(`/${locale}/admin/tasks/bulk`)} className="flex items-center gap-1.5 px-3 py-2 border border-nassayem/40 text-nassayem rounded-lg text-sm font-medium hover:bg-nassayem/5 transition-colors">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
@@ -377,7 +377,7 @@ export default function TaskBoard({
               </button>
             )}
             {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST" || currentUserRole === "MAINTENANCE") && (
-              <button onClick={() => router.push(`${pathname}/new`)} className="flex items-center gap-1.5 bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-nassayem/90 transition-colors">
+              <button onClick={() => router.push(`/${locale}/admin/tasks/new`)} className="flex items-center gap-1.5 bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-nassayem/90 transition-colors">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>

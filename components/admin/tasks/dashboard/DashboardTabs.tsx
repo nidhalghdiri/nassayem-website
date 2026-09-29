@@ -7,6 +7,7 @@ import ReceptionistDashboard from "./ReceptionistDashboard";
 import WorkerDashboard from "./WorkerDashboard";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Users, ClipboardCheck, Wrench } from "lucide-react";
+import { getDashboardTabs } from "@/lib/tasks/permissions";
 
 type Props = {
   locale: string;
@@ -25,17 +26,9 @@ export default function DashboardTabs({ locale, currentUserId, currentUserRole, 
   const isEn = locale === "en";
   const [isPending, startTransition] = useTransition();
 
-  let availableTabIds = ["worker"];
-  if (currentUserRole === "RECEPTIONIST") availableTabIds = ["receptionist"];
-  if (currentUserRole === "SUPERVISOR") availableTabIds = ["supervisor", "receptionist", "worker"];
-  if (currentUserRole === "MANAGER") availableTabIds = ["manager", "supervisor", "receptionist", "worker"];
-
-  const fallbackTab = currentUserRole === "MANAGER" ? "manager" :
-                      currentUserRole === "SUPERVISOR" ? "supervisor" :
-                      currentUserRole === "RECEPTIONIST" ? "receptionist" : "worker";
-
+  const availableTabIds: string[] = getDashboardTabs(currentUserRole);
   const requestedTab = searchParams.get("tab");
-  const activeTab = requestedTab && availableTabIds.includes(requestedTab) ? requestedTab : fallbackTab;
+  const activeTab = requestedTab && availableTabIds.includes(requestedTab) ? requestedTab : availableTabIds[0];
 
   const tabs = [
     { id: "manager", labelEn: "Manager Dashboard", labelAr: "لوحة تحكم المدير", icon: <LayoutDashboard className="w-4 h-4" /> },

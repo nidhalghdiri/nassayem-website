@@ -1,6 +1,5 @@
+import { redirect } from "next/navigation";
 import DashboardView from "./DashboardView";
-import ListView from "./ListView";
-import TasksViewTabs from "@/components/admin/tasks/TasksViewTabs";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -8,22 +7,24 @@ type PageProps = {
 };
 
 export default async function AdminTasksModulePage({ params, searchParams }: PageProps) {
-  const sp = await searchParams;
-  const [{ locale }] = await Promise.all([params]);
-  
-  const view = (sp.view as string) || "dashboard";
+  const [{ locale }, sp] = await Promise.all([params, searchParams]);
+
+  // The task list now lives at /admin/tasks/list. Forward old list links and
+  // task deep-links (?taskId= — used by the WhatsApp notification templates)
+  // there so the detail panel opens.
+  if (sp.view === "list" || sp.taskId) {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (key === "view" || value === undefined) continue;
+      for (const v of Array.isArray(value) ? value : [value]) qs.append(key, v);
+    }
+    const query = qs.toString();
+    redirect(`/${locale}/admin/tasks/list${query ? `?${query}` : ""}`);
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <TasksViewTabs currentView={view} locale={locale} />
-      
-      <div className="flex-1 relative">
-        {view === "list" ? (
-          <ListView params={params} searchParams={searchParams} />
-        ) : (
-          <DashboardView params={params as any} searchParams={searchParams as any} />
-        )}
-      </div>
+      <DashboardView params={params as any} searchParams={searchParams as any} />
     </div>
   );
 }

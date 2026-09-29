@@ -14,17 +14,17 @@ type Props = {
 
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions, WhatsApp Log)
-// SUPERVISOR   : Dashboard, Buildings (view), Units (view), Tasks, Laundry
-// RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Laundry
-// HOUSEKEEPING : Dashboard, Tasks
-// MAINTENANCE  : Dashboard, Tasks
+// SUPERVISOR   : Tasks, Tasks List, Maintenance, Laundry
+// RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
+// HOUSEKEEPING : Dashboard, Tasks, Tasks List
+// MAINTENANCE  : Dashboard, Tasks, Tasks List, Maintenance
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
-  SUPERVISOR:   ["dashboard", "buildings", "units", "tasks", "maintenance", "laundry", "chatbot"],
-  RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "laundry"],
-  HOUSEKEEPING: ["dashboard", "tasks"],
-  MAINTENANCE:  ["dashboard", "tasks", "maintenance"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  SUPERVISOR:   ["tasks", "tasksList", "maintenance", "laundry"],
+  RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
+  HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
+  MAINTENANCE:  ["dashboard", "tasks", "tasksList", "maintenance"],
   LAUNDRY:      ["dashboard", "laundry"],
 };
 
@@ -98,7 +98,17 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       nameAr: "المهام",
       href: `/${locale}/admin/tasks`,
       exact: false,
+      // The list has its own nav item — don't highlight "Tasks" there too.
+      excludePrefix: `/${locale}/admin/tasks/list`,
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    },
+    {
+      key: "tasksList",
+      nameEn: "Tasks List",
+      nameAr: "قائمة المهام",
+      href: `/${locale}/admin/tasks/list`,
+      exact: false,
+      icon: "M4 6h16M4 10h16M4 14h16M4 18h16",
     },
     {
       key: "maintenance",
@@ -220,9 +230,15 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
           {/* Navigation */}
           <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const excluded =
+                "excludePrefix" in item &&
+                !!item.excludePrefix &&
+                (pathname === item.excludePrefix || pathname.startsWith(`${item.excludePrefix}/`));
+              const isActive = excluded
+                ? false
+                : item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
               return (
                 <Link

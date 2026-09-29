@@ -32,33 +32,26 @@ export type BuildingAuditStatus = {
 };
 
 export async function getSupervisorAuditData(supervisorId: string, role: string) {
-  // Determine visibility
-  let buildingFilter = {};
+  // Determine visibility. A supervisor linked to specific buildings audits only
+  // those; one with no building links audits every building (same as the rest
+  // of the Tasks module, where supervisors see all tasks).
+  let scopedBuildingIds: string[] | null = null;
   if (role === "SUPERVISOR") {
-    // Only buildings assigned to this supervisor
     const assigned = await prisma.adminUserBuilding.findMany({
       where: { adminUserId: supervisorId },
       select: { buildingId: true },
     });
-    const buildingIds = assigned.map((b) => b.buildingId);
-    if (buildingIds.length > 0) {
-      buildingFilter = { buildingId: { in: buildingIds } };
-    } else {
-      // No buildings assigned, return empty data
-      return {
-        stats: { pendingAuditsCount: 0, firstTimeAcceptanceRate: 0, avgResponseTimeMins: 0, lateBuildingsCount: 0 },
-        pendingAudits: [],
-        buildingAuditStatus: [],
-      };
-    }
+    if (assigned.length > 0) scopedBuildingIds = assigned.map((b) => b.buildingId);
   }
+  // Task-side filter (Task.buildingId) and Building-side filter (Building.id).
+  const buildingFilter = scopedBuildingIds ? { buildingId: { in: scopedBuildingIds } } : {};
+  const buildingWhere = scopedBuildingIds ? { id: { in: scopedBuildingIds } } : {};
 
   const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED"];
 
   // 1. Get all completed tasks (cleaning & maintenance) that need audit
   const rawPendingTasks = await prisma.task.findMany({
     where: {
-      ...buildingFilter,
       ...buildingFilter,
       status: { in: TERMINAL_STATUSES },
     },
@@ -147,7 +140,7 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
     
     // Buildings list for Audit Status
     prisma.building.findMany({
-      where: buildingFilter,
+      where: buildingWhere,
       select: { id: true, nameEn: true, nameAr: true },
     })
   ]);

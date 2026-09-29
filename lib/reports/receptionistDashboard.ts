@@ -26,7 +26,11 @@ export type DashboardTask = {
 };
 
 export type UnitStatusInfo = {
+  id: string;
   num: string;
+  buildingId: string;
+  buildingNameEn: string;
+  buildingNameAr: string;
   status: "ready" | "pending_cleaning" | "pending_audit" | "issue";
   icon: string | null;
 };
@@ -107,6 +111,7 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
     prisma.buildingUnit.findMany({
       where: buildingFilter,
       include: {
+        building: { select: { id: true, nameEn: true, nameAr: true, shortName: true } },
         tasks: {
           where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
           select: { status: true, priority: true }
@@ -213,7 +218,11 @@ export async function getReceptionistDashboardData(receptionistId: string, selec
     }
 
     return {
+      id: u.id,
       num: u.name,
+      buildingId: u.building.id,
+      buildingNameEn: u.building.shortName || u.building.nameEn,
+      buildingNameAr: u.building.shortName || u.building.nameAr,
       status,
       icon
     };

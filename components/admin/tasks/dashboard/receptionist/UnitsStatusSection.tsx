@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Check, AlertCircle } from "lucide-react";
 import type { UnitStatusInfo, TimelineEvent } from "@/lib/reports/receptionistDashboard";
 
@@ -13,9 +13,25 @@ export default function UnitsStatusSection({
   units: UnitStatusInfo[];
   timeline: TimelineEvent[];
 }) {
+  // Building filter — only shown when the report spans more than one building.
+  const [buildingFilter, setBuildingFilter] = useState("ALL");
+  const unitBuildings = useMemo(() => {
+    const seen = new Map<string, { id: string; nameEn: string; nameAr: string }>();
+    for (const u of units) {
+      if (!seen.has(u.buildingId)) {
+        seen.set(u.buildingId, { id: u.buildingId, nameEn: u.buildingNameEn, nameAr: u.buildingNameAr });
+      }
+    }
+    return Array.from(seen.values());
+  }, [units]);
+  const activeBuilding = unitBuildings.some((b) => b.id === buildingFilter) ? buildingFilter : "ALL";
+  const visibleUnits = activeBuilding === "ALL" ? units : units.filter((u) => u.buildingId === activeBuilding);
+  const showBuildingOnTile = activeBuilding === "ALL" && unitBuildings.length > 1;
+
   const t = {
     unitsStatus: isEn ? "Units Status" : "حالة الوحدات",
-    unitsCount: isEn ? `${units.length} units` : `${units.length} وحدة`,
+    unitsCount: isEn ? `${visibleUnits.length} units` : `${visibleUnits.length} وحدة`,
+    allBuildings: isEn ? "All Buildings" : "كل المباني",
     readiness: isEn ? "Today's Readiness" : "جاهزية اليوم",
     quickClean: isEn ? "+ Quick Cleaning Task" : "+ مهمة تنظيف سريعة",
     ready: isEn ? "Ready" : "جاهزة",
@@ -81,22 +97,42 @@ export default function UnitsStatusSection({
       <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-[600px]">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h3 className="font-bold text-slate-800">{t.unitsStatus}</h3>
-          <span className="text-xs text-slate-500 font-medium">{t.unitsCount}</span>
+          <div className="flex items-center gap-3">
+            {unitBuildings.length > 1 && (
+              <select
+                value={activeBuilding}
+                onChange={(e) => setBuildingFilter(e.target.value)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-nassayem max-w-[180px]"
+              >
+                <option value="ALL">{t.allBuildings}</option>
+                {unitBuildings.map((b) => (
+                  <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr}</option>
+                ))}
+              </select>
+            )}
+            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">{t.unitsCount}</span>
+          </div>
         </div>
         <div className="p-6 flex-1 overflow-y-auto hide-scrollbar">
-          {units.length === 0 && (
+          {visibleUnits.length === 0 && (
             <div className="text-center text-slate-500 text-sm mt-8">{t.noUnits}</div>
           )}
           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
-            {units.map((u) => (
+            {visibleUnits.map((u) => (
               <div 
-                key={u.num} 
+                key={u.id} 
+                title={isEn ? u.buildingNameEn : u.buildingNameAr}
                 className={`aspect-square rounded-xl border flex flex-col items-center justify-center p-2 transition-transform hover:scale-105 cursor-pointer shadow-sm ${getStatusClasses(u.status)}`}
               >
                 <div className="text-xs mb-1 font-black opacity-80 h-4">
                   {u.icon === "✓" ? <Check className="w-3 h-3" /> : u.icon === "!" ? <AlertCircle className="w-3 h-3 text-red-500" /> : u.icon}
                 </div>
                 <div className="font-black text-sm">{u.num}</div>
+                {showBuildingOnTile && (
+                  <div className="text-[9px] font-semibold opacity-60 truncate max-w-full">
+                    {isEn ? u.buildingNameEn : u.buildingNameAr}
+                  </div>
+                )}
               </div>
             ))}
           </div>

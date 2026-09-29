@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { format } from "date-fns";
@@ -87,6 +88,9 @@ export default async function AdminDashboard({ params }: PageProps) {
   const role = adminUser?.role ?? "MANAGER";
   const isManager = role === "MANAGER";
   const isSupervisor = role === "SUPERVISOR";
+
+  // Supervisors have no main dashboard — their home is the Tasks dashboard.
+  if (isSupervisor) redirect(`/${locale}/admin/tasks`);
 
   // ── Route non-managers to a task dashboard ───────────────────────────────────
   if (!isManager) {
@@ -456,7 +460,7 @@ async function TaskDashboard({
               return (
                 <li key={task.id}>
                   <Link
-                    href={`/${locale}/admin/tasks?taskId=${task.id}`}
+                    href={`/${locale}/admin/tasks/list?taskId=${task.id}`}
                     className="flex items-start gap-3 px-4 md:px-6 py-3.5 hover:bg-gray-50 transition-colors"
                   >
                     {/* Priority dot */}
