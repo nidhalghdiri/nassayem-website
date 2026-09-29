@@ -12,15 +12,29 @@ type Props = {
   userRole?: string;
 };
 
+type NavItem = {
+  key: string;
+  nameEn: string;
+  nameAr: string;
+  href: string;
+  exact: boolean;
+  icon: string;
+  /** Indented sub-item (e.g. the Tasks dashboards / list under "Tasks"). */
+  sub?: boolean;
+  /** Paths under `href` that have their own nav item, so this one stays unhighlighted. */
+  excludePrefixes?: string[];
+};
+
 // ── Which nav items each role can see ──────────────────────────────────────────
-// MANAGER      : everything (incl. Promotions, WhatsApp Log)
+// MANAGER      : everything (incl. Promotions, WhatsApp Log, and the per-role
+//                Tasks dashboards: Supervisor / Receptionist / Worker)
 // SUPERVISOR   : Tasks, Tasks List, Maintenance, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
 // MAINTENANCE  : Dashboard, Tasks, Tasks List, Maintenance
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["tasks", "tasksList", "maintenance", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
@@ -35,7 +49,7 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
 
   const allowedKeys = ROLE_NAV_ACCESS[userRole] ?? ROLE_NAV_ACCESS["MANAGER"];
 
-  const allNavItems = [
+  const allNavItems: NavItem[] = [
     {
       key: "dashboard",
       nameEn: "Dashboard",
@@ -98,9 +112,41 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       nameAr: "المهام",
       href: `/${locale}/admin/tasks`,
       exact: false,
-      // The list has its own nav item — don't highlight "Tasks" there too.
-      excludePrefix: `/${locale}/admin/tasks/list`,
+      // These pages have their own nav items — don't highlight "Tasks" there too.
+      excludePrefixes: [
+        `/${locale}/admin/tasks/list`,
+        `/${locale}/admin/tasks/supervisor`,
+        `/${locale}/admin/tasks/receptionist`,
+        `/${locale}/admin/tasks/worker`,
+      ],
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    },
+    {
+      key: "tasksSupervisor",
+      nameEn: "Supervisor Dashboard",
+      nameAr: "لوحة تحكم المشرف",
+      href: `/${locale}/admin/tasks/supervisor`,
+      exact: false,
+      sub: true,
+      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    },
+    {
+      key: "tasksReceptionist",
+      nameEn: "Receptionist Dashboard",
+      nameAr: "لوحة تحكم الاستقبال",
+      href: `/${locale}/admin/tasks/receptionist`,
+      exact: false,
+      sub: true,
+      icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
+    },
+    {
+      key: "tasksWorker",
+      nameEn: "Worker Dashboard",
+      nameAr: "لوحة تحكم العامل",
+      href: `/${locale}/admin/tasks/worker`,
+      exact: false,
+      sub: true,
+      icon: "M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085",
     },
     {
       key: "tasksList",
@@ -108,6 +154,7 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       nameAr: "قائمة المهام",
       href: `/${locale}/admin/tasks/list`,
       exact: false,
+      sub: true,
       icon: "M4 6h16M4 10h16M4 14h16M4 18h16",
     },
     {
@@ -230,10 +277,9 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
           {/* Navigation */}
           <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
-              const excluded =
-                "excludePrefix" in item &&
-                !!item.excludePrefix &&
-                (pathname === item.excludePrefix || pathname.startsWith(`${item.excludePrefix}/`));
+              const excluded = (item.excludePrefixes ?? []).some(
+                (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+              );
               const isActive = excluded
                 ? false
                 : item.exact
@@ -246,14 +292,15 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm
+                    flex items-center gap-3 py-2.5 rounded-xl font-medium transition-all duration-200
+                    ${item.sub ? "ps-8 pe-4 text-[13px]" : "px-4 text-sm"}
                     ${isActive
                       ? "bg-nassayem text-white shadow-md"
                       : "hover:bg-gray-800 hover:text-white text-gray-400"
                     }
                   `}
                 >
-                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`${item.sub ? "w-4 h-4" : "w-5 h-5"} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
                   </svg>
                   {isEn ? item.nameEn : item.nameAr}

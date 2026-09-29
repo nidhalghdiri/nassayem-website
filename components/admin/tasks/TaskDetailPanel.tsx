@@ -86,6 +86,14 @@ type Props = {
   currentUserId: string;
   currentUserRole: string;
   initialTask?: any;
+  /**
+   * Controlled mode (used by dashboards): when `taskId` is passed, the panel
+   * shows that task instead of reading `?taskId=` from the URL, and closing /
+   * opening related tasks go through the callbacks below.
+   */
+  taskId?: string | null;
+  onClose?: () => void;
+  onOpenTask?: (id: string) => void;
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -251,12 +259,16 @@ export default function TaskDetailPanel({
   currentUserId,
   currentUserRole,
   initialTask,
+  taskId: controlledTaskId,
+  onClose,
+  onOpenTask,
 }: Props) {
   const isEn = locale === "en";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const taskId = searchParams.get("taskId");
+  const isControlled = controlledTaskId !== undefined;
+  const taskId = isControlled ? controlledTaskId : searchParams.get("taskId");
   const isOpen = !!taskId;
 
   const [task, setTask] = useState<FullTask | null>(null);
@@ -335,6 +347,10 @@ export default function TaskDetailPanel({
   // ── Panel close ──────────────────────────────────────────────────────────────
 
   function close() {
+    if (isControlled) {
+      onClose?.();
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("taskId");
     const qs = params.toString();
@@ -470,6 +486,10 @@ export default function TaskDetailPanel({
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function openTask(id: string) {
+    if (isControlled) {
+      onOpenTask?.(id);
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("taskId", id);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });

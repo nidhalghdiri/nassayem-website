@@ -1,18 +1,25 @@
 "use client";
 
 import React from "react";
-import { Clock } from "lucide-react";
+import { Clock, User, ChevronRight } from "lucide-react";
 import type { DashboardTask } from "@/lib/reports/receptionistDashboard";
+import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
+import type { TTaskType, TTaskPriority } from "@/lib/tasks/constants";
+import { STATUS_CONFIG } from "@/lib/tasks/statuses";
+import type { TTaskStatus } from "@/lib/tasks/statuses";
+import { formatDateTimeOman } from "../../timeUtils";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 
 export default function LiveTasksSection({ 
   isEn,
   liveTasks,
-  staff
+  staff,
+  onOpenTask,
 }: { 
   isEn: boolean;
   liveTasks: DashboardTask[];
   staff: LeaderboardEmployee[];
+  onOpenTask: (id: string) => void;
 }) {
   const t = {
     staffPerformance: isEn ? "Building staff performance" : "أداء موظفي المبنى",
@@ -21,7 +28,10 @@ export default function LiveTasksSection({
     directlyFromSystem: isEn ? "Live from the system" : "مباشر من النظام",
     noTasks: isEn ? "No current tasks in this building" : "لا توجد مهام جارية حالياً",
     noStaff: isEn ? "No staff assigned" : "لا يوجد موظفين معينين",
+    due: isEn ? "Due" : "الاستحقاق",
+    overdue: isEn ? "Overdue" : "متأخرة",
   };
+  const now = Date.now();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -69,33 +79,61 @@ export default function LiveTasksSection({
             <div className="text-center text-slate-500 text-sm mt-8">{t.noTasks}</div>
           )}
           {liveTasks.map((task) => {
-            let badgeBg = "bg-slate-100";
-            let badgeText = "text-slate-600";
-            let badgeStr = isEn ? task.status : "جاري العمل";
-            if (task.status === "ASSIGNED") {
-              badgeBg = "bg-orange-100"; badgeText = "text-orange-700"; badgeStr = isEn ? "Assigned" : "بانتظار العامل";
-            }
+            const type = TASK_TYPE_CONFIG[task.taskType as TTaskType];
+            const status = STATUS_CONFIG[task.status as TTaskStatus];
+            const priority = TASK_PRIORITY_CONFIG[task.priority as TTaskPriority];
+            const isOverdue = new Date(task.dueDate).getTime() < now;
 
             return (
-              <div key={task.id} className="border border-slate-100 rounded-2xl p-4 flex justify-between items-center hover:border-nassayem/30 transition-colors">
-                <div className="flex flex-col gap-2 w-full">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-800 text-sm">
-                      {task.taskTitle} {task.unitName ? `— ${task.unitName}` : ""}
-                    </h4>
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 shrink-0">
-                      🧹
+              <button
+                key={task.id}
+                onClick={() => onOpenTask(task.id)}
+                className={`w-full text-start border rounded-2xl p-4 hover:border-nassayem/40 hover:shadow-sm transition-all group ${isOverdue ? "border-red-200 bg-red-50/20" : "border-slate-100"}`}
+              >
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {type && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${type.bg} ${type.text}`}>
+                          {isEn ? type.labelEn : type.labelAr}
+                        </span>
+                      )}
+                      <h4 className="font-bold text-slate-800 text-sm truncate">
+                        {task.taskTitle} {task.unitName ? `— ${task.unitName}` : ""}
+                      </h4>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between w-full">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 ${badgeBg} ${badgeText}`}>
-                      {badgeStr}
-                    </span>
-                    <span className="text-xs text-slate-500">{task.assignedUserName}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {status && (
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${status.badge}`}>
+                        {isEn ? status.labelEn : status.labelAr}
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-nassayem rtl:rotate-180" />
                   </div>
                 </div>
-              </div>
-            )
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
+                  <span className={`flex items-center gap-1 ${isOverdue ? "text-red-600 font-bold" : ""}`}>
+                    <Clock className="w-3.5 h-3.5" />
+                    {t.due}: {formatDateTimeOman(task.dueDate, isEn)}
+                    {isOverdue && (
+                      <span className="ms-1 bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-bold">{t.overdue}</span>
+                    )}
+                  </span>
+                  {priority && (
+                    <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium ${priority.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
+                      {isEn ? priority.labelEn : priority.labelAr}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1 ms-auto">
+                    <User className="w-3.5 h-3.5" />
+                    <span className="font-semibold text-slate-700">{task.assignedUserName}</span>
+                  </span>
+                </div>
+              </button>
+            );
           })}
         </div>
       </div>

@@ -17,3 +17,15 @@ export function formatTimeAgo(totalMinutes: number, isEn: boolean): string {
   const hourText = remainingHours > 0 ? (isEn ? ` and ${remainingHours} hours` : ` و ${remainingHours} س`) : "";
   return isEn ? `${days} days${hourText} ago` : `منذ ${days} يوم${hourText}`;
 }
+
+/** Formats a date/time in Oman time, e.g. "29 Sep, 14:30" — same on server and client. */
+export function formatDateTimeOman(date: Date | string, isEn: boolean): string {
+  return new Date(date).toLocaleString(isEn ? "en-GB" : "ar-EG", {
+    timeZone: "Asia/Muscat",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}

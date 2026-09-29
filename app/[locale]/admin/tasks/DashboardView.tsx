@@ -1,23 +1,33 @@
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
-import DashboardTabs from "@/components/admin/tasks/dashboard/DashboardTabs";
+import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashboard";
+import SupervisorDashboard from "@/components/admin/tasks/dashboard/SupervisorDashboard";
+import ReceptionistDashboard from "@/components/admin/tasks/dashboard/ReceptionistDashboard";
+import WorkerDashboard from "@/components/admin/tasks/dashboard/WorkerDashboard";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
 import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
-import { getReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
+import { getReceptionistDashboardData, getUnitsStatusData } from "@/lib/reports/receptionistDashboard";
 import { getWorkerDashboardData } from "@/lib/reports/workerDashboard";
-import { getDashboardTabs } from "@/lib/tasks/permissions";
+import { getDashboardTabs, type TDashboardTab } from "@/lib/tasks/permissions";
 import type { TaskStatus } from "@prisma/client";
 
-export default async function TasksDashboardPage({ 
+// Each dashboard has its own route (/admin/tasks, /admin/tasks/supervisor,
+// /admin/tasks/receptionist, /admin/tasks/worker) and loads only its own data.
+// `dashboard` omitted = the user's default dashboard for their role.
+export default async function DashboardView({
   params,
-  searchParams
-}: { 
+  searchParams,
+  dashboard,
+}: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string; building?: string; worker?: string }>;
+  searchParams: Promise<{ building?: string; worker?: string }>;
+  dashboard?: TDashboardTab;
 }) {
-  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId, tab }, adminUser] = await Promise.all([
+  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId }, adminUser] = await Promise.all([
     params,
     searchParams,
     getCurrentAdminUser(),
@@ -25,30 +35,15 @@ export default async function TasksDashboardPage({
 
   if (!adminUser) return null;
 
+  const allowed = getDashboardTabs(adminUser.role);
+  if (dashboard && !allowed.includes(dashboard)) redirect(`/${locale}/admin/tasks`);
+  const activeTab: TDashboardTab = dashboard ?? allowed[0];
+  const isEn = locale === "en";
+
   const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED"];
   const ACTIVE_STATUSES: TaskStatus[] = ["ASSIGNED", "CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"];
 
-  let visibilityFilter: object = {};
-  if (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") {
-    visibilityFilter = {};
-  } else if (adminUser.role === "RECEPTIONIST") {
-    const assigned = await prisma.adminUserBuilding.findMany({
-      where: { adminUserId: adminUser.id },
-      select: { buildingId: true },
-    });
-    const buildingIds = assigned.map((b) => b.buildingId);
-    visibilityFilter = buildingIds.length > 0
-      ? { buildingId: { in: buildingIds } }
-      : { buildingId: { in: [] } };
-  } else {
-    visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
-  }
-
-  // 1. Determine active tab to conditionally load only required data
-  const availableTabIds: string[] = getDashboardTabs(adminUser.role);
-  const activeTab = tab && availableTabIds.includes(tab) ? tab : availableTabIds[0];
-
-  // Track assigned buildings for Receptionists to scope staff and buildings dropdowns
+  // Receptionists are scoped to their assigned buildings
   let assignedBuildingIds: string[] | null = null;
   if (adminUser.role === "RECEPTIONIST") {
     const assigned = await prisma.adminUserBuilding.findMany({
@@ -58,10 +53,12 @@ export default async function TasksDashboardPage({
     assignedBuildingIds = assigned.map(b => b.buildingId);
   }
 
-  let directorProps: any = null;
-  let supervisorProps: any = null;
-  let receptionistProps: any = null;
-  let workerProps: any = null;
+  let visibilityFilter: object = {};
+  if (adminUser.role === "RECEPTIONIST") {
+    visibilityFilter = { buildingId: { in: assignedBuildingIds ?? [] } };
+  } else if (adminUser.role !== "MANAGER" && adminUser.role !== "SUPERVISOR") {
+    visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
+  }
 
   // Shared fetch functions
   const getBuildings = () => prisma.building.findMany({
@@ -92,7 +89,14 @@ export default async function TasksDashboardPage({
     orderBy: { name: "asc" },
   });
 
-  // 2. Fetch data in parallel for the active tab only
+  const getTodaysEmployeeNotes = () => prisma.employeeNote.findMany({
+    where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+    include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let content: ReactNode = null;
+
   if (activeTab === "manager") {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -100,9 +104,9 @@ export default async function TasksDashboardPage({
 
     const [
       totalAssigned, active, completed, delayed,
-      allCompletedTasks, trendTasksRaw, buildings, staffUsers, 
-      topEmployees, lastWeekEmployees, buildingPerformanceRaw, 
-      recentNotes, supervisorAuditData, receptionistData, todaysEmployeeNotes
+      allCompletedTasks, trendTasksRaw, buildings, staffUsers,
+      topEmployees, lastWeekEmployees, buildingPerformanceRaw,
+      recentNotes, supervisorAuditData, unitsData, todaysEmployeeNotes
     ] = await Promise.all([
       prisma.task.count({ where: { ...visibilityFilter } }),
       prisma.task.count({ where: { status: { in: ACTIVE_STATUSES }, ...visibilityFilter } }),
@@ -121,12 +125,8 @@ export default async function TasksDashboardPage({
         orderBy: { createdAt: "desc" }, take: 6,
       }),
       getSupervisorAuditData(adminUser.id, adminUser.role),
-      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL", assignedBuildingIds),
-      prisma.employeeNote.findMany({
-        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
-        include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
-        orderBy: { createdAt: "desc" },
-      })
+      getUnitsStatusData(selectedBuilding || "ALL", assignedBuildingIds),
+      getTodaysEmployeeNotes(),
     ]);
 
     const buildingPerformance = buildingPerformanceRaw as any;
@@ -159,33 +159,37 @@ export default async function TasksDashboardPage({
     }
     const trendData = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
 
-    directorProps = {
-      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      stats: { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit },
-      trendData, buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
-      buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, pendingAuditIds,
-      buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
-      unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
-    };
+    content = (
+      <DirectorDashboard
+        {...({
+          locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+          stats: { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit },
+          trendData, buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
+          buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, pendingAuditIds,
+          buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+          unitsStatus: unitsData.units, readinessTimeline: unitsData.timeline,
+        } as any)}
+      />
+    );
   } else if (activeTab === "supervisor") {
-    const [buildings, staffUsers, supervisorAuditData, receptionistData, todaysEmployeeNotes] = await Promise.all([
+    const [buildings, staffUsers, supervisorAuditData, unitsData, todaysEmployeeNotes] = await Promise.all([
       getBuildings(),
       getStaffUsers(),
       getSupervisorAuditData(adminUser.id, adminUser.role),
-      getReceptionistDashboardData(adminUser.id, selectedBuilding || "ALL", assignedBuildingIds),
-      prisma.employeeNote.findMany({
-        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
-        include: { employee: { select: { name: true } }, author: { select: { name: true, role: true } } },
-        orderBy: { createdAt: "desc" },
-      })
+      getUnitsStatusData(selectedBuilding || "ALL", assignedBuildingIds),
+      getTodaysEmployeeNotes(),
     ]);
-    
-    supervisorProps = {
-      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      buildings, assignableStaff: staffUsers, stats: supervisorAuditData.stats,
-      pendingAudits: supervisorAuditData.pendingAudits, buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
-      todaysEmployeeNotes, unitsStatus: receptionistData.units, readinessTimeline: receptionistData.timeline,
-    };
+
+    content = (
+      <SupervisorDashboard
+        {...({
+          locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+          buildings, assignableStaff: staffUsers, stats: supervisorAuditData.stats,
+          pendingAudits: supervisorAuditData.pendingAudits, buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
+          todaysEmployeeNotes, unitsStatus: unitsData.units, readinessTimeline: unitsData.timeline,
+        } as any)}
+      />
+    );
   } else if (activeTab === "receptionist") {
     let finalSelectedBuilding = selectedBuilding || "ALL";
     if (adminUser.role === "RECEPTIONIST" && !selectedBuilding && assignedBuildingIds && assignedBuildingIds.length > 0) {
@@ -197,36 +201,41 @@ export default async function TasksDashboardPage({
       getStaffUsers(),
       getReceptionistDashboardData(adminUser.id, finalSelectedBuilding, assignedBuildingIds)
     ]);
-    
-    receptionistProps = {
-      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      buildings, assignableStaff, data: receptionistData, selectedBuilding: finalSelectedBuilding,
-    };
-  } else if (activeTab === "worker") {
-    const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId 
-      ? selectedWorkerId 
+
+    content = (
+      <ReceptionistDashboard
+        locale={locale}
+        currentUserId={adminUser.id}
+        currentUserRole={adminUser.role}
+        buildings={buildings}
+        assignableStaff={assignableStaff}
+        data={receptionistData}
+        selectedBuilding={finalSelectedBuilding}
+      />
+    );
+  } else {
+    const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId
+      ? selectedWorkerId
       : adminUser.id;
-      
+
     const [workerData, staffUsers] = await Promise.all([
       getWorkerDashboardData(targetWorkerId),
       getStaffUsers()
     ]);
-    
-    workerProps = {
-      locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
-      data: workerData, staffUsers, selectedWorkerId: targetWorkerId,
-    };
+
+    content = (
+      <WorkerDashboard
+        {...({
+          locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
+          data: workerData, staffUsers, selectedWorkerId: targetWorkerId,
+        } as any)}
+      />
+    );
   }
 
   return (
-    <DashboardTabs
-      locale={locale}
-      currentUserId={adminUser.id}
-      currentUserRole={adminUser.role}
-      directorProps={directorProps}
-      supervisorProps={supervisorProps}
-      receptionistProps={receptionistProps}
-      workerProps={workerProps}
-    />
+    <div className="min-h-screen bg-slate-50/50" dir={isEn ? "ltr" : "rtl"}>
+      {content}
+    </div>
   );
 }

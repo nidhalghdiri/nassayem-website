@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import ReceptionistReviewSection from "./receptionist/ReceptionistReviewSection";
+import React, { useCallback, useState } from "react";
+import ReceptionistReviewSection, { type ReceptionistCardKind } from "./receptionist/ReceptionistReviewSection";
+import TaskListModal from "./receptionist/TaskListModal";
+import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import LiveTasksSection from "./receptionist/LiveTasksSection";
 import UnitsStatusSection from "./receptionist/UnitsStatusSection";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
@@ -14,10 +16,12 @@ export default function ReceptionistDashboard({
   buildings,
   data,
   selectedBuilding,
+  currentUserId,
   currentUserRole,
   assignableStaff,
 }: {
   locale: string;
+  currentUserId: string;
   buildings: { id: string; nameEn: string; nameAr: string; shortName: string | null }[];
   data: ReceptionistDashboardData;
   selectedBuilding: string;
@@ -29,6 +33,22 @@ export default function ReceptionistDashboard({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  // Summary-card task list + task details panel (opened from lists / live tasks)
+  const [listKind, setListKind] = useState<ReceptionistCardKind | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+
+  const closeTaskPanel = useCallback(() => {
+    setOpenTaskId(null);
+    router.refresh(); // pick up any status change / note made in the panel
+  }, [router]);
+
+  const listConfig: Record<ReceptionistCardKind, { title: string; accent: string; tasks: typeof data.liveTasks; completed?: boolean }> = {
+    active: { title: isEn ? "Active Tasks" : "المهام النشطة", accent: "bg-blue-50 text-blue-600", tasks: data.liveTasks },
+    due: { title: isEn ? "Due Tasks (today & overdue)" : "المهام المستحقة (اليوم والمتأخرة)", accent: "bg-red-50 text-red-600", tasks: data.dueTasks },
+    pendingSupervisor: { title: isEn ? "You approved — pending supervisor" : "اعتمدتها — بانتظار المشرف", accent: "bg-emerald-50 text-emerald-600", tasks: data.approvedPendingSupervisorTasks, completed: true },
+    pendingReview: { title: isEn ? "Pending your review" : "بانتظار مراجعتك", accent: "bg-orange-100 text-orange-600", tasks: data.pendingReviewTasks, completed: true },
+  };
+  const activeList = listKind ? listConfig[listKind] : null;
 
   const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -81,13 +101,36 @@ export default function ReceptionistDashboard({
       </div>
 
       {/* Main Review Section */}
-      <ReceptionistReviewSection isEn={isEn} stats={data.stats} pendingTasks={data.pendingReviewTasks} approvedTasks={data.approvedPendingSupervisorTasks} />
+      <ReceptionistReviewSection isEn={isEn} stats={data.stats} pendingTasks={data.pendingReviewTasks} approvedTasks={data.approvedPendingSupervisorTasks} onCardClick={setListKind} />
 
       {/* Live Tasks & Leaderboard */}
-      <LiveTasksSection isEn={isEn} liveTasks={data.liveTasks} staff={data.staffPerformance} />
+      <LiveTasksSection isEn={isEn} liveTasks={data.liveTasks} staff={data.staffPerformance} onOpenTask={setOpenTaskId} />
 
       {/* Units Grid & Timeline */}
       <UnitsStatusSection isEn={isEn} units={data.units} timeline={data.timeline} />
+
+      {/* Summary card task list */}
+      {activeList && (
+        <TaskListModal
+          isEn={isEn}
+          title={activeList.title}
+          accentClass={activeList.accent}
+          tasks={activeList.tasks}
+          showCompletedAt={activeList.completed}
+          onClose={() => setListKind(null)}
+          onOpenTask={setOpenTaskId}
+        />
+      )}
+
+      {/* Task details (slide-over, above the list modal) */}
+      <TaskDetailPanel
+        locale={locale}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        taskId={openTaskId}
+        onClose={closeTaskPanel}
+        onOpenTask={setOpenTaskId}
+      />
 
       {/* Create Task Modal */}
       {isTaskModalOpen && (

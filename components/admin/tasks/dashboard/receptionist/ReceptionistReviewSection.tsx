@@ -1,22 +1,26 @@
 "use client";
 
 import React, { useState } from "react";
-import { Image as ImageIcon, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, Clock, Loader2, ListTodo, CalendarClock, ShieldCheck, Hourglass } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { DashboardTask, ReceptionistStats } from "@/lib/reports/receptionistDashboard";
 import { formatTimeAgo } from "../../timeUtils";
 import ImageViewerModal from "../ImageViewerModal";
 
+export type ReceptionistCardKind = "active" | "due" | "pendingSupervisor" | "pendingReview";
+
 export default function ReceptionistReviewSection({ 
   isEn,
   stats,
   pendingTasks,
-  approvedTasks
+  approvedTasks,
+  onCardClick,
 }: { 
   isEn: boolean;
   stats: ReceptionistStats;
   pendingTasks: DashboardTask[];
   approvedTasks: DashboardTask[];
+  onCardClick: (kind: ReceptionistCardKind) => void;
 }) {
   const t = {
     howItWorks: isEn ? "How does approval work?" : "كيف يعمل الاعتماد؟",
@@ -28,7 +32,10 @@ export default function ReceptionistReviewSection({
       : "② المشرف يقدر يعتمد مباشرة حتى لو ما مرّت عليك، أو يكتفي باعتمادك وصورك بدون نزول للموقع.",
     pendingYourReview: isEn ? "Pending your review" : "بانتظار مراجعتك",
     approvedPendingSupervisor: isEn ? "You approved — pending supervisor" : "اعتمدتها — بانتظار المشرف",
-    finalApproved: isEn ? "Final approved by supervisor" : "اعتمدها المشرف نهائياً",
+    activeTasks: isEn ? "Active Tasks" : "المهام النشطة",
+    dueTasks: isEn ? "Due Tasks" : "المهام المستحقة",
+    dueHint: isEn ? "Due today or overdue" : "مستحقة اليوم أو متأخرة",
+    viewList: isEn ? "View list" : "عرض القائمة",
     taskDetails: isEn ? "Fouad Abdullah Yahya · Normal cleaning" : "فؤاد عبدالله يحيى · تنظيف عادي",
     timeAgo: isEn ? "278 mins ago" : "منذ 278 د",
     onTime: isEn ? "On time" : "ضمن الموعد",
@@ -57,20 +64,45 @@ export default function ReceptionistReviewSection({
         </ul>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-          <div className="text-xs font-medium text-slate-500 mb-2">{t.finalApproved}</div>
-          <div className="text-3xl font-black text-slate-800">{stats.finalApprovedCount}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-          <div className="text-xs font-medium text-slate-500 mb-2">{t.approvedPendingSupervisor}</div>
-          <div className="text-3xl font-black text-emerald-600">{stats.approvedPendingSupervisorCount}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-orange-200 bg-orange-50/30 p-5 shadow-sm relative">
-          <div className="text-xs font-bold text-orange-700 mb-2">{t.pendingYourReview}</div>
-          <div className="text-3xl font-black text-orange-600">{stats.pendingReviewCount}</div>
-        </div>
+      {/* Stats Cards — each opens a list of its tasks */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <SummaryCard
+          label={t.activeTasks}
+          value={stats.activeCount}
+          icon={<ListTodo className="w-4 h-4" />}
+          valueClass="text-blue-600"
+          iconClass="bg-blue-50 text-blue-600"
+          hint={t.viewList}
+          onClick={() => onCardClick("active")}
+        />
+        <SummaryCard
+          label={t.dueTasks}
+          value={stats.dueCount}
+          icon={<CalendarClock className="w-4 h-4" />}
+          valueClass={stats.dueCount > 0 ? "text-red-600" : "text-slate-800"}
+          iconClass="bg-red-50 text-red-600"
+          hint={t.dueHint}
+          onClick={() => onCardClick("due")}
+        />
+        <SummaryCard
+          label={t.approvedPendingSupervisor}
+          value={stats.approvedPendingSupervisorCount}
+          icon={<ShieldCheck className="w-4 h-4" />}
+          valueClass="text-emerald-600"
+          iconClass="bg-emerald-50 text-emerald-600"
+          hint={t.viewList}
+          onClick={() => onCardClick("pendingSupervisor")}
+        />
+        <SummaryCard
+          label={t.pendingYourReview}
+          value={stats.pendingReviewCount}
+          icon={<Hourglass className="w-4 h-4" />}
+          valueClass="text-orange-600"
+          iconClass="bg-orange-100 text-orange-600"
+          hint={t.viewList}
+          highlight
+          onClick={() => onCardClick("pendingReview")}
+        />
       </div>
 
       {/* Pending Your Review Card */}
@@ -128,6 +160,35 @@ export default function ReceptionistReviewSection({
         )}
       </div>
     </div>
+  );
+}
+
+function SummaryCard({
+  label, value, icon, valueClass, iconClass, hint, highlight = false, onClick,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  valueClass: string;
+  iconClass: string;
+  hint: string;
+  highlight?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-start rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 group ${
+        highlight ? "border-orange-200 bg-orange-50/30 hover:border-orange-300" : "bg-white border-slate-100 hover:border-nassayem/30"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className={`text-xs ${highlight ? "font-bold text-orange-700" : "font-medium text-slate-500"}`}>{label}</div>
+        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconClass}`}>{icon}</span>
+      </div>
+      <div className={`text-3xl font-black ${valueClass}`}>{value}</div>
+      <div className="text-[11px] text-slate-400 mt-1 group-hover:text-nassayem transition-colors">{hint}</div>
+    </button>
   );
 }
 
