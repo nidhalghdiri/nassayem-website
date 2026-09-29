@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { createTask } from "@/app/actions/tasks";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import imageCompression from "browser-image-compression";
+import { createTask, type CreateTaskState } from "@/app/actions/tasks";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import { buildingLabel } from "@/lib/buildingLabel";
 import type { TStaffRole } from "@/lib/tasks/constants";
@@ -27,7 +29,12 @@ type Props = {
   selfOnly?: boolean;
 };
 
-const initialState = { error: null };
+const initialState: CreateTaskState = { error: null };
+
+const MAX_PHOTOS = 10;
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+type PendingPhoto = { id: string; file: File; preview: string };
 
 export default function CreateTaskForm({ buildings, assignableStaff, locale, parentTask, selfOnly = false }: Props) {
   const isEn = locale === "en";
@@ -35,6 +42,102 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
   const [selectedType, setSelectedType] = useState("");
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [unitMode, setUnitMode] = useState<"dropdown" | "custom">("dropdown");
+  const router = useRouter();
+
+  // ── Photos: compressed in the browser, uploaded one by one after the task
+  // is created (each request stays well under the server body limits).
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [preparingPhotos, setPreparingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const handledTaskId = useRef<string | null>(null);
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+
+  // Free preview URLs when the form unmounts
+  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.preview)), []);
+
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const files = Array.from(input.files ?? []);
+    input.value = ""; // allow picking the same file again
+    if (!files.length) return;
+
+    setPhotoError(null);
+    const room = MAX_PHOTOS - photos.length;
+    if (files.length > room) {
+      setPhotoError(isEn ? `You can attach up to ${MAX_PHOTOS} photos.` : `يمكنك إرفاق ${MAX_PHOTOS} صور كحد أقصى.`);
+    }
+
+    setPreparingPhotos(true);
+    const added: PendingPhoto[] = [];
+    for (let file of files.slice(0, Math.max(0, room))) {
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+        setPhotoError(isEn ? `"${file.name}" is not a JPG, PNG or WebP image.` : `"${file.name}" ليست صورة JPG أو PNG أو WebP.`);
+        continue;
+      }
+      if (file.size > 1024 * 1024) {
+        try {
+          file = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+        } catch (err) {
+          console.error("Compression failed:", err);
+        }
+      }
+      if (file.size > 4 * 1024 * 1024) {
+        setPhotoError(isEn ? `"${file.name}" is too large.` : `"${file.name}" حجمها كبير جداً.`);
+        continue;
+      }
+      added.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, file, preview: URL.createObjectURL(file) });
+    }
+    setPhotos((prev) => [...prev, ...added]);
+    setPreparingPhotos(false);
+  }
+
+  function removePhoto(id: string) {
+    setPhotos((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  // Once the task exists: upload photos, then go to the Tasks page.
+  useEffect(() => {
+    const taskId = state.taskId;
+    if (!taskId || handledTaskId.current === taskId) return;
+    handledTaskId.current = taskId;
+
+    (async () => {
+      const toUpload = photosRef.current;
+      let failed = 0;
+      if (toUpload.length > 0) {
+        setUploadProgress({ done: 0, total: toUpload.length });
+        for (let i = 0; i < toUpload.length; i++) {
+          const fd = new FormData();
+          fd.append("file", toUpload[i].file);
+          try {
+            const res = await fetch(`/api/tasks/${taskId}/photos`, { method: "POST", body: fd });
+            if (!res.ok) failed++;
+          } catch {
+            failed++;
+          }
+          setUploadProgress({ done: i + 1, total: toUpload.length });
+        }
+      }
+      if (failed > 0) {
+        window.alert(
+          isEn
+            ? `The task was created, but ${failed} photo(s) failed to upload. You can add them from the task details.`
+            : `تم إنشاء المهمة، لكن تعذّر رفع ${failed} صورة. يمكنك إضافتها من تفاصيل المهمة.`,
+        );
+      }
+      router.push(`/${locale}/admin/tasks`);
+      router.refresh();
+    })();
+  }, [state.taskId, isEn, locale, router]);
+
+  const isUploading = uploadProgress !== null;
+  const isBusy = isPending || isUploading || preparingPhotos;
 
   const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
   const units = selectedBuilding?.buildingUnits || [];
@@ -169,21 +272,53 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         />
       </div>
 
-      {/* ── Photo (Optional) ────────────────────────────────────────────── */}
+      {/* ── Photos (Optional) ──────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="photo">
-          {isEn ? "Attach Photo" : "إرفاق صورة"}
+        <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="photos">
+          {isEn ? "Attach Photos" : "إرفاق صور"}
           <span className="text-gray-400 font-normal ms-1.5 text-xs">
-            ({isEn ? "optional" : "اختياري"})
+            ({isEn ? `optional · up to ${MAX_PHOTOS}` : `اختياري · حتى ${MAX_PHOTOS} صور`})
           </span>
         </label>
-        <input
-          id="photo"
-          name="photo"
-          type="file"
-          accept="image/jpeg, image/jpg, image/png, image/webp"
-          className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-nassayem/10 file:text-nassayem hover:file:bg-nassayem/20"
-        />
+
+        {photos.length > 0 && (
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mb-2">
+            {photos.map((p) => (
+              <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.preview} alt="" className="w-full h-full object-cover" />
+                {!isBusy && (
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(p.id)}
+                    className="absolute top-1 end-1 w-6 h-6 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                    title={isEn ? "Remove photo" : "إزالة الصورة"}
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {photos.length < MAX_PHOTOS && (
+          <input
+            id="photos"
+            type="file"
+            multiple
+            accept="image/jpeg, image/jpg, image/png, image/webp"
+            onChange={handlePhotoSelect}
+            disabled={isBusy}
+            className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-nassayem/10 file:text-nassayem hover:file:bg-nassayem/20 disabled:opacity-60"
+          />
+        )}
+        {preparingPhotos && (
+          <p className="text-xs text-gray-500 mt-1.5">{isEn ? "Preparing photos…" : "جارٍ تجهيز الصور…"}</p>
+        )}
+        {photoError && <p className="text-xs text-red-600 mt-1.5">{photoError}</p>}
       </div>
 
       {/* ── Building + Unit ──────────────────────────────────────────────── */}
@@ -348,18 +483,22 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
         </a>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isBusy}
           className="flex items-center gap-2 px-6 py-2.5 bg-nassayem text-white text-sm font-medium rounded-xl hover:bg-nassayem/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isPending && (
+          {(isPending || isUploading) && (
             <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           )}
-          {isPending
-            ? (isEn ? "Creating…" : "جارٍ الإنشاء…")
-            : (isEn ? "Create Task" : "إنشاء المهمة")}
+          {isUploading
+            ? (isEn
+                ? `Uploading photos ${uploadProgress!.done}/${uploadProgress!.total}…`
+                : `جارٍ رفع الصور ${uploadProgress!.done}/${uploadProgress!.total}…`)
+            : isPending
+              ? (isEn ? "Creating…" : "جارٍ الإنشاء…")
+              : (isEn ? "Create Task" : "إنشاء المهمة")}
         </button>
       </div>
     </form>

@@ -8,15 +8,19 @@ import { canCreateTasks, canCreateMaintenanceRequest, canOpenCreateTask, isSelfO
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
-import { uploadToR2 } from "@/lib/r2";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { TaskType, TaskPriority, StaffRole, CleaningType } from "@prisma/client";
 
 // ── Create a new task ─────────────────────────────────────────────────────────
+// Returns the new task's id instead of redirecting: CreateTaskForm then uploads
+// the attached photos one by one to /api/tasks/:id/photos (keeps every request
+// small — server-action bodies are capped at 1 MB) and navigates afterwards.
+export type CreateTaskState = { error: string | null; taskId?: string };
+
 export async function createTask(
-  _prevState: { error: string | null },
+  _prevState: CreateTaskState,
   formData: FormData,
-): Promise<{ error: string | null }> {
+): Promise<CreateTaskState> {
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) return { error: "Unauthorized." };
   const role = adminUser.role as TStaffRole;
@@ -136,40 +140,6 @@ export async function createTask(
     }
   }
 
-  // Handle optional photo upload
-  const photoFile = formData.get("photo") as File | null;
-  if (photoFile && photoFile.size > 0) {
-    const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (ALLOWED_TYPES.includes(photoFile.type)) {
-      try {
-        const ext = photoFile.name.split(".").pop() ?? "jpg";
-        const filename = `task-photos/${task.id}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
-        const buffer = Buffer.from(await photoFile.arrayBuffer());
-        const publicUrl = await uploadToR2(filename, buffer, photoFile.type || "image/jpeg");
-        
-        await prisma.$transaction([
-          prisma.taskPhoto.create({
-            data: {
-              taskId: task.id,
-              userId: adminUser.id,
-              photoUrl: publicUrl,
-            }
-          }),
-          prisma.taskActivity.create({
-            data: {
-              taskId: task.id,
-              userId: adminUser.id,
-              action: "photo_uploaded",
-              details: "Photo attached during task creation",
-            }
-          })
-        ]);
-      } catch (err) {
-        console.error("Failed to upload attached photo during task creation:", err);
-      }
-    }
-  }
-
   // Send WhatsApp notification to the assigned user (non-blocking).
   const building = await prisma.building.findUnique({ where: { id: buildingId }, select: { nameEn: true } });
   notifyTaskAssigned({
@@ -187,7 +157,7 @@ export async function createTask(
   }).catch(console.error);
 
   revalidatePath(`/${locale}/admin/tasks`);
-  redirect(`/${locale}/admin/tasks`);
+  return { error: null, taskId: task.id };
 }
 
 // ── Bulk create multiple tasks ────────────────────────────────────────────────
