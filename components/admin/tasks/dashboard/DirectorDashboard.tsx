@@ -63,8 +63,26 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
   const [modalTasks, setModalTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [modalBuilding, setModalBuilding] = useState("ALL");
+
+  // Building filter for the card modal: only buildings present in the list, with counts
+  const modalBuildings = React.useMemo(() => {
+    const map = new Map<string, { id: string; nameEn: string; nameAr: string; count: number }>();
+    for (const task of modalTasks) {
+      const b = task.building;
+      if (!b?.id) continue;
+      const entry = map.get(b.id) ?? { id: b.id, nameEn: b.nameEn, nameAr: b.nameAr, count: 0 };
+      entry.count++;
+      map.set(b.id, entry);
+    }
+    return Array.from(map.values()).sort((a, b) => a.nameEn.localeCompare(b.nameEn));
+  }, [modalTasks]);
+  const visibleModalTasks = modalBuilding === "ALL"
+    ? modalTasks
+    : modalTasks.filter((task) => task.building?.id === modalBuilding);
 
   React.useEffect(() => {
+    setModalBuilding("ALL");
     if (!modalType) {
       setModalTasks([]);
       return;
@@ -349,6 +367,9 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
                 {modalType === "DELAYED" && <AlertCircle className="w-5 h-5 text-red-600" />}
                 {modalType === "WAITING_AUDIT" && <CheckSquare className="w-5 h-5 text-orange-600" />}
                 {modalType === "ACTIVE" ? t.activeTasks : modalType === "DELAYED" ? t.delayedTasks : t.waitingAudit}
+                {!isLoadingTasks && (
+                  <span className="text-xs font-medium text-slate-400">({visibleModalTasks.length})</span>
+                )}
               </h2>
               <button
                 onClick={() => setModalType(null)}
@@ -358,18 +379,36 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
               </button>
             </div>
             
+            {!isLoadingTasks && modalBuildings.length > 1 && (
+              <div className="px-6 py-3 border-b border-slate-100 bg-white flex items-center gap-3">
+                <label className="text-xs font-bold text-slate-500 shrink-0">{isEn ? "Building" : "المبنى"}</label>
+                <select
+                  value={modalBuilding}
+                  onChange={(e) => setModalBuilding(e.target.value)}
+                  className="flex-1 max-w-xs px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+                >
+                  <option value="ALL">{isEn ? `All Buildings (${modalTasks.length})` : `كل المباني (${modalTasks.length})`}</option>
+                  {modalBuildings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {isEn ? b.nameEn : b.nameAr} ({b.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
               {isLoadingTasks ? (
                 <div className="flex justify-center items-center h-32">
                   <div className="w-8 h-8 border-4 border-nassayem border-t-transparent rounded-full animate-spin"></div>
                 </div>
-              ) : modalTasks.length === 0 ? (
+              ) : visibleModalTasks.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <p>{isEn ? "No tasks found." : "لا توجد مهام."}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {modalTasks.map((t_modal) => (
+                  {visibleModalTasks.map((t_modal) => (
                     <div key={t_modal.id} className="bg-white border border-slate-100 p-4 rounded-xl flex justify-between items-center hover:border-nassayem/30 transition-colors shadow-sm">
                       <div>
                         <h3 className="font-bold text-sm text-slate-800">{t_modal.title}</h3>
