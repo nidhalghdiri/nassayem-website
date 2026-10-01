@@ -63,7 +63,10 @@ export default async function AdminTasksListPage({ params, searchParams }: PageP
 
   const tasks = await prisma.task.findMany({
       where: {
-        ...visibilityFilter,
+        // Visibility goes in AND so no filter below can replace it: spreading it
+        // let the status-group `OR` (and the `buildingId` filter) overwrite the
+        // user's own-tasks / own-buildings restriction.
+        AND: [visibilityFilter],
         ...(type ? { type } : {}),
         ...(priority ? { priority } : {}),
         ...(status ? { status } : {}),

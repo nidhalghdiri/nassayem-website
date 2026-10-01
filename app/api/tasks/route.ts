@@ -45,7 +45,8 @@ export async function GET(request: Request) {
 
   const tasks = await prisma.task.findMany({
     where: {
-      ...visibilityFilter,
+      // In AND so the `unitId` OR / `buildingId` filters below can't replace it.
+      AND: [visibilityFilter],
       ...(type       ? { type }                                   : {}),
       ...(status     ? { status: status as never }                : {}),
       ...(buildingId ? { buildingId }                             : {}),
