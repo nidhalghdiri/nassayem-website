@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useState } from "react";
+import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import type { WorkerDashboardData } from "@/lib/reports/workerDashboard";
 import WorkerStatsSection from "./worker/WorkerStatsSection";
 import WorkerOpenTasks from "./worker/WorkerOpenTasks";
@@ -26,6 +27,12 @@ export default function WorkerDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+
+  const closeTaskPanel = useCallback(() => {
+    setOpenTaskId(null);
+    router.refresh(); // pick up status changes / photos made in the panel
+  }, [router]);
 
   const handleWorkerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -59,10 +66,20 @@ export default function WorkerDashboard({
       <WorkerStatsSection isEn={isEn} stats={data.stats} />
 
       {/* Open Tasks Section */}
-      <WorkerOpenTasks isEn={isEn} tasks={data.openTasks} />
+      <WorkerOpenTasks isEn={isEn} locale={locale} tasks={data.openTasks} onOpenTask={setOpenTaskId} />
 
       {/* Recent Completed Tasks Section */}
       <WorkerRecentTasks isEn={isEn} tasks={data.recentTasks} />
+
+      {/* Task details (photos, notes, other status actions) */}
+      <TaskDetailPanel
+        locale={locale}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        taskId={openTaskId}
+        onClose={closeTaskPanel}
+        onOpenTask={setOpenTaskId}
+      />
     </div>
   );
 }
