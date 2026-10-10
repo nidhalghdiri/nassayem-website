@@ -2,7 +2,7 @@ import DashboardView from "../DashboardView";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ building?: string; worker?: string }>;
+  searchParams: Promise<{ building?: string; worker?: string; tech?: string }>;
 };
 
 export default function WorkerDashboardPage({ params, searchParams }: PageProps) {

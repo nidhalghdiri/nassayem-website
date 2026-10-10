@@ -6,6 +6,8 @@ import DirectorDashboard from "@/components/admin/tasks/dashboard/DirectorDashbo
 import SupervisorDashboard from "@/components/admin/tasks/dashboard/SupervisorDashboard";
 import ReceptionistDashboard from "@/components/admin/tasks/dashboard/ReceptionistDashboard";
 import WorkerDashboard from "@/components/admin/tasks/dashboard/WorkerDashboard";
+import MaintenanceDashboard from "@/components/admin/tasks/dashboard/maintenance/MaintenanceDashboard";
+import { getMaintenanceDashboardData } from "@/lib/reports/maintenanceDashboard";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
 import { getDashboardAlerts } from "@/lib/reports/alerts";
@@ -16,7 +18,8 @@ import { getDashboardTabs, type TDashboardTab } from "@/lib/tasks/permissions";
 import type { TaskStatus } from "@prisma/client";
 
 // Each dashboard has its own route (/admin/tasks, /admin/tasks/supervisor,
-// /admin/tasks/receptionist, /admin/tasks/worker) and loads only its own data.
+// /admin/tasks/receptionist, /admin/tasks/worker, /admin/tasks/maintenance)
+// and loads only its own data.
 // `dashboard` omitted = the user's default dashboard for their role.
 export default async function DashboardView({
   params,
@@ -24,10 +27,10 @@ export default async function DashboardView({
   dashboard,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ building?: string; worker?: string }>;
+  searchParams: Promise<{ building?: string; worker?: string; tech?: string }>;
   dashboard?: TDashboardTab;
 }) {
-  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId }, adminUser] = await Promise.all([
+  const [{ locale }, { building: selectedBuilding, worker: selectedWorkerId, tech: selectedTechId }, adminUser] = await Promise.all([
     params,
     searchParams,
     getCurrentAdminUser(),
@@ -211,6 +214,32 @@ export default async function DashboardView({
         assignableStaff={assignableStaff}
         data={receptionistData}
         selectedBuilding={finalSelectedBuilding}
+      />
+    );
+  } else if (activeTab === "maintenance") {
+    // Managers can view any technician's dashboard (?tech=); technicians see their own.
+    const isManagerView = adminUser.role === "MANAGER";
+    const [technicians] = await Promise.all([
+      isManagerView
+        ? prisma.adminUser.findMany({
+            where: { role: "MAINTENANCE" },
+            select: { id: true, name: true, email: true },
+            orderBy: { name: "asc" },
+          })
+        : Promise.resolve([] as { id: string; name: string | null; email: string }[]),
+    ]);
+    const techId = isManagerView
+      ? (technicians.some((u) => u.id === selectedTechId) ? selectedTechId! : technicians[0]?.id ?? adminUser.id)
+      : adminUser.id;
+    const maintenanceData = await getMaintenanceDashboardData(techId);
+
+    content = (
+      <MaintenanceDashboard
+        locale={locale}
+        currentUserId={adminUser.id}
+        currentUserRole={adminUser.role}
+        data={maintenanceData}
+        technicians={technicians}
       />
     );
   } else {

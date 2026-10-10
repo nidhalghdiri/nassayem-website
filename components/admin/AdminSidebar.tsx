@@ -27,14 +27,14 @@ type NavItem = {
 
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions, WhatsApp Log, and the per-role
-//                Tasks dashboards: Supervisor / Receptionist / Worker)
+//                Tasks dashboards: Supervisor / Receptionist / Worker / Maintenance)
 // SUPERVISOR   : Tasks, Tasks List, Maintenance, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
 // MAINTENANCE  : Dashboard, Tasks, Tasks List, Maintenance
 // LAUNDRY      : Dashboard, Laundry
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["tasks", "tasksList", "maintenance", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
@@ -118,6 +118,7 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
         `/${locale}/admin/tasks/supervisor`,
         `/${locale}/admin/tasks/receptionist`,
         `/${locale}/admin/tasks/worker`,
+        `/${locale}/admin/tasks/maintenance`,
       ],
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
     },
@@ -147,6 +148,15 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       exact: false,
       sub: true,
       icon: "M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085",
+    },
+    {
+      key: "tasksMaintenance",
+      nameEn: "Maintenance Dashboard",
+      nameAr: "لوحة تحكم الصيانة",
+      href: `/${locale}/admin/tasks/maintenance`,
+      exact: false,
+      sub: true,
+      icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
     },
     {
       key: "tasksList",

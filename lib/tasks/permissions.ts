@@ -60,14 +60,15 @@ export function canSeeAllTasks(role: TStaffRole): boolean {
 }
 
 // ─── Tasks dashboard tabs ────────────────────────────────────────────────────
-export type TDashboardTab = "manager" | "supervisor" | "receptionist" | "worker";
+export type TDashboardTab = "manager" | "supervisor" | "receptionist" | "worker" | "maintenance";
 
 /** Dashboard tabs each role may open on /admin/tasks; the first is the default. */
 export function getDashboardTabs(role: string): TDashboardTab[] {
   switch (role) {
-    case "MANAGER":      return ["manager", "supervisor", "receptionist", "worker"];
+    case "MANAGER":      return ["manager", "supervisor", "receptionist", "worker", "maintenance"];
     case "SUPERVISOR":   return ["supervisor"];
     case "RECEPTIONIST": return ["receptionist"];
+    case "MAINTENANCE":  return ["maintenance"];
     default:             return ["worker"];
   }
 }

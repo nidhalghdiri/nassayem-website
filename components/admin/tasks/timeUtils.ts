@@ -29,3 +29,27 @@ export function formatDateTimeOman(date: Date | string, isEn: boolean): string {
     hour12: false,
   });
 }
+
+/** Compact duration: "45m", "3h 43m", "3d 3h" (Arabic: "45 د", "3 س 43 د", "3 يوم 3 س"). */
+export function formatDuration(totalMinutes: number, isEn: boolean): string {
+  const m = Math.max(0, Math.round(totalMinutes));
+  if (m < 60) return isEn ? `${m}m` : `${m} د`;
+  const h = Math.floor(m / 60);
+  if (h < 24) {
+    const rm = m % 60;
+    return isEn ? `${h}h${rm ? ` ${rm}m` : ""}` : `${h} س${rm ? ` ${rm} د` : ""}`;
+  }
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return isEn ? `${d}d${rh ? ` ${rh}h` : ""}` : `${d} يوم${rh ? ` ${rh} س` : ""}`;
+}
+
+/** Time of day in Oman time, e.g. "10:36". */
+export function formatTimeOman(date: Date | string): string {
+  return new Date(date).toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Muscat",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}

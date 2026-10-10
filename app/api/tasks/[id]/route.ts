@@ -61,7 +61,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
 // ── PATCH /api/tasks/:id ─────────────────────────────────────────────────────
 // Accepts any combination of:
-//   { status, priority, title, description, dueDate, assignedToId }
+//   { status, holdReason?, priority, title, description, dueDate, assignedToId }
 export async function PATCH(request: Request, { params }: RouteContext) {
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -142,6 +142,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       action:  "status_changed",
       details: `Status changed from ${task.status} to ${newStatus}`,
     });
+
+    // Optional reason when pausing (e.g. "Thermostat — ordered from supplier");
+    // shown on the Maintenance dashboard while the task is on hold.
+    const holdReason = typeof body.holdReason === "string" ? body.holdReason.trim().slice(0, 300) : "";
+    if (newStatus === "ON_HOLD" && holdReason) {
+      activities.push({ action: "on_hold_reason", details: holdReason });
+    }
   }
 
   // ── Other editable fields ─────────────────────────────────────────────────

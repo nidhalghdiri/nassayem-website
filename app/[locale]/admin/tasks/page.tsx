@@ -26,9 +26,9 @@ export default async function AdminTasksModulePage({ params, searchParams }: Pag
   if (sp.view === "list" || sp.taskId) {
     redirect(`/${locale}/admin/tasks/list${query}`);
   }
-  if (sp.tab === "supervisor" || sp.tab === "receptionist" || sp.tab === "worker") {
+  if (sp.tab === "supervisor" || sp.tab === "receptionist" || sp.tab === "worker" || sp.tab === "maintenance") {
     redirect(`/${locale}/admin/tasks/${sp.tab}${query}`);
   }
 
-  return <DashboardView params={params} searchParams={searchParams as Promise<{ building?: string; worker?: string }>} />;
+  return <DashboardView params={params} searchParams={searchParams as Promise<{ building?: string; worker?: string; tech?: string }>} />;
 }
