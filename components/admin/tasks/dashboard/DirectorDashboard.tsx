@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X, Clock, Activity, CheckSquare } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
+import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 import EmployeeOfTheWeekReport from "../reports/EmployeeOfTheWeekReport";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
@@ -170,13 +171,16 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
             <h1 className="text-xl font-bold text-slate-800">{t.headerTitle}</h1>
             <p className="text-sm text-slate-500 mt-1">{t.headerDesc}</p>
           </div>
-          <button
-            onClick={() => setIsTaskModalOpen(true)}
-            className="flex items-center gap-2 bg-nassayem hover:bg-nassayem/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm shrink-0"
-          >
-            <Plus className="w-5 h-5" />
-            {t.newTaskBtn}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 shrink-0">
+            <MaintenanceRequestButton locale={locale} />
+            <button
+              onClick={() => setIsTaskModalOpen(true)}
+              className="flex items-center gap-2 bg-nassayem hover:bg-nassayem/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm shrink-0"
+            >
+              <Plus className="w-5 h-5" />
+              {t.newTaskBtn}
+            </button>
+          </div>
         </div>
 
         {/* KPI Cards */}

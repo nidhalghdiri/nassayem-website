@@ -7,6 +7,7 @@ import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import LiveTasksSection from "./receptionist/LiveTasksSection";
 import UnitsStatusSection from "./receptionist/UnitsStatusSection";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
+import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
@@ -91,6 +92,7 @@ export default function ReceptionistDashboard({
             ))}
           </select>
           </div>
+          <MaintenanceRequestButton locale={locale} className="flex items-center justify-center gap-2 border border-nassayem/40 text-nassayem bg-white hover:bg-nassayem/5 px-5 py-3 mt-4 md:mt-0 rounded-xl font-bold transition-colors shrink-0" />
           <button
             onClick={() => setIsTaskModalOpen(true)}
             className="bg-nassayem hover:bg-nassayem/90 text-white px-6 py-3 mt-4 md:mt-0 rounded-xl font-bold shadow-sm transition-colors shrink-0"

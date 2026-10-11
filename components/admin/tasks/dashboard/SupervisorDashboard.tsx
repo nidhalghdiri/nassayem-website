@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Plus } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
+import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 import AuditList from "./AuditList";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
@@ -50,12 +51,15 @@ export default function SupervisorDashboard({ locale, buildings, assignableStaff
           <h2 className="text-xl font-bold text-slate-800">{t.createTitle}</h2>
           <p className="text-slate-500 text-sm mt-1">{t.createDesc}</p>
         </div>
-        <button
-          onClick={() => setIsTaskModalOpen(true)}
-          className="bg-nassayem hover:bg-nassayem/90 text-white px-6 py-3 rounded-xl font-bold shadow-sm transition-colors shrink-0"
-        >
-          {t.newTaskBtn}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2 shrink-0">
+          <MaintenanceRequestButton locale={locale} className="flex items-center justify-center gap-2 border border-nassayem/40 text-nassayem bg-white hover:bg-nassayem/5 px-5 py-3 rounded-xl font-bold transition-colors shrink-0" />
+          <button
+            onClick={() => setIsTaskModalOpen(true)}
+            className="bg-nassayem hover:bg-nassayem/90 text-white px-6 py-3 rounded-xl font-bold shadow-sm transition-colors shrink-0"
+          >
+            {t.newTaskBtn}
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

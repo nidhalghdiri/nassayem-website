@@ -7,6 +7,7 @@ import { getEquipmentByQrCode, logMaintenanceVisit } from "@/app/actions/mainten
 import { EquipmentVisitStatus } from "@prisma/client";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { ISSUE_OPTIONS_EN, ISSUE_OPTIONS_AR } from "@/lib/maintenance/issues";
 
 type Props = {
   locale: string;
@@ -142,8 +143,8 @@ export default function TechnicianScanFlow({ locale, currentUserId, buildings, e
     }
   };
 
-  const issueOptionsEn = ["Not Cooling/Heating", "Leaking", "No Power / Won't Turn On", "Unusual Noise", "Physical Damage", "Routine Maintenance Required", "Other"];
-  const issueOptionsAr = ["لا يبرد / لا يسخن", "تسريب", "لا يوجد طاقة / لا يعمل", "صوت غير طبيعي", "ضرر فيزيائي", "صيانة دورية مطلوبة", "أخرى"];
+  const issueOptionsEn = ISSUE_OPTIONS_EN;
+  const issueOptionsAr = ISSUE_OPTIONS_AR;
 
   const actionOptionsEn = ["Cleaned Filters/Components", "Replaced Parts", "To be checked by specialist", "Repaired", "Adjusted Settings", "Other"];
   const actionOptionsAr = ["تنظيف الفلاتر / القطع", "استبدال قطع الغيار", "بانتظار فحص متخصص", "تم الإصلاح", "تعديل الإعدادات", "أخرى"];
