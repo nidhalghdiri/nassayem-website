@@ -53,8 +53,11 @@ export default function WorkerOpenTasks({
   }
 
   const t = {
-    openTasks: isEn ? "My Open Tasks" : "مهامي المفتوحة",
-    sortedByRecency: isEn ? "Sorted by newest" : "مرتبة حسب الأحدث",
+    openTasks: isEn ? "My Tasks" : "مهامي",
+    sortedByRecency: isEn ? "Finished tasks stay until they are reviewed" : "المنجزة تبقى حتى يتم تقييمها",
+    awaitingReview: isEn ? "Completed — awaiting review" : "منجزة — بانتظار التقييم",
+    awaitingSupervisor: isEn ? "Approved by reception — awaiting supervisor" : "اعتمدها الاستقبال — بانتظار المشرف",
+    tookTime: isEn ? "Took" : "استغرقت",
     finish: isEn ? "Finish" : "إنهاء",
     working: isEn ? "Working" : "جاري العمل",
     buildingMngr: isEn ? "Building Manager" : "مسؤول المبنى",
@@ -64,7 +67,7 @@ export default function WorkerOpenTasks({
     high: isEn ? "High" : "مرتفع",
     hrs: isEn ? "h" : "س",
     mins: isEn ? "m" : "د",
-    noTasks: isEn ? "You have no open tasks." : "لا توجد لديك مهام مفتوحة.",
+    noTasks: isEn ? "You have no tasks right now." : "لا توجد لديك مهام حالياً.",
     rejectedNeedRepeat: isEn ? "Rejected - Needs Repeat" : "مرفوضة - تحتاج إعادة",
     start: isEn ? "Start" : "ابدأ",
     openInspection: isEn ? "Open Inspection" : "فتح الفحص",
@@ -90,7 +93,7 @@ export default function WorkerOpenTasks({
           <div className="text-center py-8 text-slate-500 text-sm">{t.noTasks}</div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} className={`border ${task.hasRejection ? 'border-red-300 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-nassayem/30 transition-colors gap-4`}>
+            <div key={task.id} className={`border ${task.awaitingReview ? 'border-emerald-200 bg-emerald-50/20' : task.hasRejection ? 'border-red-300 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-nassayem/30 transition-colors gap-4`}>
               
               {/* Task Details */}
               <div className="flex flex-col gap-3 w-full">
@@ -106,7 +109,12 @@ export default function WorkerOpenTasks({
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center">
-                  {task.hasRejection ? (
+                  {task.awaitingReview ? (
+                    <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md ${task.awaitingReview === "approved_receptionist" ? "bg-teal-50 text-teal-700" : "bg-emerald-50 text-emerald-700"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${task.awaitingReview === "approved_receptionist" ? "bg-teal-500" : "bg-emerald-500"}`} />
+                      {task.awaitingReview === "approved_receptionist" ? t.awaitingSupervisor : t.awaitingReview}
+                    </span>
+                  ) : task.hasRejection ? (
                     <span className="bg-red-100 text-red-700 border border-red-200 text-[11px] font-black px-2 py-1 rounded-md animate-pulse">
                       {t.rejectedNeedRepeat}
                     </span>
@@ -129,7 +137,14 @@ export default function WorkerOpenTasks({
                     </span>
                   )}
 
-                  {task.isLate ? (
+                  {task.awaitingReview ? (
+                    task.timeElapsedMins > 0 ? (
+                      <span className="bg-blue-50 text-blue-600 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {t.tookTime} {formatLateTime(task.timeElapsedMins)}
+                      </span>
+                    ) : null
+                  ) : task.isLate ? (
                     <span className="bg-red-50 text-red-600 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {t.late} {formatLateTime(task.timeElapsedMins)}

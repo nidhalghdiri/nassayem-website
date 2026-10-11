@@ -57,7 +57,9 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
     satisfaction: isEn ? "Branch satisfaction (30 days)" : "رضا الفروع (30 يوماً)",
     satisfactionHint: isEn ? "Reviewed tasks accepted without rejection" : "المهام المراجَعة المقبولة دون رفض",
     sortHint: isEn ? "Not-started tasks first" : "التي لم يبدأ العمل عليها أولاً",
-    empty: isEn ? "No open tasks — nice work!" : "لا توجد مهام مفتوحة — عمل رائع!",
+    awaitingGroup: isEn ? "Done — awaiting review" : "منجزة — بانتظار التقييم",
+    awaitingHint: isEn ? "Stay here until the supervisor approves and rates them" : "تبقى هنا حتى يعتمدها المشرف ويقيّمها",
+    empty: isEn ? "No tasks right now — nice work!" : "لا توجد مهام حالياً — عمل رائع!",
     failed: isEn ? "Could not update the task." : "تعذّر تحديث المهمة.",
     network: isEn ? "Network error." : "خطأ في الشبكة.",
   };
@@ -105,6 +107,22 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
   }
 
   const { stats } = data;
+  const activeTasks = data.openTasks.filter((task) => !task.awaitingReview);
+  const awaitingTasks = data.openTasks.filter((task) => task.awaitingReview);
+
+  const renderCard = (task: MaintenanceTask) => (
+    <MaintenanceTaskCard
+      key={task.id}
+      task={task}
+      isEn={isEn}
+      locale={locale}
+      busy={busyId === task.id}
+      error={errors[task.id]}
+      onAdvance={(tk, status) => updateStatus(tk, status)}
+      onPause={setPauseTask}
+      onOpenTask={setOpenTaskId}
+    />
+  );
   const statCards = [
     { label: t.open, value: String(stats.openCount), icon: <Briefcase className="w-5 h-5" />, bubble: "bg-blue-50 text-blue-600" },
     { label: t.notStarted, value: String(stats.notStartedCount), icon: <CircleDot className="w-5 h-5" />, bubble: "bg-red-50 text-red-600", valueCls: stats.notStartedCount > 0 ? "text-red-600" : undefined },
@@ -199,19 +217,22 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
                   {t.empty}
                 </div>
               ) : (
-                data.openTasks.map((task) => (
-                  <MaintenanceTaskCard
-                    key={task.id}
-                    task={task}
-                    isEn={isEn}
-                    locale={locale}
-                    busy={busyId === task.id}
-                    error={errors[task.id]}
-                    onAdvance={(tk, status) => updateStatus(tk, status)}
-                    onPause={setPauseTask}
-                    onOpenTask={setOpenTaskId}
-                  />
-                ))
+                <>
+                  {activeTasks.map(renderCard)}
+
+                  {awaitingTasks.length > 0 && (
+                    <div className="pt-2 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-sm font-bold text-emerald-700 whitespace-nowrap">
+                          {t.awaitingGroup} ({awaitingTasks.length})
+                        </h4>
+                        <span className="h-px flex-1 bg-emerald-100" />
+                        <span className="text-xs text-slate-400 hidden sm:inline">{t.awaitingHint}</span>
+                      </div>
+                      {awaitingTasks.map(renderCard)}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>

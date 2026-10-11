@@ -145,6 +145,31 @@ export const TERMINAL_STATUSES: TTaskStatus[] = [
   "CANCELLED",
 ];
 
+// ─── Statuses that go through the review (audit) flow ───────────────────────
+// A finished Cleaning / Maintenance task is reviewed by reception and finally
+// approved + rated by the supervisor. Inspections (NO_ISSUES) and work orders
+// (COMPLETED) never enter that flow.
+export const AUDITED_STATUSES: TTaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED"];
+
+/** Where a finished task is in the review flow. */
+export type TAwaitingReview = "pending" | "approved_receptionist";
+
+/**
+ * Returns the review stage of a finished task, or null when it needs no more
+ * review (not an audited status, or already given the final supervisor approval).
+ * `latestReviewAction` = the newest of approved / rejected / approved_receptionist /
+ * rejected_receptionist. A task that is back in a *_COMPLETED status after a
+ * rejection was redone, so it is pending review again.
+ */
+export function getAwaitingReview(
+  status: string,
+  latestReviewAction: string | null | undefined,
+): TAwaitingReview | null {
+  if (!AUDITED_STATUSES.includes(status as TTaskStatus)) return null;
+  if (latestReviewAction === "approved") return null;
+  return latestReviewAction === "approved_receptionist" ? "approved_receptionist" : "pending";
+}
+
 /** Returns the initial status for a new task. Approval flow has been removed. */
 export function getInitialStatus(_type: TTaskType): TTaskStatus {
   return "ASSIGNED";

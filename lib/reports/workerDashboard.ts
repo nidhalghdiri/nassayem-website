@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import type { TaskStatus } from "@prisma/client";
+import { getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
 
 export type WorkerStats = {
   firstTimeAcceptanceRate: number; // percentage
@@ -23,6 +24,8 @@ export type WorkerTask = {
   timeElapsedMins: number;
   isLate: boolean;
   hasRejection: boolean;
+  /** Set when the work is done but not yet finally approved/rated: the task stays in "My tasks". */
+  awaitingReview: TAwaitingReview | null;
 };
 
 export type WorkerDashboardData = {
@@ -70,6 +73,7 @@ export async function getWorkerDashboardData(workerId: string): Promise<WorkerDa
       ["approved", "rejected", "approved_receptionist", "rejected_receptionist"].includes(a.action)
     );
     const latestAction = approvalActivities[0]?.action;
+    const awaitingReview = getAwaitingReview(t.status, latestAction);
     const hasRejection = approvalActivities.some(a => a.action === "rejected" || a.action === "rejected_receptionist");
 
     // Stats calculations
@@ -78,7 +82,7 @@ export async function getWorkerDashboardData(workerId: string): Promise<WorkerDa
       if (!hasRejection) firstTimeAcceptedCount++;
     }
 
-    if (isTerminal && latestAction !== "approved") {
+    if (awaitingReview) {
       pendingAuditCount++;
     }
 
@@ -110,14 +114,20 @@ export async function getWorkerDashboardData(workerId: string): Promise<WorkerDa
       timeElapsedMins: taskDurationMins,
       isLate,
       hasRejection,
+      awaitingReview,
     };
 
-    if (isActive) {
+    if (isActive || awaitingReview) {
+      // Done tasks stay in "My tasks" until they are finally approved and rated
       openTasks.push(wTask);
     } else if (isTerminal) {
       recentTasks.push(wTask);
     }
   }
+
+  // Work still to do first, then finished tasks waiting for review (newest first —
+  // the query is already ordered by updatedAt desc and Array.sort is stable)
+  openTasks.sort((a, b) => Number(!!a.awaitingReview) - Number(!!b.awaitingReview));
 
   const firstTimeAcceptanceRate = auditedTasksCount > 0 
     ? Math.round((firstTimeAcceptedCount / auditedTasksCount) * 100) 

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import type { TaskStatus } from "@prisma/client";
+import { AUDITED_STATUSES, getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Maintenance technician dashboard — open tasks with their timing (arrival →
@@ -49,13 +50,22 @@ export type MaintenanceTask = {
   holdSince: Date | null;
   holdReason: string | null;
   completedAt: Date | null;
-  /** Latest review on a finished task. */
-  review: "approved" | "approved_receptionist" | "rejected" | "pending" | null;
+  /** Latest review on a finished task (null = this status is not reviewed). */
+  review: "approved" | "approved_receptionist" | "pending" | null;
+  /**
+   * Work is done but the task has not been finally approved/rated yet: it stays in
+   * "My tasks" (after the active ones) until the supervisor approves it.
+   */
+  awaitingReview: TAwaitingReview | null;
+  /** Was rejected at least once — a rejected task comes back as active work. */
   hasRejection: boolean;
 };
 
 export type MaintenanceStats = {
+  /** Tasks still to work on (excludes finished tasks awaiting review). */
   openCount: number;
+  /** Finished tasks waiting for the final review. */
+  awaitingReviewCount: number;
   notStartedCount: number;
   /** Average arrival → start over the last 30 days (null = no data). */
   avgArrivalToStartMins: number | null;
@@ -88,10 +98,12 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
     prisma.task.findMany({
       where: {
         assignedToId: technicianId,
-        // Every open task, plus finished ones from the last 30 days for the log & KPIs
+        // Every open task, finished ones from the last 30 days for the log & KPIs, and
+        // any finished task that has not been finally approved yet (whatever its age)
         OR: [
           { status: { notIn: TERMINAL_STATUSES } },
           { updatedAt: { gte: thirtyDaysAgo } },
+          { status: { in: AUDITED_STATUSES }, NOT: { activities: { some: { action: "approved" } } } },
         ],
       },
       include: {
@@ -157,6 +169,7 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
     const reviews = t.activities.filter((a) => REVIEW_ACTIONS.includes(a.action));
     const hasRejection = reviews.some((a) => a.action.startsWith("rejected"));
     const latestReview = reviews[reviews.length - 1]?.action ?? null;
+    const awaitingReview = getAwaitingReview(t.status, latestReview);
     if (reviews.some((a) => a.createdAt >= thirtyDaysAgo)) {
       reviewed++;
       if (!hasRejection) acceptedClean++;
@@ -187,23 +200,36 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
       holdSince,
       holdReason,
       completedAt: isTerminal ? (completedAt ?? t.updatedAt) : null,
-      review: !isTerminal || t.status === "CANCELLED"
+      // Only audited statuses (cleaning / maintenance completed) have a review state. A
+      // task back in a completed status after a rejection was redone → pending again.
+      review: !isTerminal || !AUDITED_STATUSES.includes(t.status as never)
         ? null
-        : latestReview === "approved" || latestReview === "approved_receptionist"
-          ? latestReview
-          : latestReview?.startsWith("rejected")
-            ? "rejected"
+        : latestReview === "approved"
+          ? "approved"
+          : latestReview === "approved_receptionist"
+            ? "approved_receptionist"
             : "pending",
+      awaitingReview,
       hasRejection,
     };
 
-    if (isTerminal) logTasks.push(mt);
+    // Done-but-not-yet-rated tasks stay in "My tasks"; only finally approved ones go to the log
+    if (isTerminal && !awaitingReview) logTasks.push(mt);
     else openTasks.push(mt);
   }
 
-  // Not started first, then in progress, then on hold; oldest first within each group
-  const rank = (s: string) => (s === "ASSIGNED" ? 0 : s === "ON_HOLD" ? 2 : 1);
-  openTasks.sort((a, b) => rank(a.status) - rank(b.status) || a.createdAt.getTime() - b.createdAt.getTime());
+  // Work to do first — not started, then in progress, then on hold (oldest first) —
+  // then finished tasks awaiting review, most recently finished first
+  const rank = (task: MaintenanceTask) =>
+    task.awaitingReview ? 3 : task.status === "ASSIGNED" ? 0 : task.status === "ON_HOLD" ? 2 : 1;
+  openTasks.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      (a.awaitingReview
+        ? (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0)
+        : a.createdAt.getTime() - b.createdAt.getTime()),
+  );
+  const activeTasks = openTasks.filter((task) => !task.awaitingReview);
   logTasks.sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0));
 
   return {
@@ -212,8 +238,9 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
       name: technician?.name || technician?.email.split("@")[0] || "—",
     },
     stats: {
-      openCount: openTasks.length,
-      notStartedCount: openTasks.filter((t) => t.status === "ASSIGNED").length,
+      openCount: activeTasks.length,
+      awaitingReviewCount: openTasks.length - activeTasks.length,
+      notStartedCount: activeTasks.filter((t) => t.status === "ASSIGNED").length,
       avgArrivalToStartMins: arrivalSamples.length
         ? Math.round(arrivalSamples.reduce((s, v) => s + v, 0) / arrivalSamples.length)
         : null,

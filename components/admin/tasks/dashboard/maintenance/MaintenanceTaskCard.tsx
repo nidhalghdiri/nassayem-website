@@ -42,6 +42,10 @@ type Props = {
 
 export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, onAdvance, onPause, onOpenTask }: Props) {
   const t = {
+    awaitingReview: isEn ? "Completed — awaiting review" : "منجزة — بانتظار التقييم",
+    awaitingSupervisor: isEn ? "Approved by reception — awaiting supervisor" : "اعتمدها الاستقبال — بانتظار المشرف",
+    completedAt: isEn ? "Completed" : "اكتملت",
+    rejectedRedo: isEn ? "Rejected — redo" : "مرفوضة — تحتاج إعادة",
     newNotStarted: isEn ? "New — not started" : "جديدة — لم يبدأ العمل",
     inProgress: isEn ? "In progress" : "قيد التنفيذ",
     onHold: isEn ? "Paused — waiting for parts" : "متوقفة — بانتظار قطع غيار",
@@ -66,6 +70,7 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
     details: isEn ? "Details" : "التفاصيل",
   };
 
+  const isAwaiting = !!task.awaitingReview;
   const isNew = task.status === "ASSIGNED";
   const isOnHold = task.status === "ON_HOLD";
   const actions = getTaskActions(task);
@@ -73,13 +78,19 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
   const type = TASK_TYPE_CONFIG[task.type as TTaskType];
   const isUrgent = task.priority === "URGENT" || task.priority === "HIGH";
 
-  const frame = isNew
+  const frame = isAwaiting
+    ? "border-emerald-200 border-s-4 border-s-emerald-500"
+    : isNew
     ? "border-red-200 border-s-4 border-s-red-500"
     : isOnHold
       ? "border-amber-200 border-s-4 border-s-amber-500"
       : "border-slate-200";
 
-  const badge = isNew
+  const badge = isAwaiting
+    ? task.awaitingReview === "approved_receptionist"
+      ? { label: t.awaitingSupervisor, cls: "bg-teal-50 text-teal-700" }
+      : { label: t.awaitingReview, cls: "bg-emerald-50 text-emerald-700" }
+    : isNew
     ? { label: t.newNotStarted, cls: "bg-blue-50 text-blue-700" }
     : isOnHold
       ? { label: t.onHold, cls: "bg-amber-50 text-amber-700" }
@@ -104,7 +115,12 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
             )}
           </div>
         </div>
-        <span className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full ${badge.cls}`}>{badge.label}</span>
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${badge.cls}`}>{badge.label}</span>
+          {!isAwaiting && task.hasRejection && (
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600">{t.rejectedRedo}</span>
+          )}
+        </div>
       </div>
 
       {/* ── Where / who / what ─────────────────────────────────────────── */}
@@ -151,6 +167,13 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
           {t.arrived} {formatDateTimeOman(task.createdAt, isEn)}
           <span className="text-slate-400">({formatTimeAgo(task.ageMins, isEn)})</span>
         </span>
+
+        {isAwaiting && task.completedAt && (
+          <span className="flex items-center gap-1.5 text-emerald-700">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {t.completedAt} {formatDateTimeOman(task.completedAt, isEn)}
+          </span>
+        )}
 
         {task.startedAt && (
           <span className="flex items-center gap-1.5">
