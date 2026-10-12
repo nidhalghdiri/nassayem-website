@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import type { TaskStatus } from "@prisma/client";
 import { AUDITED_STATUSES, getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
+import { analyzeTimeline } from "./taskTimeline";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Maintenance technician dashboard — open tasks with their timing (arrival →
@@ -13,8 +14,6 @@ import { AUDITED_STATUSES, getAwaitingReview, type TAwaitingReview } from "@/lib
 // exactly what the server rendered (no hydration drift).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STARTED_STATUSES = new Set<string>(["WORK_STARTED", "IN_PROGRESS", "CLEANING_STARTED", "INSPECTING"]);
-const DONE_STATUSES = new Set<string>(["WORK_COMPLETED", "COMPLETED", "CLEANING_COMPLETED", "NO_ISSUES"]);
 const TERMINAL_STATUSES: TaskStatus[] = ["WORK_COMPLETED", "COMPLETED", "CLEANING_COMPLETED", "NO_ISSUES", "CANCELLED"];
 const REVIEW_ACTIONS = ["approved", "rejected", "approved_receptionist", "rejected_receptionist"];
 
@@ -82,13 +81,6 @@ export type MaintenanceDashboardData = {
   logTasks: MaintenanceTask[];
 };
 
-type Transition = { from: string; to: string; at: Date };
-
-function parseTransition(details: string, at: Date): Transition | null {
-  const m = details.match(/^Status changed from (\w+) to (\w+)/);
-  return m ? { from: m[1], to: m[2], at } : null;
-}
-
 export async function getMaintenanceDashboardData(technicianId: string): Promise<MaintenanceDashboardData> {
   const now = Date.now();
   const thirtyDaysAgo = new Date(now - 30 * DAY_MS);
@@ -129,36 +121,12 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
   let acceptedClean = 0;
 
   for (const t of tasks) {
-    const transitions = t.activities
-      .filter((a) => a.action === "status_changed")
-      .map((a) => parseTransition(a.details, a.createdAt))
-      .filter((x): x is Transition => x !== null);
-
     // ── Rebuild the timeline ────────────────────────────────────────────────
-    let startedAt: Date | null = null;
-    let completedAt: Date | null = null;
-    let holdMs = 0;
-    let holdStart: Date | null = null;
-
-    for (const tr of transitions) {
-      if (!startedAt && STARTED_STATUSES.has(tr.to)) startedAt = tr.at;
-      if (tr.to === "ON_HOLD") {
-        holdStart = tr.at;
-        if (tr.at >= thirtyDaysAgo) partsHoldsCount++;
-      } else if (tr.from === "ON_HOLD" && holdStart) {
-        holdMs += tr.at.getTime() - holdStart.getTime();
-        holdStart = null;
-      }
-      if (DONE_STATUSES.has(tr.to)) completedAt = tr.at; // latest completion wins (re-done after rejection)
-      if (STARTED_STATUSES.has(tr.to) && completedAt && tr.at > completedAt) completedAt = null; // reopened
-    }
-
-    const isOnHold = t.status === "ON_HOLD";
-    if (isOnHold && holdStart) holdMs += now - holdStart.getTime();
-    const holdSince = isOnHold ? holdStart : null;
+    const { startedAt, completedAt, holdMs, holdSince, holdStarts } = analyzeTimeline(t.activities, t.status, now);
+    partsHoldsCount += holdStarts.filter((at) => at >= thirtyDaysAgo).length;
 
     const holdReasons = t.activities.filter((a) => a.action === "on_hold_reason");
-    const holdReason = isOnHold && holdReasons.length > 0 ? holdReasons[holdReasons.length - 1].details : null;
+    const holdReason = t.status === "ON_HOLD" && holdReasons.length > 0 ? holdReasons[holdReasons.length - 1].details : null;
 
     const endMs = completedAt ? completedAt.getTime() : now;
     const workMins = startedAt ? mins(endMs - startedAt.getTime() - holdMs) : null;

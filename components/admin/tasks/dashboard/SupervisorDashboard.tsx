@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
+import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
+import MaintenanceTasksReport from "./supervisor/MaintenanceTasksReport";
 import AuditList from "./AuditList";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
@@ -25,9 +28,19 @@ type Props = {
   readinessTimeline: TimelineEvent[];
 };
 
-export default function SupervisorDashboard({ locale, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus, todaysEmployeeNotes, unitsStatus, readinessTimeline }: Props) {
+export default function SupervisorDashboard({ locale, currentUserId, currentUserRole, buildings, assignableStaff, stats, pendingAudits, buildingAuditStatus, todaysEmployeeNotes, unitsStatus, readinessTimeline }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const router = useRouter();
+  // Task details panel (opened from the maintenance report) + report reload after changes
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [reportKey, setReportKey] = useState(0);
+
+  const closeTaskPanel = useCallback(() => {
+    setOpenTaskId(null);
+    setReportKey((k) => k + 1); // reload the report with whatever changed in the panel
+    router.refresh();
+  }, [router]);
 
   const t = {
     createTitle: isEn ? "Create Task & Assign" : "إنشاء مهمة وإسنادها لموظف",
@@ -110,6 +123,9 @@ export default function SupervisorDashboard({ locale, buildings, assignableStaff
 
       </div>
 
+      {/* Maintenance tasks report */}
+      <MaintenanceTasksReport isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+
       {/* Units Grid & Timeline */}
       <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
 
@@ -117,6 +133,16 @@ export default function SupervisorDashboard({ locale, buildings, assignableStaff
       <div>
         <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
       </div>
+
+      {/* Task details (slide-over) */}
+      <TaskDetailPanel
+        locale={locale}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        taskId={openTaskId}
+        onClose={closeTaskPanel}
+        onOpenTask={setOpenTaskId}
+      />
 
       {/* Create Task Modal */}
       {isTaskModalOpen && (
