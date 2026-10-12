@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from "react";
 import ReceptionistReviewSection, { type ReceptionistCardKind } from "./receptionist/ReceptionistReviewSection";
 import TaskListModal from "./receptionist/TaskListModal";
+import BranchMaintenanceSection from "./receptionist/BranchMaintenanceSection";
 import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import LiveTasksSection from "./receptionist/LiveTasksSection";
 import UnitsStatusSection from "./receptionist/UnitsStatusSection";
@@ -11,11 +12,13 @@ import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceReques
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ReceptionistDashboardData } from "@/lib/reports/receptionistDashboard";
+import type { BranchMaintenanceData } from "@/lib/reports/branchMaintenance";
 
 export default function ReceptionistDashboard({
   locale,
   buildings,
   data,
+  branchMaintenance,
   selectedBuilding,
   currentUserId,
   currentUserRole,
@@ -25,6 +28,7 @@ export default function ReceptionistDashboard({
   currentUserId: string;
   buildings: { id: string; nameEn: string; nameAr: string; shortName: string | null }[];
   data: ReceptionistDashboardData;
+  branchMaintenance: BranchMaintenanceData;
   selectedBuilding: string;
   currentUserRole: string;
   assignableStaff: any[];
@@ -107,6 +111,9 @@ export default function ReceptionistDashboard({
 
       {/* Live Tasks & Leaderboard */}
       <LiveTasksSection isEn={isEn} liveTasks={data.liveTasks} staff={data.staffPerformance} onOpenTask={setOpenTaskId} />
+
+      {/* Maintenance: the branch's current requests + last closed (rated) requests */}
+      <BranchMaintenanceSection isEn={isEn} data={branchMaintenance} onOpenTask={setOpenTaskId} />
 
       {/* Units Grid & Timeline */}
       <UnitsStatusSection isEn={isEn} units={data.units} timeline={data.timeline} />

@@ -53,3 +53,28 @@ export function formatTimeOman(date: Date | string): string {
     hour12: false,
   });
 }
+
+const OMAN_OFFSET_MS = 4 * 60 * 60 * 1000; // Oman is UTC+4 all year (no DST)
+
+/** ISO instant → value for <input type="datetime-local"> in Oman time ("2026-10-13T09:00"). */
+export function toOmanInputValue(date: Date | string): string {
+  return new Date(new Date(date).getTime() + OMAN_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+/** <input type="datetime-local"> value, read as Oman time → ISO instant. */
+export function omanInputValueToISO(value: string): string {
+  return new Date(`${value}:00+04:00`).toISOString();
+}
+
+/** Adds minutes to a datetime-local value (Oman time), e.g. for the "+1h" quick buttons. */
+export function addMinutesToInputValue(value: string, minutes: number): string {
+  return toOmanInputValue(new Date(new Date(`${value}:00+04:00`).getTime() + minutes * 60000));
+}
+
+/** Date only as "2026/09/18" (Oman time) — the closed-requests table format. */
+export function formatDateSlashOman(date: Date | string): string {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Muscat", year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(new Date(date));
+  const get = (type: string) => p.find((x) => x.type === type)?.value ?? "";
+  return `${get("year")}/${get("month")}/${get("day")}`;
+}

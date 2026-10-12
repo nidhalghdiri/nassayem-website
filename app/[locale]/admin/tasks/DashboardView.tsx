@@ -14,6 +14,7 @@ import { getDashboardAlerts } from "@/lib/reports/alerts";
 import { getSupervisorAuditData } from "@/lib/reports/supervisorAudit";
 import { getReceptionistDashboardData, getUnitsStatusData } from "@/lib/reports/receptionistDashboard";
 import { getWorkerDashboardData } from "@/lib/reports/workerDashboard";
+import { getBranchMaintenanceData } from "@/lib/reports/branchMaintenance";
 import { getDashboardTabs, type TDashboardTab } from "@/lib/tasks/permissions";
 import type { TaskStatus } from "@prisma/client";
 
@@ -199,10 +200,11 @@ export default async function DashboardView({
       finalSelectedBuilding = assignedBuildingIds[0];
     }
 
-    const [buildings, assignableStaff, receptionistData] = await Promise.all([
+    const [buildings, assignableStaff, receptionistData, branchMaintenance] = await Promise.all([
       getBuildings(),
       getStaffUsers(),
-      getReceptionistDashboardData(adminUser.id, finalSelectedBuilding, assignedBuildingIds)
+      getReceptionistDashboardData(adminUser.id, finalSelectedBuilding, assignedBuildingIds),
+      getBranchMaintenanceData(finalSelectedBuilding, assignedBuildingIds),
     ]);
 
     content = (
@@ -213,6 +215,7 @@ export default async function DashboardView({
         buildings={buildings}
         assignableStaff={assignableStaff}
         data={receptionistData}
+        branchMaintenance={branchMaintenance}
         selectedBuilding={finalSelectedBuilding}
       />
     );

@@ -12,6 +12,7 @@ import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import MaintenanceTaskCard from "./MaintenanceTaskCard";
 import MaintenanceLog from "./MaintenanceLog";
 import PauseForPartsModal from "./PauseForPartsModal";
+import RescheduleModal from "./RescheduleModal";
 import { formatDuration } from "../../timeUtils";
 
 type Props = {
@@ -36,6 +37,10 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pauseTask, setPauseTask] = useState<MaintenanceTask | null>(null);
+  const [rescheduleTask, setRescheduleTask] = useState<MaintenanceTask | null>(null);
+  const [rescheduleError, setRescheduleError] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
   const isOwnDashboard = data.technician.id === currentUserId;
@@ -61,6 +66,9 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
     awaitingHint: isEn ? "Stay here until the supervisor approves and rates them" : "تبقى هنا حتى يعتمدها المشرف ويقيّمها",
     empty: isEn ? "No tasks right now — nice work!" : "لا توجد مهام حالياً — عمل رائع!",
     failed: isEn ? "Could not update the task." : "تعذّر تحديث المهمة.",
+    rescheduled: isEn ? "Due time updated." : "تم تحديث الموعد.",
+    rescheduleForbidden: isEn ? "You can't reschedule this task." : "لا يمكنك إعادة جدولة هذه المهمة.",
+    rescheduleInvalid: isEn ? "Choose a valid time in the future (within 90 days)." : "اختر وقتاً صالحاً في المستقبل (خلال 90 يوماً).",
     network: isEn ? "Network error." : "خطأ في الشبكة.",
   };
 
@@ -88,6 +96,35 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
       setBusyId(null);
     }
   }, [router, t.failed, t.network]);
+
+  async function confirmReschedule(isoDate: string) {
+    if (!rescheduleTask) return;
+    setRescheduling(true);
+    setRescheduleError("");
+    try {
+      const res = await fetch(`/api/tasks/${rescheduleTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate: isoDate }),
+      });
+      if (!res.ok) {
+        setRescheduleError(
+          res.status === 403 ? t.rescheduleForbidden
+          : res.status === 400 || res.status === 422 ? t.rescheduleInvalid
+          : t.failed,
+        );
+        return;
+      }
+      setRescheduleTask(null);
+      setToast(t.rescheduled);
+      setTimeout(() => setToast(null), 3500);
+      startRefresh(() => router.refresh());
+    } catch {
+      setRescheduleError(t.network);
+    } finally {
+      setRescheduling(false);
+    }
+  }
 
   async function confirmPause(reason: string) {
     if (!pauseTask) return;
@@ -121,6 +158,7 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
       onAdvance={(tk, status) => updateStatus(tk, status)}
       onPause={setPauseTask}
       onOpenTask={setOpenTaskId}
+      onReschedule={(tk) => { setRescheduleError(""); setRescheduleTask(tk); }}
     />
   );
   const statCards = [
@@ -240,6 +278,25 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
           <MaintenanceLog isEn={isEn} tasks={data.logTasks} onOpenTask={setOpenTaskId} />
         )}
       </div>
+
+      {rescheduleTask && (
+        <RescheduleModal
+          isEn={isEn}
+          taskTitle={rescheduleTask.title}
+          currentDue={rescheduleTask.dueDate}
+          busy={rescheduling}
+          error={rescheduleError}
+          onCancel={() => setRescheduleTask(null)}
+          onConfirm={confirmReschedule}
+        />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium bg-green-600 text-white">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          {toast}
+        </div>
+      )}
 
       {pauseTask && (
         <PauseForPartsModal

@@ -3,7 +3,7 @@
 import React from "react";
 import {
   MapPin, UserRound, AlertTriangle, Clock, PlayCircle, Wrench, PackageX,
-  Play, CheckCircle2, Pause, Loader2, ClipboardCheck, Image as ImageIcon,
+  Play, CheckCircle2, Pause, Loader2, ClipboardCheck, Image as ImageIcon, CalendarClock,
 } from "lucide-react";
 import type { MaintenanceTask } from "@/lib/reports/maintenanceDashboard";
 import { STAFF_ROLE_CONFIG, TASK_TYPE_CONFIG } from "@/lib/tasks/constants";
@@ -38,9 +38,11 @@ type Props = {
   onAdvance: (task: MaintenanceTask, status: TTaskStatus) => void;
   onPause: (task: MaintenanceTask) => void;
   onOpenTask: (id: string) => void;
+  /** When set, active tasks show a "Reschedule" link next to their due time. */
+  onReschedule?: (task: MaintenanceTask) => void;
 };
 
-export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, onAdvance, onPause, onOpenTask }: Props) {
+export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, onAdvance, onPause, onOpenTask, onReschedule }: Props) {
   const t = {
     awaitingReview: isEn ? "Completed — awaiting review" : "منجزة — بانتظار التقييم",
     awaitingSupervisor: isEn ? "Approved by reception — awaiting supervisor" : "اعتمدها الاستقبال — بانتظار المشرف",
@@ -61,6 +63,7 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
     waitingGeneric: isEn ? "Spare parts" : "قطع غيار",
     since: isEn ? "for" : "منذ",
     overdue: isEn ? "Overdue" : "متأخرة",
+    reschedule: isEn ? "Reschedule" : "إعادة جدولة",
     due: isEn ? "Due" : "الاستحقاق",
     startWork: isEn ? "Start work" : "بدء العمل",
     finishTask: isEn ? "Finish task" : "إنهاء المهمة",
@@ -207,9 +210,19 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
           </span>
         )}
 
-        {task.isOverdue && (
-          <span className="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
-            {t.overdue} · {t.due} {formatDateTimeOman(task.dueDate, isEn)}
+        {!isAwaiting && (
+          <span className={`flex items-center gap-1.5 ${task.isOverdue ? "font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded" : ""}`}>
+            <CalendarClock className="w-3.5 h-3.5" />
+            {task.isOverdue ? `${t.overdue} · ` : ""}{t.due} {formatDateTimeOman(task.dueDate, isEn)}
+            {onReschedule && (
+              <button
+                type="button"
+                onClick={() => onReschedule(task)}
+                className="ms-1 font-bold text-nassayem underline underline-offset-2 hover:text-nassayem/80"
+              >
+                {t.reschedule}
+              </button>
+            )}
           </span>
         )}
       </div>

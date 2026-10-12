@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canUpdateTaskStatus } from "@/lib/tasks/permissions";
+import { canUpdateTaskStatus, canRescheduleTask } from "@/lib/tasks/permissions";
 import { STATUS_TRANSITIONS, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import { notifyTaskCompleted } from "@/lib/whatsapp";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
@@ -15,6 +15,14 @@ const COMPLETED_STATUSES: TaskStatus[] = [
 ];
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+// Readable Oman-time stamp for the activity log, e.g. "13 Oct 2026, 09:00"
+function formatOman(date: Date): string {
+  return date.toLocaleString("en-GB", {
+    timeZone: "Asia/Muscat", day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
 
 // ── GET /api/tasks/:id ────────────────────────────────────────────────────────
 export async function GET(_req: Request, { params }: RouteContext) {
@@ -155,7 +163,33 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (body.priority)     updates.priority    = body.priority as TaskPriority;
   if (body.title)        updates.title       = body.title as string;
   if (body.description !== undefined) updates.description = body.description as string;
-  if (body.dueDate)      updates.dueDate     = new Date(body.dueDate as string);
+
+  // ── Reschedule (due date) ─────────────────────────────────────────────────
+  if (body.dueDate) {
+    if (!canRescheduleTask(adminUser.role, task.assignedToId === adminUser.id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (TERMINAL_STATUSES.includes(task.status as never)) {
+      return NextResponse.json({ error: "Cannot reschedule a completed or cancelled task" }, { status: 422 });
+    }
+    const newDue = new Date(body.dueDate as string);
+    if (Number.isNaN(newDue.getTime())) {
+      return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
+    }
+    if (newDue.getTime() <= Date.now()) {
+      return NextResponse.json({ error: "The new due date must be in the future" }, { status: 422 });
+    }
+    if (newDue.getTime() > Date.now() + 90 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ error: "The new due date is too far ahead (90 days max)" }, { status: 422 });
+    }
+    if (newDue.getTime() !== task.dueDate.getTime()) {
+      updates.dueDate = newDue;
+      activities.push({
+        action: "due_date_changed",
+        details: `Due date changed from ${formatOman(task.dueDate)} to ${formatOman(newDue)}`,
+      });
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

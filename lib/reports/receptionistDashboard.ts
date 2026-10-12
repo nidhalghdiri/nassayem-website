@@ -75,7 +75,7 @@ function endOfTodayInOman(): Date {
   return new Date(omanNow.getTime() - OMAN_OFFSET_MS);
 }
 
-function toBuildingFilter(selectedBuildingId: string | null, assignedBuildingIds?: string[] | null) {
+export function toBuildingFilter(selectedBuildingId: string | null, assignedBuildingIds?: string[] | null) {
   if (selectedBuildingId && selectedBuildingId !== "ALL") return { buildingId: selectedBuildingId };
   if (assignedBuildingIds && assignedBuildingIds.length > 0) return { buildingId: { in: assignedBuildingIds } };
   return {};

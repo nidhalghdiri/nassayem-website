@@ -59,6 +59,16 @@ export function canSeeAllTasks(role: TStaffRole): boolean {
   return role === "MANAGER" || role === "SUPERVISOR";
 }
 
+/**
+ * Can this actor change a task's due date? Maintenance technicians juggle many
+ * requests and pick the nearest location first, so they may reschedule their own
+ * tasks; managers and supervisors may reschedule any task.
+ */
+export function canRescheduleTask(actorRole: TStaffRole, isAssignedToActor: boolean): boolean {
+  if (actorRole === "MANAGER" || actorRole === "SUPERVISOR") return true;
+  return actorRole === "MAINTENANCE" && isAssignedToActor;
+}
+
 // ─── Tasks dashboard tabs ────────────────────────────────────────────────────
 export type TDashboardTab = "manager" | "supervisor" | "receptionist" | "worker" | "maintenance";
 
