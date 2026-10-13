@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X, Clock, Activity, CheckSquare } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
+import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
+import MaintenanceTasksReport from "./supervisor/MaintenanceTasksReport";
 import EmployeeOfTheWeekReport from "../reports/EmployeeOfTheWeekReport";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
@@ -58,13 +61,23 @@ type Props = {
   readinessTimeline: TimelineEvent[];
 };
 
-export default function DirectorDashboard({ locale, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus, unitsStatus, readinessTimeline, pendingAuditIds = [] }: Props) {
+export default function DirectorDashboard({ locale, currentUserId, currentUserRole, stats, trendData, buildings, assignableStaff, topEmployees, lastWeekEmployees, buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, buildingAuditStatus, unitsStatus, readinessTimeline, pendingAuditIds = [] }: Props) {
   const isEn = locale === "en";
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ACTIVE" | "DELAYED" | "WAITING_AUDIT" | null>(null);
   const [modalTasks, setModalTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [modalBuilding, setModalBuilding] = useState("ALL");
+  const router = useRouter();
+  // Task details panel (opened from the maintenance report) + report reload after changes
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [reportKey, setReportKey] = useState(0);
+
+  const closeTaskPanel = useCallback(() => {
+    setOpenTaskId(null);
+    setReportKey((k) => k + 1); // reload the report with whatever changed in the panel
+    router.refresh();
+  }, [router]);
 
   // Building filter for the card modal: only buildings present in the list, with counts
   const modalBuildings = React.useMemo(() => {
@@ -293,6 +306,11 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
           <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
         </div>
 
+        {/* Maintenance tasks report */}
+        <div className="mt-8">
+          <MaintenanceTasksReport isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+        </div>
+
         {/* Units Grid & Timeline (حالة الوحدات - الشبكة) */}
         <div className="mt-8">
           <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
@@ -335,6 +353,16 @@ export default function DirectorDashboard({ locale, stats, trendData, buildings,
       </div>
 
       
+      {/* Task details (slide-over) */}
+      <TaskDetailPanel
+        locale={locale}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        taskId={openTaskId}
+        onClose={closeTaskPanel}
+        onOpenTask={setOpenTaskId}
+      />
+
       {/* Create Task Modal */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
