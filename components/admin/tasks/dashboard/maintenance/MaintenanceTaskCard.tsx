@@ -10,6 +10,7 @@ import { STAFF_ROLE_CONFIG, TASK_TYPE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole, TTaskType } from "@/lib/tasks/constants";
 import { STATUS_TRANSITIONS } from "@/lib/tasks/statuses";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
+import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import { formatDateTimeOman, formatDuration, formatTimeAgo, formatTimeOman } from "../../timeUtils";
 
 export type TaskActions = {
@@ -110,7 +111,10 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
                 {isEn ? type.labelEn : type.labelAr}
               </span>
             )}
-            <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{task.title}</h4>
+            <h4 className="font-bold text-slate-900 text-[15px] leading-snug">
+              <span className="text-slate-400 font-mono text-xs me-1.5" dir="ltr">#{task.requestNumber}</span>
+              {task.title}
+            </h4>
             {isUrgent && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-orange-600">
                 {isEn ? (task.priority === "URGENT" ? "Urgent" : "High") : (task.priority === "URGENT" ? "عاجل" : "مرتفع")}
@@ -134,6 +138,10 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
             {isEn ? task.buildingNameEn : task.buildingNameAr}
             {task.unitName && <span className="text-slate-400">—</span>}
             {task.unitName && <span className="font-semibold text-slate-700">{task.unitName}</span>}
+            {roomLabel(task.room, isEn) && <span className="text-slate-500">• {roomLabel(task.room, isEn)}</span>}
+            {task.category && task.category !== "EQUIPMENT" && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">{categoryLabel(task.category, isEn)}</span>
+            )}
           </span>
           <span className="flex items-center gap-1.5">
             <UserRound className="w-4 h-4 text-slate-400 shrink-0" />

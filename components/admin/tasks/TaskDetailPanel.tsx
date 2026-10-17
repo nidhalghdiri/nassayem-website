@@ -19,6 +19,7 @@ import {
   canSpawnSubtasks,
 } from "@/lib/tasks/permissions";
 import { buildingLabel } from "@/lib/buildingLabel";
+import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -49,6 +50,9 @@ type ActivityItem = {
 
 type FullTask = {
   id: string;
+  requestNumber?: number;
+  category?: string | null;
+  room?: string | null;
   type: string;
   title: string;
   description: string | null;
@@ -599,7 +603,15 @@ export default function TaskDetailPanel({
                      (isEn ? "Regular Cleaning" : "تنظيف عادي")}
                   </span>
                 )}
+                {task.category && task.category !== "EQUIPMENT" && (
+                  <span className="mt-0.5 shrink-0 inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600">
+                    {categoryLabel(task.category, isEn)}
+                  </span>
+                )}
                 <h2 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 pt-0.5">
+                  {task.requestNumber !== undefined && (
+                    <span className="text-gray-400 font-mono text-xs me-1.5" dir="ltr">#{task.requestNumber}</span>
+                  )}
                   {task.title}
                 </h2>
               </>
@@ -800,6 +812,12 @@ export default function TaskDetailPanel({
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-semibold bg-nassayem/10 text-nassayem">
                           {task.unit?.name || task.unitNumber}
                         </span>
+                        {roomLabel(task.room, isEn) && <span className="ms-1.5">• {roomLabel(task.room, isEn)}</span>}
+                      </dd>
+                    )}
+                    {!(task.unit?.name || task.unitNumber) && roomLabel(task.room, isEn) && (
+                      <dd className="text-xs text-gray-500 mt-1 truncate">
+                        {isEn ? "Common area" : "منطقة مشتركة"} • {roomLabel(task.room, isEn)}
                       </dd>
                     )}
                   </div>

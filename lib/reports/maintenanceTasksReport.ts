@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { AUDITED_STATUSES, getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
 import { analyzeTimeline, TIMELINE_ACTIONS } from "./taskTimeline";
+import { CATEGORY_LABELS, isCategoryKey } from "@/lib/maintenance/categories";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Supervisor dashboard — "Maintenance tasks" report: every maintenance request
@@ -22,10 +23,15 @@ export type MaintenanceStatusFilter = (typeof STATUS_FILTERS)[number];
 export const SOURCE_FILTERS = ["ALL", "RECEPTIONIST", "SUPERVISOR", "MANAGER", "HOUSEKEEPING", "MAINTENANCE"] as const;
 export type MaintenanceSourceFilter = (typeof SOURCE_FILTERS)[number];
 
+/** ALL = no filter · UNCATEGORIZED = older requests made before categories existed · otherwise a category key */
+export const CATEGORY_FILTERS = ["ALL", ...Object.keys(CATEGORY_LABELS), "UNCATEGORIZED"] as const;
+export type MaintenanceCategoryFilter = (typeof CATEGORY_FILTERS)[number];
+
 export type MaintenanceReportFilters = {
   buildingId?: string;
   status: MaintenanceStatusFilter;
   source: MaintenanceSourceFilter;
+  category: MaintenanceCategoryFilter;
   /** Arrival (created) date range, "YYYY-MM-DD" in Oman time. */
   from?: string;
   to?: string;
@@ -37,6 +43,11 @@ export type MaintenanceStage = "NEW" | "IN_PROGRESS" | "ON_HOLD" | "AWAITING_REV
 
 export type MaintenanceReportRow = {
   id: string;
+  requestNumber: number;
+  /** EQUIPMENT / PLUMBING / … — null on requests made before categories existed. */
+  category: string | null;
+  /** Room key inside the unit, or the place in a common area. */
+  room: string | null;
   deviceName: string;
   /** Equipment QR code when the request was created from a device. */
   deviceCode: string | null;
@@ -117,6 +128,8 @@ export async function getMaintenanceTasksReport(
   if (scopeBuildingIds) and.push({ buildingId: { in: scopeBuildingIds } });
   if (filters.buildingId) and.push({ buildingId: filters.buildingId });
   if (filters.source !== "ALL") and.push({ createdBy: { role: filters.source } });
+  if (filters.category === "UNCATEGORIZED") and.push({ category: null });
+  else if (filters.category !== "ALL") and.push({ category: filters.category });
   if (filters.from) and.push({ createdAt: { gte: new Date(`${filters.from}T00:00:00+04:00`) } });
   if (filters.to) and.push({ createdAt: { lte: new Date(`${filters.to}T23:59:59.999+04:00`) } });
   const where: Prisma.TaskWhereInput = { AND: and };
@@ -152,6 +165,7 @@ export async function getMaintenanceTasksReport(
     where: { id: { in: pageItems.map((p) => p.id) } },
     select: {
       id: true, title: true, description: true, status: true, createdAt: true, updatedAt: true, unitNumber: true,
+      requestNumber: true, category: true, room: true,
       building: { select: { nameEn: true, nameAr: true, shortName: true } },
       unit: { select: { name: true } },
       createdBy: { select: { name: true, email: true, role: true } },
@@ -173,11 +187,18 @@ export async function getMaintenanceTasksReport(
     const finished = item.stage === "AWAITING_REVIEW" || item.stage === "CLOSED";
     const endMs = finished ? (tl.completedAt ?? t.updatedAt).getTime() : now;
     const latestReview = [...t.activities].reverse().find((a) => REVIEW_ACTIONS.includes(a.action))?.action ?? null;
-    const device = splitDevice(t.title);
+    // Equipment (and older) requests are "type — code"; other maintenance is "category — job"
+    const isOtherKind = isCategoryKey(t.category) && t.category !== "EQUIPMENT";
+    const device = isOtherKind
+      ? { name: t.title.includes(" — ") ? t.title.slice(t.title.indexOf(" — ") + 3) : t.title, code: null }
+      : splitDevice(t.title);
     const buildingShort = (en: boolean) => (en ? t.building.shortName || t.building.nameEn : t.building.shortName || t.building.nameAr);
 
     rows.push({
       id: t.id,
+      requestNumber: t.requestNumber,
+      category: t.category,
+      room: t.room,
       deviceName: device.name,
       deviceCode: device.code,
       buildingNameEn: buildingShort(true),

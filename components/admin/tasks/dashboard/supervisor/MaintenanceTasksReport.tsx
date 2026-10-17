@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, AlertTriangle, RefreshCw, RotateCcw, ChevronRight, ChevronLeft } from "lucide-react";
 import { getMaintenanceTasksReport } from "@/app/actions/maintenanceReport";
+import { CATEGORY_LABELS, categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import type {
+  MaintenanceCategoryFilter,
   MaintenanceReportResult,
   MaintenanceReportRow,
   MaintenanceSourceFilter,
@@ -28,11 +30,12 @@ type Filters = {
   buildingId: string;
   status: MaintenanceStatusFilter;
   source: MaintenanceSourceFilter;
+  category: MaintenanceCategoryFilter;
   from: string;
   to: string;
 };
 
-const DEFAULT_FILTERS: Filters = { buildingId: "", status: "NOT_CLOSED", source: "ALL", from: "", to: "" };
+const DEFAULT_FILTERS: Filters = { buildingId: "", status: "NOT_CLOSED", source: "ALL", category: "ALL", from: "", to: "" };
 
 const STAGE_BADGE: Record<MaintenanceStage, string> = {
   NEW: "bg-blue-50 text-blue-700",
@@ -59,6 +62,10 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
     status: isEn ? "Status" : "الحالة",
     source: isEn ? "Source" : "المصدر",
     allSources: isEn ? "All sources" : "جميع المصادر",
+    type: isEn ? "Type" : "النوع",
+    allTypes: isEn ? "All types" : "جميع الأنواع",
+    uncategorized: isEn ? "Older (no category)" : "أقدم (بدون تصنيف)",
+    request: isEn ? "Request" : "الطلب",
     arrivalFrom: isEn ? "Arrival date — from" : "تاريخ الوصول — من",
     arrivalTo: isEn ? "to" : "إلى",
     reset: isEn ? "Reset filters" : "إعادة ضبط الفلاتر",
@@ -105,6 +112,15 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
     { value: "MAINTENANCE", label: isEn ? "Maintenance" : "الصيانة" },
   ];
 
+  const categoryOptions: { value: MaintenanceCategoryFilter; label: string }[] = [
+    { value: "ALL", label: t.allTypes },
+    ...(Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[]).map((k) => ({
+      value: k as MaintenanceCategoryFilter,
+      label: isEn ? CATEGORY_LABELS[k].en : CATEGORY_LABELS[k].ar,
+    })),
+    { value: "UNCATEGORIZED", label: t.uncategorized },
+  ];
+
   // ── Data loading (the newest request wins when filters change quickly) ────
   const load = useCallback(async () => {
     const id = ++requestId.current;
@@ -114,6 +130,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
       buildingId: filters.buildingId || undefined,
       status: filters.status,
       source: filters.source,
+      category: filters.category,
       from: filters.from || undefined,
       to: filters.to || undefined,
       page,
@@ -167,7 +184,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           <label className="block">
             <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.branch}</span>
             <select value={filters.buildingId} onChange={(e) => updateFilter({ buildingId: e.target.value })} className={selectCls}>
@@ -187,6 +204,12 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
             <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.source}</span>
             <select value={filters.source} onChange={(e) => updateFilter({ source: e.target.value as MaintenanceSourceFilter })} className={selectCls}>
               {sourceOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.type}</span>
+            <select value={filters.category} onChange={(e) => updateFilter({ category: e.target.value as MaintenanceCategoryFilter })} className={selectCls}>
+              {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
           <label className="block">
@@ -231,7 +254,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
               <table className="w-full min-w-[1000px] text-sm text-start">
                 <thead>
                   <tr className="text-xs font-bold text-slate-500 border-b border-slate-200">
-                    {[t.device, t.location, t.issue, t.sourceCol, t.statusCol, t.arrivalToStart, t.parts, t.sinceCreation].map((h) => (
+                    {[t.request, t.device, t.location, t.issue, t.sourceCol, t.statusCol, t.arrivalToStart, t.parts, t.sinceCreation].map((h) => (
                       <th key={h} scope="col" className="px-4 py-3.5 text-start whitespace-nowrap">{h}</th>
                     ))}
                     <th scope="col" className="px-4 py-3.5"><span className="sr-only">{t.details}</span></th>
@@ -240,20 +263,30 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
                 <tbody className="divide-y divide-slate-100">
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-14 text-center text-slate-500">{t.empty}</td>
+                      <td colSpan={10} className="py-14 text-center text-slate-500">{t.empty}</td>
                     </tr>
                   ) : (
                     rows.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/70 transition-colors align-middle">
-                        {/* Device */}
+                        {/* Request number */}
+                        <td className="px-4 py-3.5 whitespace-nowrap font-black text-slate-900 tabular-nums" dir="ltr">#{row.requestNumber}</td>
+                        {/* Device / job */}
                         <td className="px-4 py-3.5 min-w-[150px]">
                           <p className="font-bold text-slate-900">{row.deviceName}</p>
                           {row.deviceCode && <p className="text-xs text-slate-400 mt-0.5 font-mono" dir="ltr">{row.deviceCode}</p>}
+                          {row.category && row.category !== "EQUIPMENT" && (
+                            <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                              {categoryLabel(row.category, isEn)}
+                            </span>
+                          )}
                         </td>
                         {/* Location */}
                         <td className="px-4 py-3.5 min-w-[130px]">
                           <p className="font-semibold text-slate-800">{isEn ? row.buildingNameEn : row.buildingNameAr}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{row.unitName ? `${t.unitWord} ${row.unitName}` : t.commonArea}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {row.unitName ? `${t.unitWord} ${row.unitName}` : t.commonArea}
+                            {roomLabel(row.room, isEn) ? ` • ${roomLabel(row.room, isEn)}` : ""}
+                          </p>
                         </td>
                         {/* Issue */}
                         <td className="px-4 py-3.5 min-w-[160px] max-w-[240px]">

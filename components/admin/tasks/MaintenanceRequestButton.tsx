@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Wrench, CheckCircle2 } from "lucide-react";
+import type { MaintenanceRequestCreated } from "./MaintenanceRequestModal";
 
 // The modal (and its camera scanner) is only downloaded when someone opens it,
 // so adding this button doesn't slow the dashboards down.
@@ -23,9 +24,15 @@ export default function MaintenanceRequestButton({ locale, className }: { locale
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const handleCreated = useCallback(
-    ({ technicianName }: { taskId: string; technicianName: string }) => {
+    ({ requestNumber, technicianName, photoFailures }: MaintenanceRequestCreated) => {
       setOpen(false);
-      setToast(isEn ? `Request sent to ${technicianName}.` : `تم إرسال البلاغ إلى ${technicianName}.`);
+      const base = isEn
+        ? `Request #${requestNumber} sent to ${technicianName}.`
+        : `تم إرسال البلاغ #${requestNumber} إلى ${technicianName}.`;
+      const warn = photoFailures > 0
+        ? (isEn ? ` ${photoFailures} photo(s) failed to upload — add them from the task details.` : ` تعذّر رفع ${photoFailures} صورة — أضفها من تفاصيل المهمة.`)
+        : "";
+      setToast(base + warn);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       toastTimer.current = setTimeout(() => setToast(null), 4500);
       router.refresh(); // update the dashboard numbers / lists

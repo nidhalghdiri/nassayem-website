@@ -6,6 +6,7 @@ import {
   ChevronRight, Star, Image as ImageIcon, CheckCircle2,
 } from "lucide-react";
 import type { BranchMaintenanceData, BranchMaintenanceRequest, ClosedMaintenanceRequest } from "@/lib/reports/branchMaintenance";
+import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import { formatDateSlashOman, formatDateTimeOman, formatDuration, formatTimeAgo, formatTimeOman } from "../../timeUtils";
 
 type Props = {
@@ -98,7 +99,10 @@ function CurrentRequestCard({ req, isEn, onOpenTask }: { req: BranchMaintenanceR
   return (
     <article className={`rounded-2xl border p-4 md:p-5 bg-white transition-shadow hover:shadow-md ${frame}`}>
       <div className="flex items-start justify-between gap-3">
-        <h4 className="font-bold text-slate-900 text-[15px] leading-snug min-w-0">{req.title}</h4>
+        <h4 className="font-bold text-slate-900 text-[15px] leading-snug min-w-0">
+          <span className="text-slate-400 font-mono text-xs me-1.5" dir="ltr">#{req.requestNumber}</span>
+          {req.title}
+        </h4>
         <span className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full ${badge.cls}`}>{badge.label}</span>
       </div>
 
@@ -109,6 +113,10 @@ function CurrentRequestCard({ req, isEn, onOpenTask }: { req: BranchMaintenanceR
             {isEn ? req.buildingNameEn : req.buildingNameAr}
             {req.unitName && <span className="text-slate-400">—</span>}
             {req.unitName && <span className="font-semibold text-slate-700">{req.unitName}</span>}
+            {roomLabel(req.room, isEn) && <span className="text-slate-500">• {roomLabel(req.room, isEn)}</span>}
+            {req.category && req.category !== "EQUIPMENT" && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">{categoryLabel(req.category, isEn)}</span>
+            )}
           </span>
           <span className="flex items-center gap-1.5">
             <UserRound className="w-4 h-4 text-slate-400 shrink-0" />
@@ -188,7 +196,10 @@ function ClosedRequestRow({ req, isEn, onOpenTask }: { req: ClosedMaintenanceReq
         className="w-full text-start px-5 py-4 hover:bg-slate-50 transition-colors group grid gap-x-6 gap-y-2 md:grid-cols-[minmax(0,2fr)_auto_auto_minmax(0,2fr)_auto] items-center"
       >
         <div className="min-w-0">
-          <p className="font-bold text-slate-800 text-sm truncate">{req.title}</p>
+          <p className="font-bold text-slate-800 text-sm truncate">
+            <span className="text-slate-400 font-mono text-xs me-1.5" dir="ltr">#{req.requestNumber}</span>
+            {req.title}
+          </p>
           <p className="text-xs text-slate-400 mt-0.5 truncate">
             {req.unitName ? `${unitWord} ${req.unitName} · ` : ""}{isEn ? req.buildingNameEn : req.buildingNameAr}
           </p>

@@ -1,31 +1,39 @@
 "use client";
 
-import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { X, Camera, Search, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { X, Loader2, AlertTriangle, RefreshCw, QrCode, Hammer, Siren } from "lucide-react";
 import {
   getMaintenanceRequestOptions,
-  createEquipmentMaintenanceRequest,
+  createMaintenanceRequest,
   type EquipmentOption,
   type MaintenanceRequestError,
+  type MaintenanceRequestInput,
   type MaintenanceRequestOptions,
 } from "@/app/actions/maintenanceRequest";
 import { ISSUE_OPTIONS_AR, ISSUE_OPTIONS_EN, isOtherIssue } from "@/lib/maintenance/issues";
+import { OTHER_JOB_KEY, type OtherCategoryKey } from "@/lib/maintenance/categories";
 import { STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole } from "@/lib/tasks/constants";
-import { buildingLabel } from "@/lib/buildingLabel";
+import EquipmentPicker from "./maintenance-request/EquipmentPicker";
+import LocationPicker from "./maintenance-request/LocationPicker";
+import OtherProblemFields from "./maintenance-request/OtherProblemFields";
+import PhotoAttachments, { uploadTaskPhotos, type PendingPhoto } from "./PhotoAttachments";
 
-// The camera scanner is heavy and only needed on demand
-const Scanner = dynamic(() => import("@yudiel/react-qr-scanner").then((m) => m.Scanner), { ssr: false });
+export type MaintenanceRequestCreated = {
+  taskId: string;
+  requestNumber: number;
+  technicianName: string;
+  /** Photos that could not be uploaded (the request itself was created). */
+  photoFailures: number;
+};
 
 type Props = {
   locale: string;
   onClose: () => void;
-  onCreated: (result: { taskId: string; technicianName: string }) => void;
+  onCreated: (result: MaintenanceRequestCreated) => void;
 };
 
-const COMMON_AREA = "__COMMON__";
-const naturalSort = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+type Kind = "EQUIPMENT" | "OTHER";
 
 export default function MaintenanceRequestModal({ locale, onClose, onCreated }: Props) {
   const isEn = locale === "en";
@@ -37,66 +45,70 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
   const [loading, setLoading] = useState(true);
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [mode, setMode] = useState<"code" | "unit">("code");
-  const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState("");
-  const [equipment, setEquipment] = useState<EquipmentOption | null>(null);
+  const [kind, setKind] = useState<Kind>("EQUIPMENT");
+  // Location — shared by both kinds so switching keeps the building and unit
   const [buildingId, setBuildingId] = useState("");
-  const [unitKey, setUnitKey] = useState(""); // "" = all units
-  const [technicianId, setTechnicianId] = useState("");
+  /** undefined = not chosen, null = common area, string = unit id */
+  const [unitId, setUnitId] = useState<string | null | undefined>(undefined);
+  const [room, setRoom] = useState("");
+  const [place, setPlace] = useState("");
+  // Equipment
+  const [equipment, setEquipment] = useState<EquipmentOption | null>(null);
   const [issue, setIssue] = useState("");
+  // Other maintenance
+  const [category, setCategory] = useState<OtherCategoryKey | "">("");
+  const [job, setJob] = useState("");
+  // Shared
   const [details, setDetails] = useState("");
+  const [technicianId, setTechnicianId] = useState("");
+  const [urgent, setUrgent] = useState(false);
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [submitError, setSubmitError] = useState<MaintenanceRequestError | null>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraError, setCameraError] = useState(false);
+
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.preview)), []);
 
   const t = {
-    title: isEn ? "New maintenance request" : "بلاغ جديد للفني",
+    title: isEn ? "New maintenance request" : "بلاغ صيانة جديد",
     from: isEn ? "From" : "من",
     to: isEn ? "To" : "إلى",
     openShort: isEn ? "open" : "مفتوحة",
     close: isEn ? "Close" : "إغلاق",
-    tabCode: isEn ? "Scan / enter code" : "مسح / إدخال الكود",
-    tabUnit: isEn ? "Choose unit" : "اختيار الوحدة",
-    codePlaceholder: isEn ? "QR code stuck on the device" : "رمز QR الملصق على الجهاز",
-    scanCamera: isEn ? "Scan with camera" : "مسح بالكاميرا",
-    search: isEn ? "Search" : "بحث",
-    building: isEn ? "Building" : "المبنى",
-    selectBuilding: isEn ? "Select building" : "اختر المبنى",
-    unit: isEn ? "Unit" : "الوحدة",
-    allUnits: isEn ? "All units" : "جميع الوحدات",
-    unitWord: isEn ? "Unit" : "وحدة",
-    commonAreas: isEn ? "Common areas" : "المناطق المشتركة",
-    equipment: isEn ? "Equipment" : "الجهاز",
-    selectEquipment: isEn ? "Select equipment" : "اختر الجهاز",
-    change: isEn ? "Change" : "تغيير",
-    commonArea: isEn ? "Common area" : "منطقة مشتركة",
+    step1: isEn ? "What needs fixing?" : "ما الذي يحتاج إصلاحاً؟",
+    step2Equipment: isEn ? "Which device?" : "أي جهاز؟",
+    step2Other: isEn ? "Where?" : "أين؟",
+    step3: isEn ? "What's wrong?" : "ما المشكلة؟",
+    kindEquipment: isEn ? "Equipment" : "جهاز",
+    kindEquipmentHint: isEn ? "A registered device — AC, washer, fridge" : "جهاز مسجّل — مكيف، غسالة، ثلاجة",
+    kindOther: isEn ? "Other maintenance" : "صيانة أخرى",
+    kindOtherHint: isEn ? "Plumbing, electrical, furniture, painting, installation…" : "سباكة، كهرباء، أثاث، دهان، تركيب…",
     issueLabel: isEn ? "Issue description" : "وصف المشكلة",
     selectIssue: isEn ? "Select the issue" : "اختر المشكلة",
-    detailsLabel: isEn ? "Issue details" : "تفاصيل المشكلة",
-    optional: isEn ? "optional" : "اختياري",
     detailsPlaceholder: isEn
       ? "Additional details (optional) — e.g. the guest is in the apartment"
       : "تفاصيل إضافية (اختياري) — مثال: الضيف موجود في الشقة",
     detailsPlaceholderOther: isEn ? "Describe the issue…" : "اكتب وصف المشكلة…",
+    urgent: isEn ? "Urgent" : "عاجل",
+    urgentHint: isEn
+      ? "Top priority — due within 4 hours (otherwise within 24 hours)"
+      : "أولوية قصوى — الموعد خلال 4 ساعات (وإلا خلال 24 ساعة)",
     cancel: isEn ? "Cancel" : "إلغاء",
     send: isEn ? "Send to technician" : "إرسال للفني",
     sending: isEn ? "Sending…" : "جارٍ الإرسال…",
-    loading: isEn ? "Loading equipment…" : "جارٍ تحميل الأجهزة…",
+    loading: isEn ? "Loading…" : "جارٍ التحميل…",
     retry: isEn ? "Try again" : "إعادة المحاولة",
     noTechnicians: isEn ? "No maintenance technicians found." : "لا يوجد فنيو صيانة.",
-    noEquipment: isEn ? "No equipment registered for your buildings yet." : "لا توجد أجهزة مسجّلة لمبانيك بعد.",
-    cameraTitle: isEn ? "Position the QR code in the frame" : "ضع رمز QR داخل الإطار",
-    cameraUnavailable: isEn ? "Camera unavailable — allow camera access or type the code." : "الكاميرا غير متاحة — اسمح بالوصول للكاميرا أو اكتب الكود.",
-    notFound: isEn ? "No equipment found with this code in your buildings." : "لا يوجد جهاز بهذا الكود في مبانيك.",
   };
 
   const errorText: Record<MaintenanceRequestError, string> = {
     UNAUTHORIZED: isEn ? "Your session has expired. Please sign in again." : "انتهت الجلسة. يرجى تسجيل الدخول مجدداً.",
     FORBIDDEN: isEn ? "You do not have permission to send maintenance requests." : "ليست لديك صلاحية إرسال بلاغات الصيانة.",
     INVALID_INPUT: isEn ? "Please complete all required fields." : "يرجى إكمال الحقول المطلوبة.",
-    EQUIPMENT_NOT_FOUND: isEn ? "This equipment is not available for your buildings." : "هذا الجهاز غير متاح في مبانيك.",
+    EQUIPMENT_NOT_FOUND: isEn ? "This device is not available for your buildings." : "هذا الجهاز غير متاح في مبانيك.",
+    LOCATION_INVALID: isEn ? "This location is not available. Choose the building and unit again." : "هذا الموقع غير متاح. اختر المبنى والوحدة مجدداً.",
     TECHNICIAN_INVALID: isEn ? "The selected technician is no longer available." : "الفني المختار غير متاح.",
     SERVER: isEn ? "Something went wrong. Please try again." : "حدث خطأ. يرجى المحاولة مجدداً.",
   };
@@ -119,94 +131,124 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
 
   useEffect(() => { load(); }, [load]);
 
-  // Esc closes (the camera first, then the modal)
+  // Esc closes the modal (the camera handles its own overlay)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || submitting) return;
-      if (cameraOpen) setCameraOpen(false);
-      else onClose();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !submitting) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cameraOpen, submitting, onClose]);
+  }, [submitting, onClose]);
 
-  // ── Equipment picking ──────────────────────────────────────────────────────
+  const units = options?.units ?? [];
   const equipments = options?.equipments ?? [];
-  const typeName = (e: EquipmentOption) => (isEn ? e.typeEn : e.typeAr);
-  const equipmentLabel = (e: EquipmentOption) =>
-    `${e.qrCode} — ${typeName(e)}${e.brandModel ? ` (${e.brandModel})` : ""}`;
+
+  // ── Location + device handling (kept in sync between both kinds) ───────────
+  const unitNameOf = (id: string | null | undefined) => (typeof id === "string" ? units.find((u) => u.id === id)?.name : undefined);
+  const deviceMatchesUnit = (e: EquipmentOption, id: string | null | undefined) =>
+    id === undefined ? true : id === null ? !e.unitNumber : e.unitNumber === unitNameOf(id);
+
+  function changeBuilding(id: string) {
+    setBuildingId(id);
+    setUnitId(undefined);
+    setRoom("");
+    setPlace("");
+    if (equipment && equipment.buildingId !== id) setEquipment(null);
+  }
+
+  function changeUnit(value: string | null | undefined) {
+    setUnitId(value);
+    setRoom("");
+    if (value !== null) setPlace("");
+    if (equipment && !deviceMatchesUnit(equipment, value)) setEquipment(null);
+  }
 
   function selectEquipment(e: EquipmentOption | null) {
     setEquipment(e);
     setSubmitError(null);
     if (e) {
-      // keep the "Choose unit" tab in sync with what was found by code
+      // the location follows the device, so the other path starts from the same place
       setBuildingId(e.buildingId);
-      setUnitKey(e.unitNumber ?? COMMON_AREA);
-      setCode(e.qrCode);
-      setCodeError("");
+      setUnitId(
+        e.unitNumber
+          ? units.find((u) => u.buildingId === e.buildingId && u.name === e.unitNumber)?.id
+          : null,
+      );
+      setRoom("");
+      setPlace("");
     }
   }
 
-  function lookupCode(raw: string) {
-    const value = raw.trim().toLowerCase();
-    if (!value) return;
-    const found = equipments.find((e) => e.qrCode.toLowerCase() === value);
-    if (found) selectEquipment(found);
-    else {
-      setEquipment(null);
-      setCodeError(t.notFound);
-    }
+  function switchKind(next: Kind) {
+    if (next === kind || submitting) return;
+    setKind(next);
+    setSubmitError(null);
   }
 
-  const buildingEquipments = useMemo(
-    () => equipments.filter((e) => e.buildingId === buildingId),
-    [equipments, buildingId],
-  );
-  const unitNumbers = useMemo(
-    () => Array.from(new Set(buildingEquipments.map((e) => e.unitNumber).filter(Boolean) as string[])).sort(naturalSort),
-    [buildingEquipments],
-  );
-  const hasCommonAreas = buildingEquipments.some((e) => !e.unitNumber);
-  const unitEquipments = buildingEquipments.filter((e) =>
-    unitKey === "" ? true : unitKey === COMMON_AREA ? !e.unitNumber : e.unitNumber === unitKey,
-  );
+  // ── Validation ─────────────────────────────────────────────────────────────
+  const detailsLen = details.trim().length;
+  const otherNeedsDetails = category === "OTHER" || job === OTHER_JOB_KEY;
+  const needsPlace = unitId === null;
 
-  const equipmentBuilding = equipment ? options?.buildings.find((b) => b.id === equipment.buildingId) : null;
+  let missing: string | null = null;
+  if (kind === "EQUIPMENT") {
+    if (!equipment) missing = isEn ? "Choose the device" : "اختر الجهاز";
+    else if (!issue) missing = isEn ? "Choose the issue" : "اختر المشكلة";
+    else if (isOtherIssue(issue) && detailsLen < 2) missing = isEn ? "Describe the issue" : "اكتب وصف المشكلة";
+  } else {
+    if (!buildingId) missing = isEn ? "Choose the building" : "اختر المبنى";
+    else if (unitId === undefined) missing = isEn ? "Choose the unit or common area" : "اختر الوحدة أو المنطقة المشتركة";
+    else if (needsPlace && place.trim().length < 2) missing = isEn ? "Say where in the common area" : "حدد المكان في المنطقة المشتركة";
+    else if (!category) missing = isEn ? "Choose a category" : "اختر التصنيف";
+    else if (category !== "OTHER" && !job) missing = isEn ? "Choose the job" : "اختر العمل المطلوب";
+    else if (otherNeedsDetails && detailsLen < 2) missing = isEn ? "Describe the work needed" : "اكتب العمل المطلوب";
+  }
+  if (!missing && !technicianId) missing = isEn ? "Choose a technician" : "اختر الفني";
+  const canSubmit = !missing && !submitting;
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  const needsDetails = isOtherIssue(issue);
-  const canSubmit =
-    !!equipment && !!issue && !!technicianId && (!needsDetails || details.trim().length >= 2) && !submitting;
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit || !equipment) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     setSubmitError(null);
-    const res = await createEquipmentMaintenanceRequest({
-      equipmentId: equipment.id,
-      assignedToId: technicianId,
-      issue,
-      details: details.trim(),
-      locale,
-    });
-    if (res.ok) {
-      onCreated({ taskId: res.taskId, technicianName: res.technicianName });
-      return; // the parent closes the modal
+
+    const base = { assignedToId: technicianId, urgent, locale, details: details.trim() };
+    const input: MaintenanceRequestInput =
+      kind === "EQUIPMENT"
+        ? { kind: "EQUIPMENT", equipmentId: equipment!.id, issue, ...base }
+        : {
+            kind: "OTHER",
+            buildingId,
+            unitId: unitId ?? null,
+            place: place.trim(),
+            room,
+            category,
+            job,
+            ...base,
+          };
+
+    const res = await createMaintenanceRequest(input);
+    if (!res.ok) {
+      setSubmitError(res.error);
+      setSubmitting(false);
+      return;
     }
-    setSubmitError(res.error);
-    setSubmitting(false);
+
+    // The request exists — now upload the photos, one request each
+    let photoFailures = 0;
+    if (photos.length > 0) {
+      setUploadProgress({ done: 0, total: photos.length });
+      photoFailures = (await uploadTaskPhotos(res.taskId, photos, (done, total) => setUploadProgress({ done, total }))).failed;
+    }
+    onCreated({ taskId: res.taskId, requestNumber: res.requestNumber, technicianName: res.technicianName, photoFailures });
   }
 
   const requesterRole = options ? STAFF_ROLE_CONFIG[options.requester.role as TStaffRole] : null;
-  const fieldCls =
-    "w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem disabled:bg-slate-50 disabled:text-slate-400";
+  const busy = submitting || uploadProgress !== null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm"
-      onClick={() => !submitting && onClose()}
+      onClick={() => !busy && onClose()}
     >
       <form
         role="dialog"
@@ -215,7 +257,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
         dir={isEn ? "ltr" : "rtl"}
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="bg-white w-full sm:max-w-xl max-h-[92vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
+        className="bg-white w-full sm:max-w-xl max-h-[94vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 shrink-0">
@@ -233,7 +275,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
                   <select
                     value={technicianId}
                     onChange={(e) => setTechnicianId(e.target.value)}
-                    disabled={submitting || options.technicians.length === 0}
+                    disabled={busy || options.technicians.length === 0}
                     className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem max-w-[220px]"
                   >
                     {options.technicians.length === 0 && <option value="">—</option>}
@@ -250,7 +292,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
           <button
             type="button"
             onClick={onClose}
-            disabled={submitting}
+            disabled={busy}
             aria-label={t.close}
             className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 transition-colors"
           >
@@ -259,7 +301,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
         </div>
 
         {/* ── Body ────────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-6">
           {loading ? (
             <div className="py-16 flex flex-col items-center gap-3 text-sm text-slate-500">
               <Loader2 className="w-7 h-7 animate-spin text-nassayem" />
@@ -281,186 +323,143 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
               {options.technicians.length === 0 && (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">{t.noTechnicians}</p>
               )}
-              {equipments.length === 0 && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">{t.noEquipment}</p>
-              )}
 
-              {/* Mode tabs */}
-              <div role="tablist" className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-2xl">
-                {(["code", "unit"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === m}
-                    onClick={() => setMode(m)}
-                    className={`py-2.5 text-sm font-bold rounded-xl transition-all ${
-                      mode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {m === "code" ? t.tabCode : t.tabUnit}
-                  </button>
-                ))}
-              </div>
-
-              {/* Equipment picker */}
-              {mode === "code" ? (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={(e) => { setCode(e.target.value); setCodeError(""); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookupCode(code); } }}
-                        placeholder={t.codePlaceholder}
-                        autoFocus
-                        autoCapitalize="characters"
-                        autoComplete="off"
-                        spellCheck={false}
-                        dir="ltr"
-                        className={`w-full ps-3.5 pe-12 py-3 text-sm rounded-xl bg-white border-2 border-nassayem/50 focus:outline-none focus:ring-4 focus:ring-nassayem/15 focus:border-nassayem font-mono uppercase placeholder:normal-case placeholder:font-sans ${isEn ? "" : "text-right placeholder:text-right"}`}
-                      />
+              {/* 1 · What needs fixing? */}
+              <section className="space-y-3">
+                <StepHeading n={1} title={t.step1} />
+                <div role="radiogroup" aria-label={t.step1} className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: "EQUIPMENT", icon: QrCode, label: t.kindEquipment, hint: t.kindEquipmentHint },
+                    { key: "OTHER", icon: Hammer, label: t.kindOther, hint: t.kindOtherHint },
+                  ] as const).map(({ key, icon: Icon, label, hint }) => {
+                    const selected = kind === key;
+                    return (
                       <button
+                        key={key}
                         type="button"
-                        onClick={() => { setCameraError(false); setCameraOpen(true); }}
-                        aria-label={t.scanCamera}
-                        title={t.scanCamera}
-                        className={`absolute top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-nassayem transition-colors ${isEn ? "right-2.5" : "left-2.5"}`}
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => switchKind(key)}
+                        className={`text-start rounded-2xl border-2 p-3.5 transition-all ${
+                          selected
+                            ? "border-nassayem bg-nassayem/5 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-nassayem/40 hover:bg-slate-50"
+                        }`}
                       >
-                        <Camera className="w-5 h-5" />
+                        <span className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${selected ? "bg-nassayem text-white" : "bg-slate-100 text-slate-500"}`}>
+                          <Icon className="w-5 h-5" />
+                        </span>
+                        <span className={`block text-sm font-bold ${selected ? "text-nassayem" : "text-slate-800"}`}>{label}</span>
+                        <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">{hint}</span>
                       </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => lookupCode(code)}
-                      disabled={!code.trim()}
-                      className="flex items-center gap-2 px-5 rounded-xl bg-nassayem hover:bg-nassayem/90 text-white text-sm font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Search className="w-4 h-4" />
-                      {t.search}
-                    </button>
-                  </div>
-                  {codeError && <p className="text-xs font-medium text-red-600">{codeError}</p>}
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5" htmlFor={`${uid}-b`}>{t.building}</label>
-                      <select
-                        id={`${uid}-b`}
-                        value={buildingId}
-                        onChange={(e) => {
-                          setBuildingId(e.target.value);
-                          setUnitKey("");
-                          if (equipment && equipment.buildingId !== e.target.value) setEquipment(null);
-                        }}
-                        className={fieldCls}
-                      >
-                        <option value="">{t.selectBuilding}</option>
-                        {options.buildings.map((b) => (
-                          <option key={b.id} value={b.id}>{buildingLabel(b, isEn)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5" htmlFor={`${uid}-u`}>{t.unit}</label>
-                      <select
-                        id={`${uid}-u`}
-                        value={unitKey}
-                        onChange={(e) => {
-                          setUnitKey(e.target.value);
-                          if (equipment) setEquipment(null);
-                        }}
-                        disabled={!buildingId}
-                        className={fieldCls}
-                      >
-                        <option value="">{t.allUnits}</option>
-                        {hasCommonAreas && <option value={COMMON_AREA}>{t.commonAreas}</option>}
-                        {unitNumbers.map((u) => (
-                          <option key={u} value={u}>{t.unitWord} {u}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5" htmlFor={`${uid}-e`}>{t.equipment}</label>
+              </section>
+
+              {/* 2 · Which device? / Where? */}
+              <section className="space-y-3">
+                <StepHeading n={2} title={kind === "EQUIPMENT" ? t.step2Equipment : t.step2Other} />
+                {kind === "EQUIPMENT" ? (
+                  <EquipmentPicker
+                    isEn={isEn}
+                    buildings={options.buildings}
+                    equipments={equipments}
+                    units={units}
+                    equipment={equipment}
+                    onSelect={selectEquipment}
+                    buildingId={buildingId}
+                    onBuildingChange={changeBuilding}
+                    unitId={unitId}
+                    onUnitChange={changeUnit}
+                    onReportAsOther={() => switchKind("OTHER")}
+                  />
+                ) : (
+                  <LocationPicker
+                    isEn={isEn}
+                    buildings={options.buildings}
+                    units={units}
+                    buildingId={buildingId}
+                    onBuildingChange={changeBuilding}
+                    unitId={unitId}
+                    onUnitChange={changeUnit}
+                    mode="other"
+                    room={room}
+                    onRoomChange={setRoom}
+                    place={place}
+                    onPlaceChange={setPlace}
+                  />
+                )}
+              </section>
+
+              {/* 3 · What's wrong? */}
+              <section className="space-y-4">
+                <StepHeading n={3} title={t.step3} />
+                {kind === "EQUIPMENT" ? (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-800" htmlFor={`${uid}-i`}>
+                      {t.issueLabel} <span className="text-red-500">*</span>
+                    </label>
                     <select
-                      id={`${uid}-e`}
-                      value={equipment && equipment.buildingId === buildingId ? equipment.id : ""}
-                      onChange={(e) => selectEquipment(equipments.find((x) => x.id === e.target.value) ?? null)}
-                      disabled={!buildingId}
-                      className={fieldCls}
+                      id={`${uid}-i`}
+                      value={issue}
+                      onChange={(e) => setIssue(e.target.value)}
+                      className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
                     >
-                      <option value="">{t.selectEquipment}</option>
-                      {unitEquipments.map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {unitKey === "" && e.unitNumber ? `${e.unitNumber} · ` : ""}{equipmentLabel(e)}
-                        </option>
+                      <option value="">{t.selectIssue}</option>
+                      {(isEn ? ISSUE_OPTIONS_EN : ISSUE_OPTIONS_AR).map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
+                    <label className="sr-only" htmlFor={`${uid}-d`}>{isEn ? "Details" : "التفاصيل"}</label>
+                    <textarea
+                      id={`${uid}-d`}
+                      value={details}
+                      onChange={(e) => setDetails(e.target.value)}
+                      rows={3}
+                      maxLength={1000}
+                      required={isOtherIssue(issue)}
+                      placeholder={isOtherIssue(issue) ? t.detailsPlaceholderOther : t.detailsPlaceholder}
+                      className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem resize-none"
+                    />
                   </div>
-                </div>
-              )}
-
-              {/* Selected equipment */}
-              {equipment && (
-                <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm text-slate-900">
-                      {typeName(equipment)}
-                      {equipment.brandModel && <span className="font-medium text-slate-500"> · {equipment.brandModel}</span>}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      <span className="font-mono font-semibold" dir="ltr">{equipment.qrCode}</span>
-                      {" · "}
-                      {equipmentBuilding ? buildingLabel(equipmentBuilding, isEn) : ""}
-                      {" · "}
-                      {equipment.unitNumber ? `${t.unitWord} ${equipment.unitNumber}` : t.commonArea}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setEquipment(null); setCode(""); }}
-                    className="text-xs font-bold text-emerald-700 hover:text-emerald-900 shrink-0"
-                  >
-                    {t.change}
-                  </button>
-                </div>
-              )}
-
-              {/* Issue */}
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-slate-800" htmlFor={`${uid}-i`}>
-                  {t.issueLabel} <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id={`${uid}-i`}
-                  value={issue}
-                  onChange={(e) => setIssue(e.target.value)}
-                  className={fieldCls}
-                >
-                  <option value="">{t.selectIssue}</option>
-                  {(isEn ? ISSUE_OPTIONS_EN : ISSUE_OPTIONS_AR).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                <div>
-                  <label className="sr-only" htmlFor={`${uid}-d`}>{t.detailsLabel}</label>
-                  <textarea
-                    id={`${uid}-d`}
-                    value={details}
-                    onChange={(e) => setDetails(e.target.value)}
-                    rows={3}
-                    maxLength={1000}
-                    required={needsDetails}
-                    placeholder={needsDetails ? t.detailsPlaceholderOther : t.detailsPlaceholder}
-                    className={`${fieldCls} resize-none`}
+                ) : (
+                  <OtherProblemFields
+                    isEn={isEn}
+                    category={category}
+                    onCategoryChange={(c) => { setCategory(c); setJob(""); }}
+                    job={job}
+                    onJobChange={setJob}
+                    details={details}
+                    onDetailsChange={setDetails}
                   />
-                </div>
-              </div>
+                )}
+
+                <PhotoAttachments isEn={isEn} photos={photos} onChange={setPhotos} disabled={busy} />
+
+                {/* Urgent */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={urgent}
+                  onClick={() => setUrgent((v) => !v)}
+                  disabled={busy}
+                  className={`w-full flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-start transition-colors ${
+                    urgent ? "border-red-300 bg-red-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${urgent ? "bg-red-500 text-white" : "bg-slate-100 text-slate-500"}`}>
+                    <Siren className="w-5 h-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-bold ${urgent ? "text-red-700" : "text-slate-800"}`}>{t.urgent}</span>
+                    <span className="block text-[11px] text-slate-500 leading-snug">{t.urgentHint}</span>
+                  </span>
+                  <span className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${urgent ? "bg-red-500" : "bg-slate-300"}`}>
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${urgent ? "start-[22px]" : "start-0.5"}`} />
+                  </span>
+                </button>
+              </section>
 
               {submitError && (
                 <p role="alert" className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
@@ -473,11 +472,14 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50/60 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 px-5 py-4 border-t border-slate-100 bg-slate-50/60 shrink-0">
+          {missing && !busy && options && (
+            <p className="text-xs font-medium text-slate-500 me-auto" aria-live="polite">{missing}</p>
+          )}
           <button
             type="button"
             onClick={onClose}
-            disabled={submitting}
+            disabled={busy}
             className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors"
           >
             {t.cancel}
@@ -487,43 +489,22 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
             disabled={!canSubmit}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-nassayem hover:bg-nassayem/90 text-white shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {submitting ? t.sending : t.send}
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            {uploadProgress
+              ? (isEn ? `Uploading photos ${uploadProgress.done}/${uploadProgress.total}…` : `جارٍ رفع الصور ${uploadProgress.done}/${uploadProgress.total}…`)
+              : submitting ? t.sending : t.send}
           </button>
         </div>
       </form>
-
-      {/* ── Camera overlay ───────────────────────────────────────────────── */}
-      {cameraOpen && (
-        <div className="fixed inset-0 z-[80] bg-black flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => setCameraOpen(false)}
-            aria-label={t.close}
-            className="absolute top-5 end-5 z-10 text-white bg-white/15 hover:bg-white/25 p-2.5 rounded-full"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="w-full max-w-md p-4">
-            <h3 className="text-white text-center mb-4 font-medium">{t.cameraTitle}</h3>
-            <div className="rounded-2xl overflow-hidden border-2 border-white/20">
-              <Scanner
-                onScan={(result) => {
-                  const raw = result?.[0]?.rawValue;
-                  if (!raw) return;
-                  setCameraOpen(false);
-                  setCode(raw);
-                  lookupCode(raw);
-                }}
-                onError={() => setCameraError(true)}
-                components={{ finder: true }}
-                styles={{ container: { width: "100%" } }}
-              />
-            </div>
-            {cameraError && <p className="mt-3 text-center text-sm text-amber-300">{t.cameraUnavailable}</p>}
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+function StepHeading({ n, title }: { n: number; title: string }) {
+  return (
+    <h3 className="flex items-center gap-2.5 text-sm font-bold text-slate-800">
+      <span className="w-6 h-6 rounded-full bg-nassayem text-white text-xs font-black flex items-center justify-center shrink-0">{n}</span>
+      {title}
+    </h3>
   );
 }

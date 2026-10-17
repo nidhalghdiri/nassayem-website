@@ -22,6 +22,11 @@ const mins = (ms: number) => Math.max(0, Math.round(ms / 60000));
 
 export type MaintenanceTask = {
   id: string;
+  requestNumber: number;
+  /** EQUIPMENT / PLUMBING / … (null on older requests). */
+  category: string | null;
+  /** Room key inside the unit, or the place in a common area. */
+  room: string | null;
   title: string;
   description: string | null;
   type: string;
@@ -146,6 +151,9 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
     const isTerminal = TERMINAL_STATUSES.includes(t.status);
     const mt: MaintenanceTask = {
       id: t.id,
+      requestNumber: t.requestNumber,
+      category: t.category,
+      room: t.room,
       title: t.title,
       description: t.description,
       type: t.type,

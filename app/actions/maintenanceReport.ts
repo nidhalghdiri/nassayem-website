@@ -5,6 +5,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canSeeAllTasks } from "@/lib/tasks/permissions";
 import {
   getMaintenanceTasksReport as queryReport,
+  CATEGORY_FILTERS,
   SOURCE_FILTERS,
   STATUS_FILTERS,
   type MaintenanceReportFilters,
@@ -25,6 +26,7 @@ export async function getMaintenanceTasksReport(input: {
   buildingId?: string;
   status: string;
   source: string;
+  category?: string;
   from?: string;
   to?: string;
   page: number;
@@ -38,6 +40,7 @@ export async function getMaintenanceTasksReport(input: {
       buildingId: typeof input.buildingId === "string" && input.buildingId.length > 0 && input.buildingId.length <= 64 ? input.buildingId : undefined,
       status: (STATUS_FILTERS as readonly string[]).includes(input.status) ? (input.status as MaintenanceReportFilters["status"]) : "NOT_CLOSED",
       source: (SOURCE_FILTERS as readonly string[]).includes(input.source) ? (input.source as MaintenanceReportFilters["source"]) : "ALL",
+      category: (CATEGORY_FILTERS as readonly string[]).includes(input.category ?? "") ? (input.category as MaintenanceReportFilters["category"]) : "ALL",
       from: input.from && DATE_RE.test(input.from) ? input.from : undefined,
       to: input.to && DATE_RE.test(input.to) ? input.to : undefined,
       page: Number.isInteger(input.page) && input.page > 0 ? Math.min(input.page, 1000) : 1,

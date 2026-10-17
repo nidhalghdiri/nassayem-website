@@ -19,6 +19,9 @@ const DEFAULT_NOTES = ["Approved directly from dashboard.", "Approved from recep
 
 export type BranchMaintenanceRequest = {
   id: string;
+  requestNumber: number;
+  category: string | null;
+  room: string | null;
   title: string;
   description: string | null;
   status: string;
@@ -41,6 +44,7 @@ export type BranchMaintenanceRequest = {
 
 export type ClosedMaintenanceRequest = {
   id: string;
+  requestNumber: number;
   title: string;
   unitName: string | null;
   buildingNameEn: string;
@@ -77,6 +81,7 @@ export async function getBranchMaintenanceData(
       where: { type: "MAINTENANCE", status: { notIn: TERMINAL_STATUSES }, ...buildingFilter },
       select: {
         id: true, title: true, description: true, status: true, priority: true, unitNumber: true,
+        requestNumber: true, category: true, room: true,
         createdAt: true, dueDate: true,
         building: { select: { nameEn: true, nameAr: true, shortName: true } },
         unit: { select: { name: true } },
@@ -99,7 +104,7 @@ export async function getBranchMaintenanceData(
         createdAt: true,
         task: {
           select: {
-            id: true, title: true, unitNumber: true,
+            id: true, requestNumber: true, title: true, unitNumber: true,
             unit: { select: { name: true } },
             building: { select: { nameEn: true, nameAr: true, shortName: true } },
             notes: {
@@ -121,6 +126,9 @@ export async function getBranchMaintenanceData(
     const holdReasons = t.activities.filter((a) => a.action === "on_hold_reason");
     return {
       id: t.id,
+      requestNumber: t.requestNumber,
+      category: t.category,
+      room: t.room,
       title: t.title,
       description: t.description,
       status: t.status,
@@ -152,6 +160,7 @@ export async function getBranchMaintenanceData(
     const { rating, comment } = parseRatingNote(a.task.notes[0]?.text);
     closed.push({
       id: a.task.id,
+      requestNumber: a.task.requestNumber,
       title: a.task.title,
       unitName: a.task.unit?.name || a.task.unitNumber || null,
       buildingNameEn: a.task.building.shortName || a.task.building.nameEn,

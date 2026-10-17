@@ -554,6 +554,14 @@ model Task {
 
   cleaningType CleaningType?
 
+  // Maintenance request details, set by the "New maintenance request" form
+  // (category keys live in lib/maintenance/categories.ts). Null on older tasks.
+  category String? // EQUIPMENT | PLUMBING | ELECTRICAL | FURNITURE | PAINTING | INSTALLATION | DOORS_WINDOWS | GENERAL | OTHER
+  room     String? // room inside the unit (key), or the place when the request is for a common area
+
+  // Human-friendly sequential number shown as "#3046" in lists
+  requestNumber Int @unique @default(autoincrement())
+
   // Priority & status
   priority TaskPriority @default(MEDIUM)
   status   TaskStatus   @default(ASSIGNED)
@@ -589,6 +597,7 @@ model Task {
   @@index([buildingId])
   @@index([dueDate])
   @@index([type])
+  @@index([category])
 }
 
 model TaskNote {
