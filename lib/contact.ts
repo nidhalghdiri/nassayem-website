@@ -17,6 +17,16 @@ export const CONTACT_PHONE_E164 = "+96899551237";
 /** Digits only, no "+" — the form wa.me expects. */
 export const CONTACT_WHATSAPP = "96899551237";
 
+/**
+ * Front-desk line for in-stay guests (printed on the reservation paper next to
+ * the customer-service number). Call only — WhatsApp goes to CONTACT_WHATSAPP.
+ */
+export const RECEPTION_PHONE_DISPLAY = "90960071";
+export const RECEPTION_PHONE_E164 = "+96890960071";
+
+/** Oman's unified emergency number — Police, Ambulance and Fire. */
+export const EMERGENCY_PHONE = "9999";
+
 export const CONTACT_EMAIL = "info@nassayemsalalah.com";
 
 export const CONTACT_ADDRESS_EN = "Al Luban Street, Salalah, Dhofar Governorate, Sultanate of Oman";
