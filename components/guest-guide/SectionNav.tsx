@@ -31,10 +31,17 @@ export default function SectionNav({ sections }: { sections: Section[] }) {
     return () => observer.disconnect();
   }, [sections]);
 
-  // Keep the active chip visible inside the scrollable bar.
+  // Keep the active chip centred inside the scrollable bar. Scroll the bar
+  // itself — scrollIntoView() would also scroll the window to the sticky bar's
+  // position, yanking the page back up while the guest is scrolling.
   useEffect(() => {
-    const chip = barRef.current?.querySelector<HTMLElement>(`[data-id="${active}"]`);
-    chip?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    const bar = barRef.current;
+    const chip = bar?.querySelector<HTMLElement>(`[data-id="${active}"]`);
+    if (!bar || !chip) return;
+    const barRect = bar.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const delta = chipRect.left + chipRect.width / 2 - (barRect.left + barRect.width / 2);
+    bar.scrollBy({ left: delta, behavior: "smooth" });
   }, [active]);
 
   return (
