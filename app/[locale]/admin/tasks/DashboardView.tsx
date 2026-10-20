@@ -7,6 +7,7 @@ import SupervisorDashboard from "@/components/admin/tasks/dashboard/SupervisorDa
 import ReceptionistDashboard from "@/components/admin/tasks/dashboard/ReceptionistDashboard";
 import WorkerDashboard from "@/components/admin/tasks/dashboard/WorkerDashboard";
 import MaintenanceDashboard from "@/components/admin/tasks/dashboard/maintenance/MaintenanceDashboard";
+import DashboardQuickLinks from "@/components/admin/tasks/dashboard/DashboardQuickLinks";
 import { getMaintenanceDashboardData } from "@/lib/reports/maintenanceDashboard";
 import { getEmployeeRanking } from "@/lib/reports/employeeRanking";
 import { getBuildingPerformance } from "@/lib/reports/buildingPerformance";
@@ -267,6 +268,15 @@ export default async function DashboardView({
 
   return (
     <div className="min-h-screen bg-slate-50/50" dir={isEn ? "ltr" : "rtl"}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-4 md:pt-6">
+        <DashboardQuickLinks
+          locale={locale}
+          tabs={allowed}
+          activeTab={activeTab}
+          // Same as the sidebar: every role with Tasks access except Laundry
+          showTasksList={adminUser.role !== "LAUNDRY"}
+        />
+      </div>
       {content}
     </div>
   );
