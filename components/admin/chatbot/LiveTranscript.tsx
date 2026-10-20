@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import type { ChatConversationStatus } from "@prisma/client";
 import { sendStaffMessage } from "@/app/actions/chatbot";
-import { dayLabel, timeOf } from "./inboxUtils";
+import { compressImageIfNeeded, dayLabel, timeOf } from "./inboxUtils";
 
 export type TranscriptMessage = {
   id: string;
@@ -177,6 +177,7 @@ export default function LiveTranscript({
   const [locationInput, setLocationInput] = useState({ latitude: "", longitude: "", label: "" });
   const [contactInput, setContactInput] = useState({ name: "", phone: "" });
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [unseen, setUnseen] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -340,12 +341,22 @@ export default function LiveTranscript({
     submit(fd);
   };
 
-  const pickPhoto = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    setPhoto({ file, preview: URL.createObjectURL(file) });
+  const pickPhoto = async (picked: File) => {
+    if (!picked.type.startsWith("image/")) return;
     setMenuOpen(false);
     setAttachMode(null);
-    textareaRef.current?.focus();
+    setError(null);
+    setCompressing(true);
+    try {
+      // Server Actions reject bodies over 1 MB — shrink big photos first.
+      const file = await compressImageIfNeeded(picked);
+      setPhoto({ file, preview: URL.createObjectURL(file) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCompressing(false);
+      textareaRef.current?.focus();
+    }
   };
 
   const sendLocation = () => {
@@ -365,7 +376,7 @@ export default function LiveTranscript({
     submit(fd);
   };
 
-  const canSend = !sending && (!!photo || !!text.trim());
+  const canSend = !sending && !compressing && (!!photo || !!text.trim());
   const field =
     "rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem/40";
 
@@ -560,6 +571,13 @@ export default function LiveTranscript({
                   {isEn ? "Send" : "إرسال"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {compressing && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 text-xs text-gray-600">
+              <Loader2 className="w-4 h-4 animate-spin text-nassayem" />
+              {isEn ? "Optimizing photo for sending…" : "جارٍ تجهيز الصورة للإرسال…"}
             </div>
           )}
 

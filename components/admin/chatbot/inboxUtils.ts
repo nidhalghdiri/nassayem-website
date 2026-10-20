@@ -75,3 +75,63 @@ export const STATUS_STYLES: Record<
   CLOSED: { en: "Closed", ar: "مغلقة", pill: "bg-gray-100 text-gray-600 ring-gray-200", dot: "bg-gray-400" },
   PENDING_RETRY: { en: "Retry pending", ar: "بانتظار إعادة المحاولة", pill: "bg-amber-50 text-amber-700 ring-amber-200", dot: "bg-amber-500" },
 };
+
+// ── Image compression (browser only) ─────────────────────────────────────────
+// Staff photos go through a Server Action, whose request body is capped at
+// 1 MB by Next.js. Anything at or above that is downscaled and re-encoded as
+// JPEG until it fits, with headroom for the rest of the form data.
+
+const IMAGE_LIMIT_BYTES = 1024 * 1024;
+const IMAGE_TARGET_BYTES = 900 * 1024;
+
+function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read this image"));
+    };
+    img.src = url;
+  });
+}
+
+/** Returns the file unchanged when under 1 MB; otherwise a smaller JPEG. */
+export async function compressImageIfNeeded(file: File): Promise<File> {
+  if (file.size < IMAGE_LIMIT_BYTES) return file;
+
+  const img = await loadImage(file);
+  let maxSide = 2048;
+  let quality = 0.85;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) break;
+    // JPEG has no transparency — paint white so PNG cut-outs don't turn black.
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const blob = await canvasToBlob(canvas, quality);
+    if (blob && blob.size <= IMAGE_TARGET_BYTES) {
+      const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+      return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+    }
+    // Lower quality first, then resolution.
+    if (quality > 0.6) quality -= 0.1;
+    else maxSide = Math.round(maxSide * 0.75);
+  }
+  throw new Error("This image is too large to send — please choose a smaller one.");
+}
