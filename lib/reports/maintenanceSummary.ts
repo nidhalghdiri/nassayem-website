@@ -3,6 +3,7 @@ import type { Prisma, TaskStatus } from "@prisma/client";
 import { analyzeTimeline, TIMELINE_ACTIONS } from "./taskTimeline";
 import { categoryWhere, splitDevice } from "./maintenanceTasksReport";
 import { parseRatingNote } from "./branchMaintenance";
+import { isTaskSize, TASK_SIZES } from "@/lib/maintenance/taskSize";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Manager / Supervisor dashboards — summary cards above the maintenance reports,
@@ -35,8 +36,11 @@ import { parseRatingNote } from "./branchMaintenance";
 // (always the last 30 days).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SUMMARY_PERIODS = ["TODAY", "7D", "30D"] as const;
+export const SUMMARY_PERIODS = ["TODAY", "7D", "30D", "CUSTOM"] as const;
 export type SummaryPeriod = (typeof SUMMARY_PERIODS)[number];
+
+/** CUSTOM uses `from` / `to` ("YYYY-MM-DD", Oman days, both included); `to` defaults to today. */
+export type SummaryRange = { period: SummaryPeriod; from?: string; to?: string };
 
 export type EquipmentMaintenanceSummary = {
   completed: number;
@@ -131,8 +135,11 @@ export type OtherMaintenanceSummary = {
   avgRating: number | null;
   openNow: number;
   overdueNow: number;
-  /** Technicians who worked on other maintenance in the period, most completed first */
-  technicians: TechnicianPerformanceRow[];
+  /**
+   * Technicians who worked on other maintenance in the period, most completed first —
+   * for all tasks, and for each task size (older tasks without a size are only in ALL)
+   */
+  technicians: Record<TechnicianSizeFilter, TechnicianPerformanceRow[]>;
   /** Requests created in the period by category (null = older request with no category), most first */
   byCategory: { category: string | null; count: number }[];
   /** Requests created in the period by building, most first */
@@ -140,6 +147,9 @@ export type OtherMaintenanceSummary = {
   /** Units / places with RECURRING_MIN requests or more in the last RECURRING_DAYS days, most first */
   recurring: RecurringFaultRow[];
 };
+
+export const TECHNICIAN_SIZE_FILTERS = ["ALL", ...TASK_SIZES] as const;
+export type TechnicianSizeFilter = (typeof TECHNICIAN_SIZE_FILTERS)[number];
 
 export type TechnicianPerformanceRow = {
   id: string;
@@ -177,12 +187,19 @@ const REVIEW_ACTIONS = ["approved", "rejected", "approved_receptionist", "reject
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OMAN_OFFSET_MS = 4 * 60 * 60 * 1000; // UTC+4 all year
 
-function periodStart(period: SummaryPeriod, now: number): Date {
-  if (period === "7D") return new Date(now - 7 * DAY_MS);
-  if (period === "30D") return new Date(now - 30 * DAY_MS);
+/** The period as [since, until). Presets end now; a custom range ends after its last day. */
+function periodRange(range: SummaryRange, now: number): { since: Date; until: Date } {
+  const end = new Date(now);
+  if (range.period === "7D") return { since: new Date(now - 7 * DAY_MS), until: end };
+  if (range.period === "30D") return { since: new Date(now - 30 * DAY_MS), until: end };
+  if (range.period === "CUSTOM" && range.from) {
+    const since = new Date(`${range.from}T00:00:00+04:00`);
+    const until = range.to ? new Date(new Date(`${range.to}T00:00:00+04:00`).getTime() + DAY_MS) : end;
+    return { since, until };
+  }
   // Today = since midnight in Oman
   const omanNow = now + OMAN_OFFSET_MS;
-  return new Date(omanNow - (omanNow % DAY_MS) - OMAN_OFFSET_MS);
+  return { since: new Date(omanNow - (omanNow % DAY_MS) - OMAN_OFFSET_MS), until: end };
 }
 
 const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
@@ -202,17 +219,21 @@ async function baseWhere(scope: "ALL_EQUIPMENT" | "ALL_OTHER", scopeBuildingIds:
 }
 
 /** Requests with something in the period: created, or any activity (start, completion, review…). */
-const touchedSince = (since: Date): Prisma.TaskWhereInput => ({
-  OR: [{ createdAt: { gte: since } }, { activities: { some: { createdAt: { gte: since } } } }],
+const touchedSince = (since: Date, until: Date): Prisma.TaskWhereInput => ({
+  OR: [
+    { createdAt: { gte: since, lt: until } },
+    { activities: { some: { createdAt: { gte: since, lt: until } } } },
+  ],
 });
 
 /** `scopeBuildingIds` = buildings the caller may see (null = all). */
 export async function getEquipmentMaintenanceSummary(
-  period: SummaryPeriod,
+  range: SummaryRange,
   scopeBuildingIds: string[] | null,
 ): Promise<EquipmentMaintenanceSummary> {
   const now = Date.now();
-  const since = periodStart(period, now);
+  const { since, until } = periodRange(range, now);
+  const inPeriod = (d: Date) => d >= since && d < until;
 
   const base = await baseWhere("ALL_EQUIPMENT", scopeBuildingIds);
   const [failures, liveByStatus, tasks] = await Promise.all([
@@ -223,7 +244,7 @@ export async function getEquipmentMaintenanceSummary(
       _count: { _all: true },
     }),
     prisma.task.findMany({
-      where: { AND: [base, touchedSince(since)] },
+      where: { AND: [base, touchedSince(since, until)] },
       select: {
         status: true, createdAt: true, requestNumber: true, buildingId: true,
         building: { select: { nameEn: true, nameAr: true, shortName: true } },
@@ -262,21 +283,21 @@ export async function getEquipmentMaintenanceSummary(
 
     const tl = analyzeTimeline(t.activities, t.status, now);
     const reviews = t.activities.filter((a) => REVIEW_ACTIONS.includes(a.action));
-    const note = t.notes[0] && t.notes[0].createdAt >= since ? t.notes[0] : null;
+    const note = t.notes[0] && inPeriod(t.notes[0].createdAt) ? t.notes[0] : null;
     const { rating, comment } = parseRatingNote(note?.text);
 
     for (const acc of [all, branch.acc]) {
-      if (tl.startedAt && tl.startedAt >= since) acc.arrivals.push(tl.startedAt.getTime() - t.createdAt.getTime());
-      if (tl.completedAt && tl.completedAt >= since) {
+      if (tl.startedAt && inPeriod(tl.startedAt)) acc.arrivals.push(tl.startedAt.getTime() - t.createdAt.getTime());
+      if (tl.completedAt && inPeriod(tl.completedAt)) {
         acc.completed++;
         if (tl.startedAt) acc.workTimes.push(tl.completedAt.getTime() - tl.startedAt.getTime() - tl.holdMs);
         if (tl.holdStarts.length > 0) acc.pauses.push(tl.holdMs);
       }
-      if (reviews.some((a) => a.createdAt >= since)) {
+      if (reviews.some((a) => inPeriod(a.createdAt))) {
         acc.reviewed++;
         if (!reviews.some((a) => a.action.startsWith("rejected"))) acc.acceptedClean++;
       }
-      if (reviews.some((a) => a.action.startsWith("rejected") && a.createdAt >= since)) acc.reopened++;
+      if (reviews.some((a) => a.action.startsWith("rejected") && inPeriod(a.createdAt))) acc.reopened++;
     }
 
     if (rating !== null && rating <= LOW_RATING_MAX && comment && note) {
@@ -289,7 +310,7 @@ export async function getEquipmentMaintenanceSummary(
         ratedAt: note.createdAt,
       });
     }
-    if (t.createdAt >= since) sourceCounts.set(t.createdBy.role, (sourceCounts.get(t.createdBy.role) ?? 0) + 1);
+    if (inPeriod(t.createdAt)) sourceCounts.set(t.createdBy.role, (sourceCounts.get(t.createdBy.role) ?? 0) + 1);
   }
 
   const branches: BranchSatisfactionRow[] = [...byBuilding.entries()]
@@ -428,11 +449,12 @@ const newAccumulator = (): Accumulator => ({
 
 /** `scopeBuildingIds` = buildings the caller may see (null = all). */
 export async function getOtherMaintenanceSummary(
-  period: SummaryPeriod,
+  range: SummaryRange,
   scopeBuildingIds: string[] | null,
 ): Promise<OtherMaintenanceSummary> {
   const now = Date.now();
-  const since = periodStart(period, now);
+  const { since, until } = periodRange(range, now);
+  const inPeriod = (d: Date) => d >= since && d < until;
   const base = await baseWhere("ALL_OTHER", scopeBuildingIds);
   const open: Prisma.TaskWhereInput = { status: { notIn: TERMINAL_STATUSES } };
 
@@ -441,9 +463,9 @@ export async function getOtherMaintenanceSummary(
 
   const [tasks, openNow, overdueNow, recentRequests] = await Promise.all([
     prisma.task.findMany({
-      where: { AND: [base, touchedSince(since)] },
+      where: { AND: [base, touchedSince(since, until)] },
       select: {
-        status: true, createdAt: true, dueDate: true, buildingId: true, category: true,
+        status: true, createdAt: true, dueDate: true, buildingId: true, category: true, taskSize: true,
         building: buildingSelect,
         assignedTo: { select: { id: true, name: true, email: true } },
         activities: {
@@ -472,44 +494,50 @@ export async function getOtherMaintenanceSummary(
     }),
   ]);
 
-  const created = tasks.filter((t) => t.createdAt >= since);
+  const created = tasks.filter((t) => inPeriod(t.createdAt));
   const responses: number[] = [];
   const completions: number[] = [];
   const ratings: number[] = [];
-  const techs = new Map<string, {
+  type TechStats = {
     name: string; completed: number; onTime: number; completionTimes: number[]; ratings: number[];
     categories: Map<string, number>;
-  }>();
+  };
+  // One table per size filter: every task counts in ALL, and in its own size when it has one
+  const techsBySize = new Map<TechnicianSizeFilter, Map<string, TechStats>>(
+    TECHNICIAN_SIZE_FILTERS.map((f) => [f, new Map()]),
+  );
 
   for (const t of tasks) {
     const tl = analyzeTimeline(t.activities, t.status, now);
     const note = t.notes[0];
-    const stars = note && note.createdAt >= since ? note.text.match(/^★\s*(\d+)/) : null;
+    const stars = note && inPeriod(note.createdAt) ? note.text.match(/^★\s*(\d+)/) : null;
     const rating = stars ? Math.min(5, Math.max(1, parseInt(stars[1], 10))) : null;
+    const completedMs = tl.startedAt && tl.completedAt && inPeriod(tl.completedAt)
+      ? tl.completedAt.getTime() - tl.startedAt.getTime()
+      : null;
 
-    let tech = techs.get(t.assignedTo.id);
-    if (!tech) {
-      tech = {
-        name: t.assignedTo.name || t.assignedTo.email.split("@")[0],
-        completed: 0, onTime: 0, completionTimes: [], ratings: [], categories: new Map(),
-      };
-      techs.set(t.assignedTo.id, tech);
-    }
-    if (t.category) tech.categories.set(t.category, (tech.categories.get(t.category) ?? 0) + 1);
+    if (tl.startedAt && inPeriod(tl.startedAt)) responses.push(tl.startedAt.getTime() - t.createdAt.getTime());
+    if (completedMs !== null) completions.push(completedMs);
+    if (rating !== null) ratings.push(rating);
 
-    if (tl.startedAt && tl.startedAt >= since) {
-      responses.push(tl.startedAt.getTime() - t.createdAt.getTime());
-    }
-    if (tl.startedAt && tl.completedAt && tl.completedAt >= since) {
-      const ms = tl.completedAt.getTime() - tl.startedAt.getTime();
-      completions.push(ms);
-      tech.completed++;
-      tech.completionTimes.push(ms);
-      if (tl.completedAt <= t.dueDate) tech.onTime++;
-    }
-    if (rating !== null) {
-      ratings.push(rating);
-      tech.ratings.push(rating);
+    const filters: TechnicianSizeFilter[] = isTaskSize(t.taskSize) ? ["ALL", t.taskSize] : ["ALL"];
+    for (const f of filters) {
+      const techs = techsBySize.get(f)!;
+      let tech = techs.get(t.assignedTo.id);
+      if (!tech) {
+        tech = {
+          name: t.assignedTo.name || t.assignedTo.email.split("@")[0],
+          completed: 0, onTime: 0, completionTimes: [], ratings: [], categories: new Map(),
+        };
+        techs.set(t.assignedTo.id, tech);
+      }
+      if (t.category) tech.categories.set(t.category, (tech.categories.get(t.category) ?? 0) + 1);
+      if (completedMs !== null) {
+        tech.completed++;
+        tech.completionTimes.push(completedMs);
+        if (tl.completedAt! <= t.dueDate) tech.onTime++;
+      }
+      if (rating !== null) tech.ratings.push(rating);
     }
   }
 
@@ -518,17 +546,22 @@ export async function getOtherMaintenanceSummary(
   const topKey = (counts: Map<string, number>) =>
     [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-  const technicians: TechnicianPerformanceRow[] = [...techs.entries()]
-    .map(([id, x]) => ({
-      id,
-      name: x.name,
-      specialty: topKey(x.categories),
-      completed: x.completed,
-      avgCompletionMins: toMins(average(x.completionTimes)),
-      slaPct: pct(x.onTime, x.completed),
-      avgRating: round1(average(x.ratings)),
-    }))
-    .sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name));
+  const technicians = Object.fromEntries(
+    [...techsBySize.entries()].map(([filter, techs]) => [
+      filter,
+      [...techs.entries()]
+        .map(([id, x]): TechnicianPerformanceRow => ({
+          id,
+          name: x.name,
+          specialty: topKey(x.categories),
+          completed: x.completed,
+          avgCompletionMins: toMins(average(x.completionTimes)),
+          slaPct: pct(x.onTime, x.completed),
+          avgRating: round1(average(x.ratings)),
+        }))
+        .sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name)),
+    ]),
+  ) as Record<TechnicianSizeFilter, TechnicianPerformanceRow[]>;
 
   const categoryCounts = new Map<string | null, number>();
   const buildingCounts = new Map<string, { nameEn: string; nameAr: string; count: number }>();

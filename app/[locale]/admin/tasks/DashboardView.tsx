@@ -103,13 +103,9 @@ export default async function DashboardView({
   let content: ReactNode = null;
 
   if (activeTab === "manager") {
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    fourteenDaysAgo.setHours(0,0,0,0);
-
     const [
       totalAssigned, active, completed, delayed,
-      allCompletedTasks, trendTasksRaw, buildings, staffUsers,
+      allCompletedTasks, buildings, staffUsers,
       topEmployees, lastWeekEmployees, buildingPerformanceRaw,
       recentNotes, supervisorAuditData, unitsData, todaysEmployeeNotes
     ] = await Promise.all([
@@ -118,7 +114,6 @@ export default async function DashboardView({
       prisma.task.count({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter } }),
       prisma.task.count({ where: { dueDate: { lt: new Date() }, status: { notIn: TERMINAL_STATUSES }, ...visibilityFilter } }),
       prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, ...visibilityFilter }, select: { updatedAt: true, dueDate: true } }),
-      prisma.task.findMany({ where: { status: { in: TERMINAL_STATUSES }, updatedAt: { gte: fourteenDaysAgo }, ...visibilityFilter }, select: { updatedAt: true } }),
       getBuildings(),
       getStaffUsers(),
       getEmployeeRanking(7, 0),
@@ -149,27 +144,12 @@ export default async function DashboardView({
     }
     const timeAdherence = allCompletedTasks.length > 0 ? Math.round((onTime / allCompletedTasks.length) * 100) : 100;
 
-    const trendMap = new Map<string, number>();
-    const now = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      trendMap.set(d.toISOString().split('T')[0], 0);
-    }
-    for (const t of trendTasksRaw) {
-      const dStr = t.updatedAt.toISOString().split('T')[0];
-      if (trendMap.has(dStr)) {
-        trendMap.set(dStr, trendMap.get(dStr)! + 1);
-      }
-    }
-    const trendData = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count }));
-
     content = (
       <DirectorDashboard
         {...({
           locale, currentUserId: adminUser.id, currentUserRole: adminUser.role,
           stats: { totalAssigned, active, completed, delayed, timeAdherence, waitingAudit },
-          trendData, buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
+          buildings, assignableStaff: staffUsers, topEmployees, lastWeekEmployees,
           buildingPerformance, recentNotes, alerts, todaysEmployeeNotes, pendingAuditIds,
           buildingAuditStatus: supervisorAuditData.buildingAuditStatus,
           unitsStatus: unitsData.units, readinessTimeline: unitsData.timeline,

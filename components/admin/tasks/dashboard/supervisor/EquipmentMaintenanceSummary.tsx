@@ -26,7 +26,7 @@ type Props = {
 
 /** Manager / Supervisor dashboards: summary cards for equipment maintenance. */
 export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props) {
-  const { period, setPeriod, data, loading, failed, reload } = useMaintenanceSummary(getEquipmentMaintenanceSummary, refreshKey);
+  const { range, setRange, data, loading, failed, reload } = useMaintenanceSummary(getEquipmentMaintenanceSummary, refreshKey);
 
   const duration = (mins: number | null) => (mins === null ? "—" : formatDuration(mins, isEn));
   const live = isEn ? "Live — not affected by the period" : "وقتي — لا يتأثر بالفلتر";
@@ -114,8 +114,8 @@ export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props)
     <section className="space-y-4" aria-label={isEn ? "Equipment maintenance summary" : "ملخص صيانة الأجهزة"}>
       <SummaryPeriodBar
         isEn={isEn}
-        period={period}
-        onChange={setPeriod}
+        range={range}
+        onChange={setRange}
         note={isEn ? "Registered devices — AC, washer, fridge…" : "الأجهزة المسجّلة — مكيف، غسالة، ثلاجة…"}
       />
 

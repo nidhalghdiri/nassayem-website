@@ -1,8 +1,14 @@
 "use client";
 
-import React from "react";
-import type { OtherMaintenanceSummary, RecurringFaultRow, TechnicianPerformanceRow } from "@/lib/reports/maintenanceSummary";
-import { RECURRING_DAYS, RECURRING_MIN } from "@/lib/reports/maintenanceSummary";
+import React, { useState } from "react";
+import type {
+  OtherMaintenanceSummary,
+  RecurringFaultRow,
+  TechnicianPerformanceRow,
+  TechnicianSizeFilter,
+} from "@/lib/reports/maintenanceSummary";
+import { RECURRING_DAYS, RECURRING_MIN, TECHNICIAN_SIZE_FILTERS } from "@/lib/reports/maintenanceSummary";
+import { TASK_SIZE_LABELS } from "@/lib/maintenance/taskSize";
 import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import { formatDuration } from "../../timeUtils";
 
@@ -43,7 +49,15 @@ function CountBars({ rows, labelWidth = "w-24" }: { rows: { key: string; label: 
   );
 }
 
-export function TechnicianPerformance({ isEn, rows }: { isEn: boolean; rows: TechnicianPerformanceRow[] }) {
+export function TechnicianPerformance({
+  isEn,
+  bySize,
+}: {
+  isEn: boolean;
+  bySize: Record<TechnicianSizeFilter, TechnicianPerformanceRow[]>;
+}) {
+  const [size, setSize] = useState<TechnicianSizeFilter>("ALL");
+  const rows = bySize[size];
   const headers = [
     isEn ? "Technician" : "الفني",
     isEn ? "Specialty" : "التخصص",
@@ -52,14 +66,39 @@ export function TechnicianPerformance({ isEn, rows }: { isEn: boolean; rows: Tec
     isEn ? "On time (SLA)" : "الالتزام بـ SLA",
     isEn ? "Satisfaction" : "الرضا",
   ];
+  const sizeLabel = (f: TechnicianSizeFilter) =>
+    f === "ALL" ? (isEn ? "All sizes" : "كل الأحجام") : isEn ? TASK_SIZE_LABELS[f].en : TASK_SIZE_LABELS[f].ar;
+
   return (
     <section className={card} aria-label={isEn ? "Technician performance" : "أداء الفنيين"}>
-      <CardHeader
-        title={isEn ? "Technician performance" : "أداء الفنيين"}
-        hint={isEn ? `${rows.length} active technicians` : `${rows.length} فنيين نشطين`}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <h2 className="text-base font-bold text-slate-800">{isEn ? "Technician performance" : "أداء الفنيين"}</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {isEn ? `${rows.length} active technicians` : `${rows.length} فنيين نشطين`}
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+          {isEn ? "Task size" : "حجم المهمة"}
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value as TechnicianSizeFilter)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+          >
+            {TECHNICIAN_SIZE_FILTERS.map((f) => (
+              <option key={f} value={f}>{sizeLabel(f)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       {rows.length === 0 ? (
-        <Empty text={isEn ? "No technician activity in this period." : "لا يوجد نشاط للفنيين في هذه الفترة."} />
+        <Empty
+          text={
+            size === "ALL"
+              ? isEn ? "No technician activity in this period." : "لا يوجد نشاط للفنيين في هذه الفترة."
+              : isEn ? "No tasks of this size in this period." : "لا توجد مهام بهذا الحجم في هذه الفترة."
+          }
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">

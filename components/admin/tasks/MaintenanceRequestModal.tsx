@@ -13,6 +13,7 @@ import {
 import { ISSUE_OPTIONS_AR, ISSUE_OPTIONS_EN, isOtherIssue } from "@/lib/maintenance/issues";
 import { OTHER_JOB_KEY, type OtherCategoryKey } from "@/lib/maintenance/categories";
 import { DEFAULT_REQUEST_PRIORITY, REQUEST_PRIORITIES } from "@/lib/maintenance/requestPriority";
+import { TASK_SIZES, TASK_SIZE_LABELS, type TaskSize } from "@/lib/maintenance/taskSize";
 import { STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
 import EquipmentPicker from "./maintenance-request/EquipmentPicker";
@@ -62,6 +63,8 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
   // Shared
   const [details, setDetails] = useState("");
   const [technicianId, setTechnicianId] = useState("");
+  /** null = not chosen yet (required, no default so sizes are picked deliberately) */
+  const [taskSize, setTaskSize] = useState<TaskSize | null>(null);
   const [priority, setPriority] = useState<TTaskPriority>(DEFAULT_REQUEST_PRIORITY);
   /** null = not answered yet (only asked when the request is for a unit) */
   const [guestInUnit, setGuestInUnit] = useState<boolean | null>(null);
@@ -98,6 +101,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
     occupied: isEn ? "Yes — guest staying" : "نعم — ضيف مقيم",
     vacant: isEn ? "No — apartment vacant" : "لا — الشقة شاغرة",
     priority: isEn ? "Priority" : "الأولوية",
+    taskSize: isEn ? "Task size" : "حجم المهمة",
     cancel: isEn ? "Cancel" : "إلغاء",
     send: isEn ? "Send to technician" : "إرسال للفني",
     sending: isEn ? "Sending…" : "جارٍ الإرسال…",
@@ -206,6 +210,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
     else if (category !== "OTHER" && !job) missing = isEn ? "Choose the job" : "اختر العمل المطلوب";
     else if (otherNeedsDetails && detailsLen < 2) missing = isEn ? "Describe the work needed" : "اكتب العمل المطلوب";
   }
+  if (!missing && !taskSize) missing = isEn ? "Choose the task size" : "اختر حجم المهمة";
   if (!missing && isForUnit && guestInUnit === null) missing = isEn ? "Say if a guest is in the apartment" : "حدد إن كان الضيف موجوداً في الشقة";
   if (!missing && !technicianId) missing = isEn ? "Choose a technician" : "اختر الفني";
   const canSubmit = !missing && !submitting;
@@ -219,6 +224,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
 
     const base = {
       assignedToId: technicianId,
+      taskSize: taskSize!, // canSubmit requires it
       priority,
       guestInUnit: isForUnit ? guestInUnit : null,
       locale,
@@ -464,6 +470,20 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
                 )}
 
                 <PhotoAttachments isEn={isEn} photos={photos} onChange={setPhotos} disabled={busy} />
+
+                {/* Task size — compares technician performance on like-for-like work */}
+                <div role="radiogroup" aria-label={t.taskSize} className="space-y-2">
+                  <p className="text-sm font-bold text-slate-800">
+                    {t.taskSize} <span className="text-red-500">*</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {TASK_SIZES.map((size) => (
+                      <ChoicePill key={size} selected={taskSize === size} disabled={busy} onClick={() => setTaskSize(size)}>
+                        {isEn ? TASK_SIZE_LABELS[size].en : TASK_SIZE_LABELS[size].ar}
+                      </ChoicePill>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Priority — sets how soon the work is due */}
                 <div role="radiogroup" aria-label={t.priority} className="space-y-2">

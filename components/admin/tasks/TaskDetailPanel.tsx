@@ -20,6 +20,7 @@ import {
 } from "@/lib/tasks/permissions";
 import { buildingLabel } from "@/lib/buildingLabel";
 import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
+import { taskSizeLabel } from "@/lib/maintenance/taskSize";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -54,6 +55,7 @@ type FullTask = {
   category?: string | null;
   room?: string | null;
   guestInUnit?: boolean | null;
+  taskSize?: string | null;
   type: string;
   title: string;
   description: string | null;
@@ -814,6 +816,13 @@ export default function TaskDetailPanel({
                           {task.unit?.name || task.unitNumber}
                         </span>
                         {roomLabel(task.room, isEn) && <span className="ms-1.5">• {roomLabel(task.room, isEn)}</span>}
+                      </dd>
+                    )}
+                    {taskSizeLabel(task.taskSize, isEn) && (
+                      <dd className="mt-1.5">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
+                          {isEn ? "Size: " : "الحجم: "}{taskSizeLabel(task.taskSize, isEn)}
+                        </span>
                       </dd>
                     )}
                     {typeof task.guestInUnit === "boolean" && (

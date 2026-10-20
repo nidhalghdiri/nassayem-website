@@ -15,6 +15,7 @@ import {
   type OtherCategoryKey,
 } from "@/lib/maintenance/categories";
 import { findRequestPriority } from "@/lib/maintenance/requestPriority";
+import { isTaskSize, type TaskSize } from "@/lib/maintenance/taskSize";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
 import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
 import type { AdminUser, TaskStatus } from "@prisma/client";
@@ -68,6 +69,7 @@ export type MaintenanceRequestOptions = {
 type SharedRequestInput = {
   details?: string;
   assignedToId: string;
+  taskSize: TaskSize;
   priority: TTaskPriority;
   /** Is a guest staying in the unit now? Required for a unit, ignored for a common area. */
   guestInUnit?: boolean | null;
@@ -196,7 +198,7 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
     const details = (input.details ?? "").trim().slice(0, 1000);
     if (!input.assignedToId) return { ok: false, error: "INVALID_INPUT" };
     const priority = findRequestPriority(input.priority);
-    if (!priority) return { ok: false, error: "INVALID_INPUT" };
+    if (!priority || !isTaskSize(input.taskSize)) return { ok: false, error: "INVALID_INPUT" };
 
     const technician = await prisma.adminUser.findUnique({
       where: { id: input.assignedToId },
@@ -312,6 +314,7 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
         category,
         room,
         guestInUnit,
+        taskSize: input.taskSize,
         buildingId,
         unitId,
         unitNumber,

@@ -18,6 +18,7 @@ import {
   type EquipmentMaintenanceSummary,
   type OtherMaintenanceSummary,
   type SummaryPeriod,
+  type SummaryRange,
 } from "@/lib/reports/maintenanceSummary";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
@@ -61,23 +62,35 @@ export async function getMaintenanceTasksReport(input: {
   }
 }
 
+type RangeInput = { period: string; from?: string; to?: string };
+
 /** Loads the "Equipment maintenance" summary cards for the chosen period. */
 export async function getEquipmentMaintenanceSummary(
-  period: string,
+  range: RangeInput,
 ): Promise<{ ok: true; data: EquipmentMaintenanceSummary } | { ok: false; error: MaintenanceReportError }> {
-  return loadSummary(period, queryEquipmentSummary, "getEquipmentMaintenanceSummary");
+  return loadSummary(range, queryEquipmentSummary, "getEquipmentMaintenanceSummary");
 }
 
 /** Loads the "Other maintenance" summary cards for the chosen period. */
 export async function getOtherMaintenanceSummary(
-  period: string,
+  range: RangeInput,
 ): Promise<{ ok: true; data: OtherMaintenanceSummary } | { ok: false; error: MaintenanceReportError }> {
-  return loadSummary(period, queryOtherSummary, "getOtherMaintenanceSummary");
+  return loadSummary(range, queryOtherSummary, "getOtherMaintenanceSummary");
+}
+
+/** The range comes from the browser: unknown periods become 7 days, a custom range needs a valid "from" ≤ "to". */
+function safeRange(input: RangeInput): SummaryRange {
+  const period = (SUMMARY_PERIODS as readonly string[]).includes(input?.period) ? (input.period as SummaryPeriod) : "7D";
+  if (period !== "CUSTOM") return { period };
+  const from = typeof input.from === "string" && DATE_RE.test(input.from) ? input.from : undefined;
+  const to = typeof input.to === "string" && DATE_RE.test(input.to) ? input.to : undefined;
+  if (!from || (to && to < from)) return { period: "7D" };
+  return { period, from, to };
 }
 
 async function loadSummary<T>(
-  period: string,
-  query: (period: SummaryPeriod, scopeBuildingIds: string[] | null) => Promise<T>,
+  range: RangeInput,
+  query: (range: SummaryRange, scopeBuildingIds: string[] | null) => Promise<T>,
   name: string,
 ): Promise<{ ok: true; data: T } | { ok: false; error: MaintenanceReportError }> {
   try {
@@ -85,8 +98,7 @@ async function loadSummary<T>(
     if (!user) return { ok: false, error: "UNAUTHORIZED" };
     if (!canSeeAllTasks(user.role as TStaffRole)) return { ok: false, error: "FORBIDDEN" };
 
-    const safePeriod: SummaryPeriod = (SUMMARY_PERIODS as readonly string[]).includes(period) ? (period as SummaryPeriod) : "7D";
-    return { ok: true, data: await query(safePeriod, await getScopeBuildingIds(user)) };
+    return { ok: true, data: await query(safeRange(range), await getScopeBuildingIds(user)) };
   } catch (err) {
     console.error(`${name} failed:`, err);
     return { ok: false, error: "SERVER" };

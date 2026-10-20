@@ -20,12 +20,13 @@ type Props = {
 
 /** Manager / Supervisor dashboards: summary cards for non-equipment maintenance. */
 export default function OtherMaintenanceSummary({ isEn, refreshKey }: Props) {
-  const { period, setPeriod, data, loading, failed, reload } = useMaintenanceSummary(getOtherMaintenanceSummary, refreshKey);
+  const { range, setRange, data, loading, failed, reload } = useMaintenanceSummary(getOtherMaintenanceSummary, refreshKey);
 
   const requestsLabel: Record<SummaryPeriod, string> = {
     TODAY: isEn ? "Requests today" : "طلبات اليوم",
     "7D": isEn ? "Requests, last 7 days" : "طلبات آخر 7 أيام",
     "30D": isEn ? "Requests, last 30 days" : "طلبات آخر 30 يوم",
+    CUSTOM: isEn ? "Requests in the chosen period" : "طلبات الفترة المحددة",
   };
   const live = isEn ? "Live — not affected by the period" : "وقتي — لا يتأثر بالفلتر";
   const none = { value: "—", unit: "" };
@@ -37,7 +38,7 @@ export default function OtherMaintenanceSummary({ isEn, refreshKey }: Props) {
           value: String(data.requests),
           unit: "",
           color: "text-slate-900",
-          title: requestsLabel[period],
+          title: requestsLabel[range.period],
           hint: isEn ? `Across ${data.buildings} buildings` : `عبر ${data.buildings} مباني`,
         },
         {
@@ -84,8 +85,8 @@ export default function OtherMaintenanceSummary({ isEn, refreshKey }: Props) {
     <section className="space-y-4" aria-label={isEn ? "Other maintenance summary" : "ملخص الصيانة الأخرى"}>
       <SummaryPeriodBar
         isEn={isEn}
-        period={period}
-        onChange={setPeriod}
+        range={range}
+        onChange={setRange}
         note={isEn ? "Plumbing, electrical, furniture and other non-equipment requests" : "طلبات السباكة والكهرباء والأثاث وغيرها — بدون الأجهزة"}
       />
 
@@ -110,7 +111,7 @@ export default function OtherMaintenanceSummary({ isEn, refreshKey }: Props) {
 
           {data && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <TechnicianPerformance isEn={isEn} rows={data.technicians} />
+              <TechnicianPerformance isEn={isEn} bySize={data.technicians} />
               <RequestsByType isEn={isEn} rows={data.byCategory} />
               <RequestsByBuilding isEn={isEn} rows={data.byBuilding} />
               <RecurringFaults isEn={isEn} rows={data.recurring} />
