@@ -119,7 +119,7 @@ export default async function HomePage({ params }: PageProps) {
             not the top). */}
         <div className="relative w-full aspect-[1392/787] min-h-[280px] max-h-[90vh] overflow-hidden">
           <Image
-            src="/images/hero.jpeg"
+            src="/images/out_khareef_hero.jpeg"
             alt="Nassayem Salalah furnished apartments – premium vacation rentals in Dhofar, Oman"
             fill
             priority
