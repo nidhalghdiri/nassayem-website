@@ -14,8 +14,9 @@ import {
   findJob,
   type OtherCategoryKey,
 } from "@/lib/maintenance/categories";
+import { findRequestPriority } from "@/lib/maintenance/requestPriority";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
 import type { AdminUser, TaskStatus } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,17 +65,22 @@ export type MaintenanceRequestOptions = {
   defaultTechnicianId: string | null;
 };
 
+type SharedRequestInput = {
+  details?: string;
+  assignedToId: string;
+  priority: TTaskPriority;
+  /** Is a guest staying in the unit now? Required for a unit, ignored for a common area. */
+  guestInUnit?: boolean | null;
+  locale: string;
+};
+
 export type MaintenanceRequestInput =
-  | {
+  | (SharedRequestInput & {
       kind: "EQUIPMENT";
       equipmentId: string;
       issue: string;
-      details?: string;
-      assignedToId: string;
-      urgent?: boolean;
-      locale: string;
-    }
-  | {
+    })
+  | (SharedRequestInput & {
       kind: "OTHER";
       buildingId: string;
       /** null = a common area of the building (then `place` is required) */
@@ -83,11 +89,7 @@ export type MaintenanceRequestInput =
       room?: string;
       category: string;
       job?: string;
-      details?: string;
-      assignedToId: string;
-      urgent?: boolean;
-      locale: string;
-    };
+    });
 
 const TERMINAL_STATUSES: TaskStatus[] = [
   "CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED",
@@ -193,6 +195,8 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
     const locale = input.locale === "ar" ? "ar" : "en";
     const details = (input.details ?? "").trim().slice(0, 1000);
     if (!input.assignedToId) return { ok: false, error: "INVALID_INPUT" };
+    const priority = findRequestPriority(input.priority);
+    if (!priority) return { ok: false, error: "INVALID_INPUT" };
 
     const technician = await prisma.adminUser.findUnique({
       where: { id: input.assignedToId },
@@ -290,9 +294,15 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
       buildingNameEn = building.nameEn;
     }
 
-    // Urgent: top priority, due in 4 hours (otherwise medium, due in 24 hours)
-    const urgent = input.urgent === true;
-    const dueDate = new Date(Date.now() + (urgent ? 4 : 24) * HOUR_MS);
+    // Occupancy only means something inside a unit — the technician needs to know
+    // before knocking. A common area is never asked.
+    let guestInUnit: boolean | null = null;
+    if (unitNumber) {
+      if (typeof input.guestInUnit !== "boolean") return { ok: false, error: "INVALID_INPUT" };
+      guestInUnit = input.guestInUnit;
+    }
+
+    const dueDate = new Date(Date.now() + priority.dueInHours * HOUR_MS);
 
     const task = await prisma.task.create({
       data: {
@@ -301,10 +311,11 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
         description,
         category,
         room,
+        guestInUnit,
         buildingId,
         unitId,
         unitNumber,
-        priority: urgent ? "URGENT" : "MEDIUM",
+        priority: priority.key,
         status: "ASSIGNED",
         createdById: user.id,
         assignedToId: technician.id,
@@ -331,7 +342,7 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
       buildingName: buildingNameEn,
       unitName: unitNumber ?? "",
       dueDate,
-      priority: urgent ? "URGENT" : "MEDIUM",
+      priority: priority.key,
       taskId: task.id,
     }).catch(console.error);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
-import { X, Loader2, AlertTriangle, RefreshCw, QrCode, Hammer, Siren } from "lucide-react";
+import { X, Loader2, AlertTriangle, RefreshCw, QrCode, Hammer } from "lucide-react";
 import {
   getMaintenanceRequestOptions,
   createMaintenanceRequest,
@@ -12,8 +12,9 @@ import {
 } from "@/app/actions/maintenanceRequest";
 import { ISSUE_OPTIONS_AR, ISSUE_OPTIONS_EN, isOtherIssue } from "@/lib/maintenance/issues";
 import { OTHER_JOB_KEY, type OtherCategoryKey } from "@/lib/maintenance/categories";
+import { DEFAULT_REQUEST_PRIORITY, REQUEST_PRIORITIES } from "@/lib/maintenance/requestPriority";
 import { STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
 import EquipmentPicker from "./maintenance-request/EquipmentPicker";
 import LocationPicker from "./maintenance-request/LocationPicker";
 import OtherProblemFields from "./maintenance-request/OtherProblemFields";
@@ -61,7 +62,9 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
   // Shared
   const [details, setDetails] = useState("");
   const [technicianId, setTechnicianId] = useState("");
-  const [urgent, setUrgent] = useState(false);
+  const [priority, setPriority] = useState<TTaskPriority>(DEFAULT_REQUEST_PRIORITY);
+  /** null = not answered yet (only asked when the request is for a unit) */
+  const [guestInUnit, setGuestInUnit] = useState<boolean | null>(null);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -88,13 +91,13 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
     issueLabel: isEn ? "Issue description" : "وصف المشكلة",
     selectIssue: isEn ? "Select the issue" : "اختر المشكلة",
     detailsPlaceholder: isEn
-      ? "Additional details (optional) — e.g. the guest is in the apartment"
-      : "تفاصيل إضافية (اختياري) — مثال: الضيف موجود في الشقة",
+      ? "Additional details (optional) — e.g. it stops after a few minutes"
+      : "تفاصيل إضافية (اختياري) — مثال: يتوقف بعد عدة دقائق",
     detailsPlaceholderOther: isEn ? "Describe the issue…" : "اكتب وصف المشكلة…",
-    urgent: isEn ? "Urgent" : "عاجل",
-    urgentHint: isEn
-      ? "Top priority — due within 4 hours (otherwise within 24 hours)"
-      : "أولوية قصوى — الموعد خلال 4 ساعات (وإلا خلال 24 ساعة)",
+    occupancy: isEn ? "Is a guest in the apartment now?" : "هل الضيف موجود في الشقة الآن؟",
+    occupied: isEn ? "Yes — guest staying" : "نعم — ضيف مقيم",
+    vacant: isEn ? "No — apartment vacant" : "لا — الشقة شاغرة",
+    priority: isEn ? "Priority" : "الأولوية",
     cancel: isEn ? "Cancel" : "إلغاء",
     send: isEn ? "Send to technician" : "إرسال للفني",
     sending: isEn ? "Sending…" : "جارٍ الإرسال…",
@@ -187,6 +190,8 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
   const detailsLen = details.trim().length;
   const otherNeedsDetails = category === "OTHER" || job === OTHER_JOB_KEY;
   const needsPlace = unitId === null;
+  // Occupancy is asked only for a unit — never for a common area
+  const isForUnit = kind === "EQUIPMENT" ? !!equipment?.unitNumber : typeof unitId === "string";
 
   let missing: string | null = null;
   if (kind === "EQUIPMENT") {
@@ -201,6 +206,7 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
     else if (category !== "OTHER" && !job) missing = isEn ? "Choose the job" : "اختر العمل المطلوب";
     else if (otherNeedsDetails && detailsLen < 2) missing = isEn ? "Describe the work needed" : "اكتب العمل المطلوب";
   }
+  if (!missing && isForUnit && guestInUnit === null) missing = isEn ? "Say if a guest is in the apartment" : "حدد إن كان الضيف موجوداً في الشقة";
   if (!missing && !technicianId) missing = isEn ? "Choose a technician" : "اختر الفني";
   const canSubmit = !missing && !submitting;
 
@@ -211,7 +217,13 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
     setSubmitting(true);
     setSubmitError(null);
 
-    const base = { assignedToId: technicianId, urgent, locale, details: details.trim() };
+    const base = {
+      assignedToId: technicianId,
+      priority,
+      guestInUnit: isForUnit ? guestInUnit : null,
+      locale,
+      details: details.trim(),
+    };
     const input: MaintenanceRequestInput =
       kind === "EQUIPMENT"
         ? { kind: "EQUIPMENT", equipmentId: equipment!.id, issue, ...base }
@@ -390,6 +402,22 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
                     onPlaceChange={setPlace}
                   />
                 )}
+
+                {isForUnit && (
+                  <div role="radiogroup" aria-label={t.occupancy} className="space-y-2">
+                    <p className="text-sm font-bold text-slate-800">
+                      {t.occupancy} <span className="text-red-500">*</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <ChoicePill selected={guestInUnit === true} disabled={busy} onClick={() => setGuestInUnit(true)}>
+                        {t.occupied}
+                      </ChoicePill>
+                      <ChoicePill selected={guestInUnit === false} disabled={busy} onClick={() => setGuestInUnit(false)}>
+                        {t.vacant}
+                      </ChoicePill>
+                    </div>
+                  </div>
+                )}
               </section>
 
               {/* 3 · What's wrong? */}
@@ -437,28 +465,20 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
 
                 <PhotoAttachments isEn={isEn} photos={photos} onChange={setPhotos} disabled={busy} />
 
-                {/* Urgent */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={urgent}
-                  onClick={() => setUrgent((v) => !v)}
-                  disabled={busy}
-                  className={`w-full flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-start transition-colors ${
-                    urgent ? "border-red-300 bg-red-50" : "border-slate-200 bg-white hover:bg-slate-50"
-                  }`}
-                >
-                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${urgent ? "bg-red-500 text-white" : "bg-slate-100 text-slate-500"}`}>
-                    <Siren className="w-5 h-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-sm font-bold ${urgent ? "text-red-700" : "text-slate-800"}`}>{t.urgent}</span>
-                    <span className="block text-[11px] text-slate-500 leading-snug">{t.urgentHint}</span>
-                  </span>
-                  <span className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${urgent ? "bg-red-500" : "bg-slate-300"}`}>
-                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${urgent ? "start-[22px]" : "start-0.5"}`} />
-                  </span>
-                </button>
+                {/* Priority — sets how soon the work is due */}
+                <div role="radiogroup" aria-label={t.priority} className="space-y-2">
+                  <p className="text-sm font-bold text-slate-800">
+                    {t.priority} <span className="text-red-500">*</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {REQUEST_PRIORITIES.map((p) => (
+                      <ChoicePill key={p.key} selected={priority === p.key} disabled={busy} onClick={() => setPriority(p.key)}>
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${p.dot}`} aria-hidden />
+                        {isEn ? p.en : p.ar}
+                      </ChoicePill>
+                    ))}
+                  </div>
+                </div>
               </section>
 
               {submitError && (
@@ -497,6 +517,35 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
         </div>
       </form>
     </div>
+  );
+}
+
+function ChoicePill({
+  selected,
+  disabled,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-bold transition-colors ${
+        selected
+          ? "bg-nassayem border-nassayem text-white shadow-sm"
+          : "bg-slate-50 border-slate-200 text-slate-700 hover:border-nassayem/40 hover:bg-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

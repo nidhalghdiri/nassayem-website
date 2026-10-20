@@ -53,6 +53,7 @@ type FullTask = {
   requestNumber?: number;
   category?: string | null;
   room?: string | null;
+  guestInUnit?: boolean | null;
   type: string;
   title: string;
   description: string | null;
@@ -813,6 +814,19 @@ export default function TaskDetailPanel({
                           {task.unit?.name || task.unitNumber}
                         </span>
                         {roomLabel(task.room, isEn) && <span className="ms-1.5">• {roomLabel(task.room, isEn)}</span>}
+                      </dd>
+                    )}
+                    {typeof task.guestInUnit === "boolean" && (
+                      <dd className="mt-1.5">
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold ${
+                            task.guestInUnit ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {task.guestInUnit
+                            ? isEn ? "Guest in the apartment" : "الضيف موجود في الشقة"
+                            : isEn ? "Apartment vacant" : "الشقة شاغرة"}
+                        </span>
                       </dd>
                     )}
                     {!(task.unit?.name || task.unitNumber) && roomLabel(task.room, isEn) && (
