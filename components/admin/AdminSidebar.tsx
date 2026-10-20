@@ -36,7 +36,7 @@ type NavItem = {
 // The equipment list is a tab on the Manager / Supervisor / Maintenance Tasks
 // dashboards (the /admin/maintenance pages still work for direct links).
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "messaging", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
   SUPERVISOR:   ["tasks", "tasksList", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
@@ -178,11 +178,21 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       icon: "M12 6a6 6 0 016 6c0 3.314-2.686 6-6 6s-6-2.686-6-6a6 6 0 016-6zm0 0V4m-4.5.5l1.5 1.5M5 9H3m18 0h-2M9.5 12a2.5 2.5 0 015 0",
     },
     {
+      key: "messaging",
+      nameEn: "Messaging",
+      nameAr: "المراسلات",
+      href: `/${locale}/admin/chatbot/conversations`,
+      exact: false,
+      icon: "M7 8h10M7 12h6m-6 8l-4 1 1.3-3.9A8.96 8.96 0 013 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9a8.96 8.96 0 01-4.1-.99z",
+    },
+    {
       key: "chatbot",
       nameEn: "Chatbot",
       nameAr: "المساعد الذكي",
       href: `/${locale}/admin/chatbot`,
       exact: false,
+      // The inbox has its own "Messaging" item.
+      excludePrefixes: [`/${locale}/admin/chatbot/conversations`],
       icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
     },
     {
@@ -237,6 +247,11 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
 
   const navItems = allNavItems.filter((item) => allowedKeys.includes(item.key));
 
+  // Labels are always visible in the mobile drawer; on desktop they fade in
+  // only while the icon rail is expanded (hover / keyboard focus).
+  const labelCls =
+    "whitespace-nowrap transition-opacity duration-150 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100";
+
   return (
     <>
       {/* Mobile top bar */}
@@ -259,97 +274,112 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
         </div>
       </div>
 
-      {/* Sidebar panel */}
-      <aside
-        className={`
-          fixed inset-y-0 start-0 z-40 w-64 bg-gray-900 text-gray-300
-          transform transition-transform duration-300 ease-in-out
-          lg:translate-x-0 lg:static lg:inset-auto
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          ${!isEn && !isOpen ? "translate-x-full" : ""}
-        `}
-      >
-        <div className="h-full flex flex-col">
-          {/* Brand */}
-          <div className="h-16 flex items-center px-6 bg-gray-950 border-b border-gray-800 shrink-0">
-            <span className="text-xl font-bold text-white tracking-wide">
-              {isEn ? "Nassayem " : "نسائم "}
-              <span className="text-nassayem">{isEn ? "Admin" : "للإدارة"}</span>
-            </span>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
-              const excluded = (item.excludePrefixes ?? []).some(
-                (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-              );
-              const isActive = excluded
-                ? false
-                : item.exact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`
-                    flex items-center gap-3 py-2.5 rounded-xl font-medium transition-all duration-200
-                    ${item.sub ? "ps-8 pe-4 text-[13px]" : "px-4 text-sm"}
-                    ${isActive
-                      ? "bg-nassayem text-white shadow-md"
-                      : "hover:bg-gray-800 hover:text-white text-gray-400"
-                    }
-                  `}
-                >
-                  <svg className={`${item.sub ? "w-4 h-4" : "w-5 h-5"} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
-                  </svg>
-                  {isEn ? item.nameEn : item.nameAr}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Bottom: user info + actions */}
-          <div className="p-3 border-t border-gray-800 space-y-1 shrink-0">
-            {/* User email (shown when we know it) */}
-            {userEmail && (
-              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl">
-                <div className="w-8 h-8 bg-nassayem text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-                  {userEmail.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-xs text-gray-400 truncate">{userEmail}</span>
+      {/* Sidebar — desktop: an icon rail (72px) that expands over the page on
+          hover / keyboard focus, so content keeps the full width. The <aside>
+          only reserves the rail's width; the panel itself is fixed.
+          Mobile: the usual slide-in drawer, always expanded. */}
+      <aside className="lg:w-[72px] lg:shrink-0">
+        <div
+          className={`
+            group fixed inset-y-0 start-0 z-40 lg:z-50 w-64 lg:w-[72px] lg:hover:w-64 lg:focus-within:w-64
+            bg-gray-900 text-gray-300 overflow-hidden
+            transition-[width,transform,box-shadow] duration-200 ease-out
+            lg:translate-x-0 lg:hover:shadow-2xl lg:focus-within:shadow-2xl
+            ${isOpen ? "translate-x-0" : "-translate-x-full"}
+            ${!isEn && !isOpen ? "translate-x-full" : ""}
+          `}
+        >
+          <div className="h-full w-64 flex flex-col">
+            {/* Brand */}
+            <div className="h-16 flex items-center gap-3 px-[18px] bg-gray-950 border-b border-gray-800 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-nassayem text-white flex items-center justify-center font-bold shrink-0 select-none">
+                {isEn ? "N" : "ن"}
               </div>
-            )}
+              <span className={`text-lg font-bold text-white tracking-wide ${labelCls}`}>
+                {isEn ? "Nassayem " : "نسائم "}
+                <span className="text-nassayem-light">{isEn ? "Admin" : "للإدارة"}</span>
+              </span>
+            </div>
 
-            {/* Back to website */}
-            <Link
-              href={`/${locale}`}
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-all text-sm"
-            >
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              {isEn ? "View Website" : "عرض الموقع"}
-            </Link>
+            {/* Navigation */}
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {navItems.map((item) => {
+                const excluded = (item.excludePrefixes ?? []).some(
+                  (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+                );
+                const isActive = excluded
+                  ? false
+                  : item.exact
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const name = isEn ? item.nameEn : item.nameAr;
 
-            {/* Sign out — available on mobile where the header bar is hidden */}
-            <form action={logoutAdmin} className="lg:hidden">
-              <input type="hidden" name="locale" value={locale} />
-              <button
-                type="submit"
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-all text-sm"
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={name}
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => setIsOpen(false)}
+                    className={`
+                      flex items-center gap-3 py-2.5 rounded-xl font-medium transition-all duration-200
+                      ${item.sub
+                        ? "ps-8 pe-4 lg:ps-4 lg:group-hover:ps-8 lg:group-focus-within:ps-8 text-[13px]"
+                        : "px-[14px] text-sm"}
+                      ${isActive
+                        ? "bg-nassayem text-white shadow-md"
+                        : "hover:bg-gray-800 hover:text-white text-gray-400"
+                      }
+                    `}
+                  >
+                    <svg className={`${item.sub ? "w-4 h-4" : "w-5 h-5"} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
+                    </svg>
+                    <span className={labelCls}>{name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Bottom: user info + actions */}
+            <div className="p-3 border-t border-gray-800 space-y-1 shrink-0">
+              {/* User email (shown when we know it) */}
+              {userEmail && (
+                <div className="flex items-center gap-3 px-2 py-2 rounded-xl" title={userEmail}>
+                  <div className="w-8 h-8 bg-nassayem text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                    {userEmail.charAt(0).toUpperCase()}
+                  </div>
+                  <span className={`text-xs text-gray-400 truncate ${labelCls}`}>{userEmail}</span>
+                </div>
+              )}
+
+              {/* Back to website */}
+              <Link
+                href={`/${locale}`}
+                title={isEn ? "View Website" : "عرض الموقع"}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-[14px] py-2.5 rounded-xl font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-all text-sm"
               >
                 <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
-                {isEn ? "Sign Out" : "تسجيل الخروج"}
-              </button>
-            </form>
+                <span className={labelCls}>{isEn ? "View Website" : "عرض الموقع"}</span>
+              </Link>
+
+              {/* Sign out — available on mobile where the header bar is hidden */}
+              <form action={logoutAdmin} className="lg:hidden">
+                <input type="hidden" name="locale" value={locale} />
+                <button
+                  type="submit"
+                  className="w-full flex items-center gap-3 px-[14px] py-2.5 rounded-xl font-medium text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-all text-sm"
+                >
+                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {isEn ? "Sign Out" : "تسجيل الخروج"}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>

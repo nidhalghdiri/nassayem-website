@@ -13,7 +13,7 @@ import { canViewChatbot } from "@/lib/chatbot/permissions";
 export const dynamic = "force-dynamic";
 
 const REAL_CUSTOMERS = { NOT: { externalId: { startsWith: "playground-" } } };
-const STATUSES = ["ACTIVE", "ESCALATED", "CLOSED"] as const;
+const STATUSES = ["ACTIVE", "ESCALATED", "CLOSED", "PENDING_RETRY"] as const;
 
 export async function GET(req: NextRequest) {
   const adminUser = await getCurrentAdminUser();
@@ -83,14 +83,12 @@ export async function GET(req: NextRequest) {
       ACTIVE: counts.find((c) => c.status === "ACTIVE")?._count._all ?? 0,
       ESCALATED: counts.find((c) => c.status === "ESCALATED")?._count._all ?? 0,
       CLOSED: counts.find((c) => c.status === "CLOSED")?._count._all ?? 0,
+      PENDING_RETRY: counts.find((c) => c.status === "PENDING_RETRY")?._count._all ?? 0,
     },
     conversations: conversations.map((c) => {
       const last = c.messages[0];
-      const prefix =
-        last?.role === "ASSISTANT" ? "🤖 " : last?.role === "STAFF" ? "👤 " : "";
-      const body = last?.mediaType
-        ? `${prefix}📎 ${last.mediaType}`
-        : `${prefix}${last?.content ?? ""}`;
+      // Plain text — the inbox renders the sender / media icons from lastRole + mediaType.
+      const body = last?.mediaType && !last.content ? "" : (last?.content ?? "");
       return {
         id: c.id,
         channel: c.channel,
@@ -100,7 +98,10 @@ export async function GET(req: NextRequest) {
         aiPaused: c.aiPaused,
         language: c.language,
         lastMessageAt: c.lastMessageAt.toISOString(),
-        preview: body.slice(0, 70),
+        preview: body.slice(0, 90),
+        // Who spoke last — "USER" means the customer is waiting on us.
+        lastRole: last?.role ?? null,
+        lastMediaType: last?.mediaType ?? null,
       };
     }),
   });
