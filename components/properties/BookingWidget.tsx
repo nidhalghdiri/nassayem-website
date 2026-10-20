@@ -8,11 +8,19 @@ import {
 } from "@/app/actions/booking";
 import { gtagEvent } from "@/lib/gtag";
 
+type MonthlyOption = "INCLUSIVE" | "EXCLUSIVE";
+
+const MONTHLY_LABELS: Record<MonthlyOption, { en: string; ar: string; detailEn: string; detailAr: string }> = {
+  INCLUSIVE: { en: "Utilities included", ar: "شامل", detailEn: "Water & electricity included", detailAr: "شامل الماء والكهرباء" },
+  EXCLUSIVE: { en: "Utilities not included", ar: "غير شامل", detailEn: "Water & electricity paid separately", detailAr: "الماء والكهرباء على المستأجر" },
+};
+
 type BookingWidgetProps = {
   unitId: string;
   unitName: string;
   priceDaily: number | null;
-  priceMonthly: number | null;
+  /** Lowest monthly rate for this building + type (null = monthly not offered). */
+  monthlyFrom?: { rate: number; option: MonthlyOption } | null;
   rentType: string;
   locale: string;
   maxGuests?: number;
@@ -24,7 +32,7 @@ export default function BookingWidget({
   unitId,
   unitName,
   priceDaily,
-  priceMonthly,
+  monthlyFrom = null,
   rentType,
   locale,
   maxGuests,
@@ -40,6 +48,8 @@ export default function BookingWidget({
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [guests, setGuests] = useState("1");
+  // Monthly stays: which rate the guest picked (null = engine default, the lowest).
+  const [monthlyOption, setMonthlyOption] = useState<MonthlyOption | null>(null);
 
   // Guest selector goes up to 10 (or the unit's capacity if it's higher).
   const guestOptions = Math.max(10, maxGuests ?? 1);
@@ -49,8 +59,9 @@ export default function BookingWidget({
   const [priceDetails, setPriceDetails] = useState<any>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
 
+  const monthly = priceDetails?.monthly ?? null;
   const priceLabel =
-    rentType === "MONTHLY"
+    monthly || (!priceDetails && rentType === "MONTHLY")
       ? isEn
         ? "OMR / month"
         : "ر.ع / شهر"
@@ -61,7 +72,10 @@ export default function BookingWidget({
   // Per-night daily price to display — server-computed and pre-floored to
   // an integer. For the pricing-module path it's the inclusive-range
   // average ((sum of all priced days in checkIn..checkOut) / day count).
-  const resolvedDaily = priceDetails?.dailyAverage ?? null;
+  // Monthly stays show the monthly rate instead.
+  const resolvedDaily = monthly
+    ? monthly.selected.monthlyRate
+    : (priceDetails?.dailyAverage ?? null);
 
   const khareefMessage = isEn
     ? "If you want to book in Khareef season (July & August), please contact administration at +968 99551237"
@@ -118,7 +132,7 @@ export default function BookingWidget({
         }
         setRemaining(availability.remaining ?? null);
 
-        const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
+        const pricing = await calculateBookingPrice(unitId, checkIn, checkOut, monthlyOption);
         if (cancelled) return;
         // Made it through (server-side khareef gate did not trip).
         setError(null);
@@ -144,7 +158,7 @@ export default function BookingWidget({
     return () => {
       cancelled = true;
     };
-  }, [checkIn, checkOut, unitId, isEn, khareefMessage]);
+  }, [checkIn, checkOut, unitId, isEn, khareefMessage, monthlyOption]);
 
   const handleReserve = () => {
     if (!checkIn || !checkOut) {
@@ -186,6 +200,7 @@ export default function BookingWidget({
     });
 
     const params = new URLSearchParams({ checkIn, checkOut, guests });
+    if (monthly) params.set("option", monthly.selected.option);
     router.push(
       `/${locale}/properties/${unitId}/checkout?${params.toString()}`,
     );
@@ -219,9 +234,57 @@ export default function BookingWidget({
             {isEn
               ? "Select check-in and check-out dates to see the price."
               : "اختر تاريخي الدخول والخروج لعرض السعر."}
+            {monthlyFrom && (
+              <span className="block mt-1 text-nassayem font-semibold">
+                {isEn
+                  ? `Monthly stays (30+ nights) from ${monthlyFrom.rate} OMR / month`
+                  : `الإقامة الشهرية (30 ليلة فأكثر) من ${monthlyFrom.rate} ر.ع / شهر`}
+              </span>
+            )}
           </p>
         )}
       </div>
+
+      {/* Monthly rate choice — only when both "شامل" and "غير شامل" exist */}
+      {monthly && monthly.options.length > 1 && (
+        <div className="mb-4" role="radiogroup" aria-label={isEn ? "Monthly rate" : "نوع السعر الشهري"}>
+          <p className="text-xs font-bold text-gray-900 uppercase mb-2">
+            {isEn ? "Monthly rate" : "السعر الشهري"}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {monthly.options.map((o: { option: MonthlyOption; monthlyRate: number }) => {
+              const selected = o.option === monthly.selected.option;
+              const label = MONTHLY_LABELS[o.option];
+              return (
+                <button
+                  key={o.option}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={isCalculating}
+                  onClick={() => setMonthlyOption(o.option)}
+                  className={`text-start p-3 rounded-xl border-2 transition-colors disabled:opacity-60 ${
+                    selected ? "border-nassayem bg-nassayem/5" : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <span className="block text-sm font-bold text-gray-900">{isEn ? label.en : label.ar}</span>
+                  <span className="block text-[11px] text-gray-500 leading-snug">{isEn ? label.detailEn : label.detailAr}</span>
+                  <span className="block mt-1.5 text-sm font-extrabold text-nassayem">
+                    {o.monthlyRate} {isEn ? "OMR / mo" : "ر.ع / شهر"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {monthly && monthly.options.length === 1 && (
+        <p className="mb-4 text-xs font-semibold text-nassayem bg-nassayem/5 rounded-lg px-3 py-2">
+          {isEn
+            ? MONTHLY_LABELS[monthly.selected.option as MonthlyOption].detailEn
+            : MONTHLY_LABELS[monthly.selected.option as MonthlyOption].detailAr}
+        </p>
+      )}
 
       {/* Form Inputs */}
       <div className="border border-gray-300 rounded-xl overflow-hidden mb-4 focus-within:ring-2 focus-within:ring-nassayem/50 transition-all">
@@ -400,6 +463,13 @@ export default function BookingWidget({
               {priceDetails.grandTotal} {isEn ? "OMR" : "ر.ع"}
             </span>
           </div>
+          {monthly && monthly.selected.firstMonthAmount < priceDetails.grandTotal && (
+            <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+              {isEn
+                ? `The first month (${monthly.selected.firstMonthAmount} OMR) is paid when booking; the rest at reception.`
+                : `يُدفع الشهر الأول (${monthly.selected.firstMonthAmount} ر.ع) عند الحجز، والباقي عند الاستقبال.`}
+            </p>
+          )}
         </div>
       )}
     </div>

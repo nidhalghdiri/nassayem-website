@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import BookingWidget from "@/components/properties/BookingWidget";
 import GaViewItem from "@/components/analytics/GaViewItem";
+import { getMonthlyRates, lowestMonthlyRate } from "@/lib/monthlyPricing";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -91,6 +92,12 @@ export default async function PropertyDetailsPage({
     return notFound();
   }
 
+  // Lowest monthly rate for this building + type, if monthly stays are offered.
+  const monthlyFrom =
+    unit.rentType === "DAILY"
+      ? null
+      : lowestMonthlyRate(await getMonthlyRates(unit.buildingId, unit.unitType));
+
   // Ensure we have at least 5 images for the bento layout, falling back to placeholders
   const getImageUrl = (index: number) => {
     if (unit.images[index]) return unit.images[index].url;
@@ -144,7 +151,7 @@ export default async function PropertyDetailsPage({
         itemId={unit.id}
         itemName={unit.titleEn}
         itemCategory={unit.rentType}
-        price={unit.rentType === "MONTHLY" ? unit.monthlyPrice : unit.dailyPrice}
+        price={unit.rentType === "MONTHLY" ? (monthlyFrom?.rate ?? null) : unit.dailyPrice}
       />
       <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Structured data */}
@@ -358,7 +365,7 @@ export default async function PropertyDetailsPage({
               unitId={unit.id}
               unitName={unit.titleEn}
               priceDaily={unit.dailyPrice}
-              priceMonthly={unit.monthlyPrice}
+              monthlyFrom={monthlyFrom}
               rentType={unit.rentType}
               maxGuests={unit.guests}
               initialCheckIn={hasValidDates ? initialCheckIn : ""}

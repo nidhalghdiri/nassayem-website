@@ -295,7 +295,7 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                         {(() => {
                           const isCash = booking.paymentMethod === "CASH";
                           const isAdvance =
-                            booking.paymentPlan === "ADVANCE_50" &&
+                            (booking.paymentPlan === "ADVANCE_50" || booking.paymentPlan === "FIRST_MONTH") &&
                             booking.amountDueAtCheckIn > 0;
                           const paid = booking.amountPaid ?? 0;
                           const due = booking.amountDueAtCheckIn;
@@ -321,9 +321,16 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                                 {isCash
                                   ? isEn ? "Cash" : "نقدي"
                                   : isAdvance
-                                    ? isEn ? "50% Advance" : "دفعة 50%"
+                                    ? booking.paymentPlan === "FIRST_MONTH" ? (isEn ? "First month" : "الشهر الأول") : (isEn ? "50% Advance" : "دفعة 50%")
                                     : isEn ? "Paid in Full" : "مدفوع كاملاً"}
                               </span>
+                              {booking.monthlyOption && (
+                                <span className="block text-[10px] font-semibold text-nassayem">
+                                  {booking.monthlyOption === "INCLUSIVE"
+                                    ? isEn ? "Monthly · utilities included" : "شهري · شامل"
+                                    : isEn ? "Monthly · utilities not included" : "شهري · غير شامل"}
+                                </span>
+                              )}
                               {isAdvance && (
                                 <div className="text-[11px] space-y-0.5 pt-1 border-t border-gray-100">
                                   <div className="flex items-center justify-between">
@@ -459,7 +466,7 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                   {(() => {
                     const isCash = booking.paymentMethod === "CASH";
                     const isAdvance =
-                      booking.paymentPlan === "ADVANCE_50" &&
+                      (booking.paymentPlan === "ADVANCE_50" || booking.paymentPlan === "FIRST_MONTH") &&
                       booking.amountDueAtCheckIn > 0;
                     const paid = booking.amountPaid ?? 0;
                     const due = booking.amountDueAtCheckIn;
@@ -478,9 +485,16 @@ export default async function AdminBookingsPage({ params, searchParams }: PagePr
                             {isCash
                               ? isEn ? "Cash" : "نقدي"
                               : isAdvance
-                                ? isEn ? "50% Advance" : "دفعة 50%"
+                                ? booking.paymentPlan === "FIRST_MONTH" ? (isEn ? "First month" : "الشهر الأول") : (isEn ? "50% Advance" : "دفعة 50%")
                                 : isEn ? "Paid in Full" : "مدفوع كاملاً"}
                           </span>
+                          {booking.monthlyOption && (
+                            <span className="block text-[10px] font-semibold text-nassayem">
+                              {booking.monthlyOption === "INCLUSIVE"
+                                ? isEn ? "Monthly · utilities included" : "شهري · شامل"
+                                : isEn ? "Monthly · utilities not included" : "شهري · غير شامل"}
+                            </span>
+                          )}
                           <span className="text-sm font-extrabold text-gray-900">
                             {booking.totalPrice.toFixed(3)}{" "}
                             <span className="font-normal text-xs text-gray-400">

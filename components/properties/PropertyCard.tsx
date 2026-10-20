@@ -15,6 +15,8 @@ type CardPrice = {
   grandTotal: number;
   totalNights: number;
   hasPromotion: boolean;
+  /** Set when the stay is priced monthly — shown instead of the nightly average. */
+  monthlyRate?: number;
 };
 
 export default function PropertyCard({
@@ -40,7 +42,7 @@ export default function PropertyCard({
       ? `/${locale}/properties/${unit.id}?checkIn=${checkIn}&checkOut=${checkOut}`
       : `/${locale}/properties/${unit.id}`;
 
-  const isMonthly = unit.rentType === "MONTHLY";
+  const isMonthly = price ? price.monthlyRate !== undefined : unit.rentType === "MONTHLY";
   const perLabel = isMonthly
     ? isEn
       ? "/ month"
@@ -198,7 +200,7 @@ export default function PropertyCard({
             <div>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-extrabold text-gray-900">
-                  {price.dailyAverage}
+                  {price.monthlyRate ?? price.dailyAverage}
                 </span>
                 <span className="text-sm font-medium text-gray-500">
                   {isEn ? "OMR" : "ر.ع"} {perLabel}

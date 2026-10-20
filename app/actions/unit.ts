@@ -20,7 +20,6 @@ export async function createUnit(formData: FormData, locale: string) {
 
   // 3. Extract & Convert Numbers
   const dailyPrice = formData.get("dailyPrice") as string;
-  const monthlyPrice = formData.get("monthlyPrice") as string;
   const guests = parseInt((formData.get("guests") as string) || "1", 10);
   const bedrooms = parseInt((formData.get("bedrooms") as string) || "1", 10);
   const beds = parseInt((formData.get("beds") as string) || "1", 10);
@@ -49,7 +48,6 @@ export async function createUnit(formData: FormData, locale: string) {
       unitType,
       rentType,
       dailyPrice: dailyPrice ? parseFloat(dailyPrice) : null,
-      monthlyPrice: monthlyPrice ? parseFloat(monthlyPrice) : null,
       guests,
       bedrooms,
       beds,
@@ -80,7 +78,6 @@ export async function updateUnit(
   const rentType = formData.get("rentType") as RentType;
 
   const dailyPrice = formData.get("dailyPrice") as string;
-  const monthlyPrice = formData.get("monthlyPrice") as string;
   const isPublished = formData.get("isPublished") === "on";
   const guests = parseInt((formData.get("guests") as string) || "1", 10);
   const bedrooms = parseInt((formData.get("bedrooms") as string) || "1", 10);
@@ -103,7 +100,6 @@ export async function updateUnit(
       unitType,
       rentType,
       dailyPrice: dailyPrice ? parseFloat(dailyPrice) : null,
-      monthlyPrice: monthlyPrice ? parseFloat(monthlyPrice) : null,
       guests,
       bedrooms,
       beds,

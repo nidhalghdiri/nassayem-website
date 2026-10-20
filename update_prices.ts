@@ -35,12 +35,13 @@ async function main() {
   // Update Units
   let unitsUpdated = 0;
   for (const unit of units) {
-    if (unit.dailyPrice !== null || unit.monthlyPrice !== null) {
+    // Monthly rates now live in MonthlyPrice (per building + unit type) and
+    // are not touched by this script.
+    if (unit.dailyPrice !== null) {
       await prisma.unit.update({
         where: { id: unit.id },
         data: {
           dailyPrice: multiplyPrice(unit.dailyPrice),
-          monthlyPrice: multiplyPrice(unit.monthlyPrice)
         }
       })
       unitsUpdated++;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { getAllMonthlyRates } from "@/lib/monthlyPricing";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -29,12 +30,24 @@ export default async function UnitsPage({ params }: PageProps) {
   const { locale } = await params;
   const isEn = locale === "en";
 
-  const units = await prisma.unit.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      building: { select: { nameEn: true, nameAr: true } },
-    },
-  });
+  const [units, monthlyRates] = await Promise.all([
+    prisma.unit.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        building: { select: { nameEn: true, nameAr: true } },
+      },
+    }),
+    getAllMonthlyRates(),
+  ]);
+
+  // Monthly rates come from the building + type (MonthlyPrice), shown as
+  // "شامل / غير شامل" where both exist.
+  const monthlyLabel = (u: (typeof units)[number]): string | null => {
+    if (u.rentType === "DAILY") return null;
+    const r = monthlyRates.get(`${u.buildingId}|${u.unitType}`);
+    if (!r) return null;
+    return [r.INCLUSIVE, r.EXCLUSIVE].filter((v) => v !== undefined).join(" / ");
+  };
 
   return (
     <div className="space-y-6">
@@ -136,13 +149,13 @@ export default async function UnitsPage({ params }: PageProps) {
                             <span className="text-xs text-gray-400 ml-1">{isEn ? "OMR/day" : "ر.ع/يوم"}</span>
                           </div>
                         )}
-                        {unit.monthlyPrice && (
+                        {monthlyLabel(unit) && (
                           <div className="text-sm">
-                            <span className="font-bold text-nassayem">{unit.monthlyPrice}</span>
+                            <span className="font-bold text-nassayem">{monthlyLabel(unit)}</span>
                             <span className="text-xs text-gray-400 ml-1">{isEn ? "OMR/mo" : "ر.ع/شهر"}</span>
                           </div>
                         )}
-                        {!unit.dailyPrice && !unit.monthlyPrice && (
+                        {!unit.dailyPrice && !monthlyLabel(unit) && (
                           <span className="text-xs text-gray-400 italic">{isEn ? "Not set" : "غير محدد"}</span>
                         )}
                       </td>
@@ -211,9 +224,9 @@ export default async function UnitsPage({ params }: PageProps) {
                     <span>{unitTypeLabel(unit.unitType, isEn)} · {rentTypeLabel(unit.rentType, isEn)}</span>
                     <span className="font-bold text-nassayem">
                       {unit.dailyPrice ? `${unit.dailyPrice} ${isEn ? "OMR/d" : "ر.ع/ي"}` : ""}
-                      {unit.dailyPrice && unit.monthlyPrice ? " · " : ""}
-                      {unit.monthlyPrice ? `${unit.monthlyPrice} ${isEn ? "OMR/mo" : "ر.ع/ش"}` : ""}
-                      {!unit.dailyPrice && !unit.monthlyPrice ? (isEn ? "No price" : "بدون سعر") : ""}
+                      {unit.dailyPrice && monthlyLabel(unit) ? " · " : ""}
+                      {monthlyLabel(unit) ? `${monthlyLabel(unit)} ${isEn ? "OMR/mo" : "ر.ع/ش"}` : ""}
+                      {!unit.dailyPrice && !monthlyLabel(unit) ? (isEn ? "No price" : "بدون سعر") : ""}
                     </span>
                   </div>
 

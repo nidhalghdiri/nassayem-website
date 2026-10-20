@@ -1,5 +1,5 @@
 import Link from "next/link";
-import prisma from "@/lib/prisma";
+import { getMonthlyPricingGrid } from "@/app/actions/monthlyPricing";
 import MonthlyPricingClient from "@/components/admin/pricing/MonthlyPricingClient";
 
 type PageProps = {
@@ -10,13 +10,10 @@ export default async function MonthlyPricingPage({ params }: PageProps) {
   const { locale } = await params;
   const isEn = locale === "en";
 
-  const buildings = await prisma.building.findMany({
-    select: { id: true, nameEn: true, nameAr: true },
-    orderBy: { nameEn: "asc" },
-  });
+  const grid = await getMonthlyPricingGrid();
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <Link
           href={`/${locale}/admin/pricing`}
@@ -28,16 +25,22 @@ export default async function MonthlyPricingPage({ params }: PageProps) {
           {isEn ? "Back to Pricing" : "العودة إلى التسعير"}
         </Link>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          {isEn ? "Monthly Pricing (Bulk Edit)" : "التسعير الشهري (تعديل جماعي)"}
+          {isEn ? "Monthly Pricing" : "التسعير الشهري"}
         </h1>
         <p className="text-gray-500 mt-1">
           {isEn
-            ? "Set a Monthly Price for all units of a specific type in a building at once."
-            : "قم بتعيين سعر شهري لجميع الوحدات من نوع معين في المبنى دفعة واحدة."}
+            ? "One monthly rate per building and unit type. Set the \"utilities included\" rate, the \"not included\" rate, or both — guests choose when both exist."
+            : "سعر شهري واحد لكل مبنى ونوع وحدة. حدّد السعر الشامل (الماء والكهرباء)، أو غير الشامل، أو كليهما — ويختار الضيف عند توفر الاثنين."}
         </p>
       </div>
 
-      <MonthlyPricingClient locale={locale} buildings={buildings} />
+      <div className="rounded-2xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm text-sky-900 leading-relaxed">
+        {isEn
+          ? "Rules: monthly stays are 30+ nights and never include a night in July or August (monthly runs until 30/06). The total is the monthly rate × nights ÷ 30; online payment collects the first month and the rest is paid at reception."
+          : "القواعد: الإقامة الشهرية 30 ليلة فأكثر ولا تشمل أي ليلة في يوليو أو أغسطس (الشهري متاح حتى 30/06). الإجمالي = السعر الشهري × عدد الليالي ÷ 30؛ ويُحصّل الشهر الأول عند الدفع الإلكتروني والباقي عند الاستقبال."}
+      </div>
+
+      <MonthlyPricingClient locale={locale} grid={grid} />
     </div>
   );
 }

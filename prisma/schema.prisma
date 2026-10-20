@@ -23,6 +23,11 @@ enum UnitType {
   VILLA
 }
 
+enum MonthlyOption {
+  INCLUSIVE // شامل — water and electricity included
+  EXCLUSIVE // غير شامل
+}
+
 enum RentType {
   DAILY
   MONTHLY
@@ -213,6 +218,7 @@ model Building {
   assignedStaff       AdminUserBuilding[]
   promotionRows       PromotionRow[]
   unitTypeDailyPrices UnitTypeDailyPrice[]
+  monthlyPrices       MonthlyPrice[]
   netsuitePayments    NetsuitePayment[]
   laundryOrders       LaundryOrder[]
   equipments          Equipment[]
@@ -252,8 +258,8 @@ model Unit {
   unitType UnitType
   rentType RentType
 
-  dailyPrice   Float?
-  monthlyPrice Float?
+  dailyPrice Float?
+  // Monthly rates live in MonthlyPrice (per building + unit type).
 
   guests    Int @default(1)
   bedrooms  Int @default(1)
@@ -316,9 +322,13 @@ model Booking {
 
   // Payment plan — FULL = pay totalPrice online; ADVANCE_50 = pay 50% online,
   // collect the rest at reception. Only meaningful for CARD bookings.
-  paymentPlan        String @default("FULL") // FULL or ADVANCE_50
+  paymentPlan        String @default("FULL") // FULL, ADVANCE_50 (Khareef) or FIRST_MONTH (monthly stays)
   amountPaid         Float? // what SmartPay actually charged (or what was paid in cash)
   amountDueAtCheckIn Float  @default(0) // balance reception must collect
+
+  // Monthly stays only: which monthly rate the guest chose (utilities
+  // included or not). Null for daily stays.
+  monthlyOption MonthlyOption?
 
   checkIn    DateTime
   checkOut   DateTime
@@ -1219,4 +1229,25 @@ model EmployeeNote {
   @@index([employeeId])
   @@index([authorId])
   @@index([createdAt])
+}
+
+// ------------------------------------------------------
+// MODELS — Monthly pricing (per building + unit type)
+// ------------------------------------------------------
+
+// Monthly rate for every unit of a type in a building. A row may carry one or
+// both rates: "شامل" (water + electricity included) and "غير شامل". With
+// neither set, monthly stays aren't offered for that building + type.
+model MonthlyPrice {
+  id             String   @id @default(uuid())
+  buildingId     String
+  building       Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unitType       UnitType
+  inclusivePrice Decimal? @db.Decimal(10, 3)
+  exclusivePrice Decimal? @db.Decimal(10, 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buildingId, unitType])
 }

@@ -227,16 +227,16 @@ export default function UnitForm({
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">
-              {isEn ? "Monthly Price (OMR)" : "السعر الشهري (ر.ع)"}
+              {isEn ? "Monthly Price" : "السعر الشهري"}
             </label>
-            <input
-              type="number"
-              step="0.5"
-              name="monthlyPrice"
-              defaultValue={initialData?.monthlyPrice}
-              placeholder="0.00"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-nassayem/50"
-            />
+            {/* Monthly rates are set per building + unit type, not per unit. */}
+            <Link
+              href={`/${locale}/admin/pricing/monthly`}
+              className="flex items-center justify-between w-full bg-gray-50 border border-dashed border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-600 hover:border-nassayem hover:text-nassayem transition-colors"
+            >
+              <span>{isEn ? "Set per building & unit type" : "يُحدد حسب المبنى ونوع الوحدة"}</span>
+              <span aria-hidden>{isEn ? "→" : "←"}</span>
+            </Link>
           </div>
         </div>
       </div>

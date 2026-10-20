@@ -37,7 +37,7 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
 
   const isCash = booking.paymentMethod === "CASH";
   const isAdvance =
-    booking.paymentPlan === "ADVANCE_50" && booking.amountDueAtCheckIn > 0;
+    (booking.paymentPlan === "ADVANCE_50" || booking.paymentPlan === "FIRST_MONTH") && booking.amountDueAtCheckIn > 0;
   const paidOnline = booking.amountPaid ?? 0;
   const dueAtCheckIn = booking.amountDueAtCheckIn;
 
@@ -82,8 +82,8 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
               : `شكراً لك، ${booking.guestName}! تم استلام طلب حجزك في ${booking.unit.titleAr}. سيقوم فريقنا بتأكيده قريباً. يرجى الدفع عند الاستقبال لدى وصولك.`
             : isAdvance
               ? isEn
-                ? `Thank you, ${booking.guestName}! Your 50% deposit was received and your booking for ${booking.unit.titleEn} is confirmed. Please pay the remaining balance at the reception when you arrive.`
-                : `شكراً لك، ${booking.guestName}! تم استلام دفعة 50% وتم تأكيد حجزك في ${booking.unit.titleAr}. يرجى دفع المبلغ المتبقي عند الاستقبال لدى وصولك.`
+                ? `Thank you, ${booking.guestName}! Your ${booking.paymentPlan === "FIRST_MONTH" ? "first month payment" : "50% deposit"} was received and your booking for ${booking.unit.titleEn} is confirmed. Please pay the remaining balance at the reception when you arrive.`
+                : `شكراً لك، ${booking.guestName}! تم استلام ${booking.paymentPlan === "FIRST_MONTH" ? "دفعة الشهر الأول" : "دفعة 50%"} وتم تأكيد حجزك في ${booking.unit.titleAr}. يرجى دفع المبلغ المتبقي عند الاستقبال لدى وصولك.`
               : isEn
                 ? `Thank you, ${booking.guestName}! Your payment was successful and your booking for ${booking.unit.titleEn} is now confirmed.`
                 : `شكراً لك، ${booking.guestName}! تمت عملية الدفع بنجاح وتم تأكيد حجزك في ${booking.unit.titleAr}.`}
@@ -118,7 +118,7 @@ export default async function SuccessPage({ params, searchParams }: PageProps) {
                 : isCash
                 ? isEn ? "Pay at Reception" : "الدفع عند الاستقبال"
                 : isAdvance
-                  ? isEn ? "50% Advance" : "دفعة 50%"
+                  ? booking.paymentPlan === "FIRST_MONTH" ? (isEn ? "First month" : "الشهر الأول") : (isEn ? "50% Advance" : "دفعة 50%")
                   : isEn ? "Paid in Full" : "مدفوع بالكامل"}
             </span>
           </div>

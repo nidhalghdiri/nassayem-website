@@ -3,13 +3,19 @@
 import prisma from "@/lib/prisma";
 import { differenceInDays, parseISO, startOfDay } from "date-fns";
 import { revalidatePath } from "next/cache";
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, type MonthlyOption } from "@prisma/client";
 import { encryptSmartPayRequest } from "@/lib/smartpay";
 import { sendBookingConfirmation } from "@/lib/email/sendBookingConfirmation";
 import { getActivePromotionForUnit } from "@/app/actions/promotion";
 import { getPeriodPricing } from "@/app/actions/pricing";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 import { assertCanManageBooking } from "@/lib/adminAuth";
+import {
+  getMonthlyRates,
+  isMonthlyOption,
+  MONTHLY_MIN_NIGHTS,
+  quoteMonthlyStay,
+} from "@/lib/monthlyPricing";
 
 const CLEANING_FEE_OMR = 0;
 const TAX_RATE = 0;
@@ -107,15 +113,20 @@ export async function checkUnitAvailability(
 /**
  * CORE FUNCTION 2: Dynamic Pricing Engine
  *
- * Applies a promotion only to daily rentals — monthly bookings keep the unit's
- * normal monthlyPrice. When a promotion matches, baseRent uses the promo price
- * and the response includes a `promotion` block so the UI can show the
- * struck-through original alongside the new price.
+ * Monthly stays (30+ nights, outside July/August, building + type has a
+ * monthly rate) are priced by lib/monthlyPricing: rate × nights ÷ 30, with the
+ * guest's choice of "شامل" / "غير شامل" when both rates exist. Everything else
+ * — including 30+ night Khareef stays — uses the daily logic below.
+ *
+ * Promotions apply only to daily stays. When a promotion matches, baseRent
+ * uses the promo price and the response includes a `promotion` block so the
+ * UI can show the struck-through original alongside the new price.
  */
 export async function calculateBookingPrice(
   unitId: string,
   checkInDate: string,
   checkOutDate: string,
+  monthlyOption?: MonthlyOption | null,
 ) {
   const unit = await prisma.unit.findUnique({ where: { id: unitId } });
   if (!unit) throw new Error("Unit not found");
@@ -137,10 +148,26 @@ export async function calculateBookingPrice(
     savings: number;
   } | null = null;
 
-  // Daily-mode pricing — checked first because BOTH may resolve to daily.
-  const usingDaily =
-    unit.rentType === "DAILY" ||
-    (unit.rentType === "BOTH" && (totalNights < 30 || !unit.monthlyPrice));
+  const monthly = quoteMonthlyStay({
+    rentType: unit.rentType,
+    rates:
+      unit.rentType === "DAILY" || totalNights < MONTHLY_MIN_NIGHTS
+        ? null
+        : await getMonthlyRates(unit.buildingId, unit.unitType),
+    nights: totalNights,
+    start: requestedStart,
+    end: requestedEnd,
+    preferred: isMonthlyOption(monthlyOption) ? monthlyOption : null,
+  });
+
+  if (unit.rentType === "MONTHLY" && !monthly) {
+    throw new Error(
+      totalNights < MONTHLY_MIN_NIGHTS
+        ? "This unit requires a minimum stay of 30 nights."
+        : "Monthly rentals are not available for these dates.",
+    );
+  }
+  const usingDaily = !monthly;
 
   // Fetch promo + per-day pricing-module data in parallel (daily-style only).
   // The pricing module covers every calendar day in [checkIn, checkOut]
@@ -167,8 +194,10 @@ export async function calculateBookingPrice(
   // Khareef gate: refuse any booking touching July/August unless EITHER
   //   (a) an active promotion covers the dates, OR
   //   (b) the pricing module has a price for every stay night.
-  // Server-side check — the client can't bypass it.
+  // Server-side check — the client can't bypass it. (Monthly stays never
+  // touch Khareef, so they never reach this gate.)
   if (
+    usingDaily &&
     rangeContainsKhareef(requestedStart, requestedEnd) &&
     !activePromo &&
     !moduleAllPriced
@@ -181,13 +210,11 @@ export async function calculateBookingPrice(
   // [checkIn, checkOut] inclusive — see the moduleAllPriced branch below.
   let dailyAverage = 0;
 
-  if (unit.rentType === "MONTHLY") {
-    if (totalNights < 30) throw new Error("This unit requires a minimum stay of 30 nights.");
-    const months = totalNights / 30;
-    baseRent = (unit.monthlyPrice || 0) * months;
-    calculationMethod = `${totalNights} nights (Monthly Rate prorated)`;
+  if (monthly) {
+    baseRent = monthly.selected.total;
+    calculationMethod = `${totalNights} nights x ${monthly.selected.monthlyRate} OMR / month`;
     dailyAverage = Math.floor(baseRent / totalNights);
-  } else if (usingDaily) {
+  } else {
     // Pricing priority: active promotion > pricing module > unit.dailyPrice.
     if (activePromo) {
       const originalDaily = unit.dailyPrice ?? activePromo.regularPrice;
@@ -221,17 +248,11 @@ export async function calculateBookingPrice(
       calculationMethod = `${totalNights} nights x ${unit.dailyPrice} OMR`;
       dailyAverage = Math.floor(unit.dailyPrice || 0);
     }
-  } else {
-    // BOTH with monthly threshold met
-    const months = totalNights / 30;
-    baseRent = (unit.monthlyPrice || 0) * months;
-    calculationMethod = `${totalNights} nights (Monthly Rate applied)`;
-    dailyAverage = Math.floor(baseRent / totalNights);
   }
 
-  baseRent = Math.round(baseRent * 100) / 100;
+  baseRent = monthly ? baseRent : Math.round(baseRent * 100) / 100;
   const taxes = Math.round((baseRent + CLEANING_FEE_OMR) * TAX_RATE * 100) / 100;
-  const grandTotal = Math.round((baseRent + CLEANING_FEE_OMR + taxes) * 100) / 100;
+  const grandTotal = Math.round((baseRent + CLEANING_FEE_OMR + taxes) * 1000) / 1000;
 
   return {
     totalNights,
@@ -242,7 +263,9 @@ export async function calculateBookingPrice(
     calculationMethod,
     promotion,
     dailyAverage,
-    monthlyRate: unit.rentType === "MONTHLY" || usingDaily === false ? unit.monthlyPrice : undefined,
+    /** Set for monthly stays: the chosen option, every option on offer, and the first-month amount. */
+    monthly,
+    monthlyRate: monthly?.selected.monthlyRate,
   };
 }
 
@@ -295,7 +318,13 @@ export async function createBooking(
     );
   }
 
-  const pricing = await calculateBookingPrice(unitId, checkIn, checkOut);
+  const rawMonthlyOption = formData.get("monthlyOption");
+  const pricing = await calculateBookingPrice(
+    unitId,
+    checkIn,
+    checkOut,
+    isMonthlyOption(rawMonthlyOption) ? rawMonthlyOption : null,
+  );
   const bookingCode = await generateBookingCode();
 
   // Resolve the effective payment plan + amounts. The server is the source of
@@ -311,14 +340,23 @@ export async function createBooking(
     paymentMethod === "CARD" &&
     stayIsKhareef &&
     pricing.grandTotal > ADVANCE_PAYMENT_MIN_TOTAL_OMR;
+  // Monthly stays paid by card: the first month is charged online and the
+  // rest is collected at reception — not a guest choice.
+  const firstMonth = pricing.monthly?.selected.firstMonthAmount ?? null;
   const paymentPlan =
-    rawPaymentPlan === "ADVANCE_50" && advanceEligible ? "ADVANCE_50" : "FULL";
+    paymentMethod === "CARD" && firstMonth !== null && firstMonth < pricing.grandTotal
+      ? "FIRST_MONTH"
+      : rawPaymentPlan === "ADVANCE_50" && advanceEligible
+        ? "ADVANCE_50"
+        : "FULL";
 
   // What SmartPay will actually charge today, and what reception must collect.
   const chargeNowRaw =
-    paymentPlan === "ADVANCE_50"
-      ? pricing.grandTotal * ADVANCE_PAYMENT_RATIO
-      : pricing.grandTotal;
+    paymentPlan === "FIRST_MONTH"
+      ? firstMonth!
+      : paymentPlan === "ADVANCE_50"
+        ? pricing.grandTotal * ADVANCE_PAYMENT_RATIO
+        : pricing.grandTotal;
   const chargeNow = Math.round(chargeNowRaw * 1000) / 1000;
   const dueAtCheckIn =
     Math.round((pricing.grandTotal - chargeNow) * 1000) / 1000;
@@ -368,6 +406,7 @@ export async function createBooking(
             paymentMethod,
             paymentPlan,
             amountDueAtCheckIn: dueAtCheckIn,
+            monthlyOption: pricing.monthly?.selected.option ?? null,
             // amountPaid: set by SmartPay webhook (CARD) or admin (CASH).
             checkIn: startDate,
             checkOut: endDate,

@@ -64,6 +64,8 @@ type CheckoutFormProps = {
   checkOut: string;
   locale: string;
   totalPrice: number;
+  /** Monthly stays: the chosen rate option and the first month charged up front. */
+  monthly?: { option: "INCLUSIVE" | "EXCLUSIVE"; firstMonthAmount: number } | null;
 };
 
 // Mirrors the server-side policy in app/actions/booking.ts.
@@ -80,6 +82,7 @@ export default function CheckoutForm({
   checkOut,
   locale,
   totalPrice,
+  monthly = null,
 }: CheckoutFormProps) {
   const isEn = locale === "en";
   const router = useRouter();
@@ -98,6 +101,11 @@ export default function CheckoutForm({
   const advanceEligible = isKhareef && totalPrice > ADVANCE_PAYMENT_MIN_TOTAL_OMR;
   const advanceAmount = round3(totalPrice * ADVANCE_PAYMENT_RATIO);
   const remainingAmount = round3(totalPrice - advanceAmount);
+
+  // Monthly stays paid online: the first month now, the rest at reception.
+  const firstMonthPlan = !!monthly && monthly.firstMonthAmount < totalPrice;
+  const firstMonthAmount = monthly ? round3(monthly.firstMonthAmount) : totalPrice;
+  const afterFirstMonth = round3(totalPrice - firstMonthAmount);
 
   // Payment method — Khareef stays must pay online.
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">(
@@ -145,6 +153,7 @@ export default function CheckoutForm({
       "paymentPlan",
       paymentMethod === "CARD" && advanceEligible ? paymentPlan : "FULL",
     );
+    if (monthly) rawForm.set("monthlyOption", monthly.option);
     setError(null);
 
     startTransition(async () => {
@@ -321,6 +330,41 @@ export default function CheckoutForm({
                 ? "Your booking will be confirmed immediately. Please bring the exact amount in cash upon arrival."
                 : "سيتم تأكيد حجزك فوراً. يرجى إحضار المبلغ نقداً عند وصولك."}
             </p>
+          )}
+
+          {/* Monthly stays: first month online, rest at reception (not optional). */}
+          {paymentMethod === "CARD" && firstMonthPlan && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide mb-4">
+                {isEn ? "Monthly payment" : "الدفع الشهري"}
+              </h3>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">
+                    {isEn ? "First month — pay today" : "الشهر الأول — يُدفع اليوم"}
+                  </span>
+                  <span className="font-bold text-gray-900" dir="ltr">
+                    {firstMonthAmount.toFixed(3)} {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">
+                    {isEn ? "Remaining — at reception" : "المتبقي — عند الاستقبال"}
+                  </span>
+                  <span className="font-bold text-gray-900" dir="ltr">
+                    {afterFirstMonth.toFixed(3)} {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="font-bold text-gray-900">
+                    {isEn ? "Total stay" : "إجمالي الإقامة"}
+                  </span>
+                  <span className="font-extrabold text-gray-900" dir="ltr">
+                    {totalPrice.toFixed(3)} {isEn ? "OMR" : "ر.ع"}
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Advance-payment selector — Khareef only, total > 30 OMR. */}
@@ -648,9 +692,11 @@ export default function CheckoutForm({
                   </svg>
                   {(() => {
                     const chargeNow =
-                      paymentMethod === "CARD" && advanceEligible && paymentPlan === "ADVANCE_50"
-                        ? advanceAmount
-                        : totalPrice;
+                      paymentMethod === "CARD" && firstMonthPlan
+                        ? firstMonthAmount
+                        : paymentMethod === "CARD" && advanceEligible && paymentPlan === "ADVANCE_50"
+                          ? advanceAmount
+                          : totalPrice;
                     return isEn
                       ? `Pay ${chargeNow.toFixed(3)} OMR Now`
                       : `ادفع ${chargeNow.toFixed(3)} ر.ع الآن`;
@@ -668,6 +714,10 @@ export default function CheckoutForm({
                 ? isEn
                   ? "Your booking will be confirmed immediately with no upfront payment required."
                   : "سيتم تأكيد حجزك فوراً دون الحاجة لدفع مسبق."
+                : paymentMethod === "CARD" && firstMonthPlan
+                  ? isEn
+                    ? `You'll be redirected to Bank Muscat to pay the first month (${firstMonthAmount.toFixed(3)} OMR). Pay the remaining ${afterFirstMonth.toFixed(3)} OMR at reception.`
+                    : `سيتم توجيهك إلى بنك مسقط لدفع الشهر الأول (${firstMonthAmount.toFixed(3)} ر.ع). المبلغ المتبقي ${afterFirstMonth.toFixed(3)} ر.ع يُدفع عند الاستقبال.`
                 : paymentMethod === "CARD" && advanceEligible && paymentPlan === "ADVANCE_50"
                   ? isEn
                     ? `You'll be redirected to Bank Muscat to pay ${advanceAmount.toFixed(3)} OMR. Pay the remaining ${remainingAmount.toFixed(3)} OMR at check-in.`

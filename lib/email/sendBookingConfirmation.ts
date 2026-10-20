@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import prisma from "@/lib/prisma";
 import { generateBookingPdf } from "./bookingPdf";
 import { differenceInDays } from "date-fns";
+import { MONTHLY_OPTION_LABELS } from "@/lib/monthlyPricing";
 
 // Initialise Resend lazily so missing env var only throws at send-time, not import-time
 function getResend() {
@@ -25,18 +26,20 @@ function buildEmailHtml(params: {
   paymentPlan: string;
   amountPaid: number | null;
   amountDueAtCheckIn: number;
+  monthlyOption: "INCLUSIVE" | "EXCLUSIVE" | null;
   status: string;
   locale: string;
 }) {
   const {
     guestName, bookingCode, unitTitleEn, buildingNameEn,
     checkIn, checkOut, totalNights, totalPrice, paymentMethod,
-    paymentPlan, amountPaid, amountDueAtCheckIn, status, locale,
+    paymentPlan, amountPaid, amountDueAtCheckIn, monthlyOption, status, locale,
   } = params;
 
   const isEn = locale !== "ar";
   const isCash = paymentMethod === "CASH";
-  const isAdvance = paymentPlan === "ADVANCE_50" && amountDueAtCheckIn > 0;
+  const isAdvance = (paymentPlan === "ADVANCE_50" || paymentPlan === "FIRST_MONTH") && amountDueAtCheckIn > 0;
+  const isFirstMonth = paymentPlan === "FIRST_MONTH";
   const isPending = status === "PENDING";
   const statusColor = isPending ? "#d97706" : "#059669";
   const statusLabel = isPending ? (isEn ? "Pending Confirmation" : "قيد الانتظار") : (isEn ? "Confirmed" : "مؤكد");
@@ -150,6 +153,7 @@ function buildEmailHtml(params: {
                     <p style="margin:0 0 10px;font-size:10px;font-weight:700;color:#2a7475;letter-spacing:1.5px;text-transform:uppercase;">${isEn ? "Property" : "العقار"}</p>
                     <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#111827;">${unitTitleEn}</p>
                     <p style="margin:0;font-size:11px;color:#6b7280;">${buildingNameEn}</p>
+                    ${monthlyOption ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;color:#2a7475;">${isEn ? MONTHLY_OPTION_LABELS[monthlyOption].detailEn : MONTHLY_OPTION_LABELS[monthlyOption].detailAr}</p>` : ""}
                     <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Salalah, Dhofar, Oman</p>
                   </div>
                 </td>
@@ -157,7 +161,7 @@ function buildEmailHtml(params: {
                   <div style="background:#f9fafb;border:1px solid #f3f4f6;border-radius:8px;padding:16px;">
                     <p style="margin:0 0 10px;font-size:10px;font-weight:700;color:#2a7475;letter-spacing:1.5px;text-transform:uppercase;">${isEn ? "Payment" : "الدفع"}</p>
                     <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Method" : "طريقة الدفع"}</p>
-                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#111827;">${isCash ? (isEn ? "Cash at Reception" : "نقدي عند الاستقبال") : isAdvance ? (isEn ? "Online (50% Advance)" : "إلكتروني (دفعة 50%)") : (isEn ? "Online (Card)" : "إلكتروني (بطاقة)")}</p>
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#111827;">${isCash ? (isEn ? "Cash at Reception" : "نقدي عند الاستقبال") : isAdvance ? (isFirstMonth ? (isEn ? "Online (First month)" : "إلكتروني (الشهر الأول)") : (isEn ? "Online (50% Advance)" : "إلكتروني (دفعة 50%)")) : (isEn ? "Online (Card)" : "إلكتروني (بطاقة)")}</p>
                     ${isAdvance ? `
                     <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">${isEn ? "Paid Online" : "المدفوع إلكترونياً"}</p>
                     <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#059669;">${(amountPaid ?? 0).toFixed(3)} OMR</p>
@@ -270,6 +274,7 @@ export async function sendBookingConfirmation(bookingId: string, locale = "en") 
       paymentPlan: booking.paymentPlan,
       amountPaid: booking.amountPaid,
       amountDueAtCheckIn: booking.amountDueAtCheckIn,
+      monthlyOption: booking.monthlyOption,
       status: booking.status,
       locale,
     });

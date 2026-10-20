@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { calculateBookingPrice } from "@/app/actions/booking";
 import CheckoutForm from "@/components/properties/CheckoutForm";
+import { isMonthlyOption, MONTHLY_OPTION_LABELS } from "@/lib/monthlyPricing";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -45,7 +46,13 @@ export default async function CheckoutPage({
   // Calculate pricing server-side for the summary
   let pricing;
   try {
-    pricing = await calculateBookingPrice(unit.id, checkIn, checkOut);
+    const option = resolvedSearchParams.option;
+    pricing = await calculateBookingPrice(
+      unit.id,
+      checkIn,
+      checkOut,
+      isMonthlyOption(option) ? option : null,
+    );
   } catch (error) {
     // If dates are invalid (e.g., minimum 30 days not met for Monthly), bounce back
     redirect(`/${locale}/properties/${id}`);
@@ -121,6 +128,14 @@ export default async function CheckoutPage({
               checkOut={checkOut}
               locale={locale}
               totalPrice={pricing.grandTotal}
+              monthly={
+                pricing.monthly
+                  ? {
+                      option: pricing.monthly.selected.option,
+                      firstMonthAmount: pricing.monthly.selected.firstMonthAmount,
+                    }
+                  : null
+              }
             />
           </div>
 
@@ -161,6 +176,16 @@ export default async function CheckoutPage({
               </h3>
 
               <div className="space-y-3 text-gray-600 text-sm">
+                {pricing.monthly && (
+                  <div className="flex justify-between">
+                    <span>{isEn ? "Monthly rate" : "السعر الشهري"}</span>
+                    <span className="font-semibold text-nassayem text-end">
+                      {isEn
+                        ? MONTHLY_OPTION_LABELS[pricing.monthly.selected.option].detailEn
+                        : MONTHLY_OPTION_LABELS[pricing.monthly.selected.option].detailAr}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>{pricing.calculationMethod}</span>
                   <span>

@@ -3,6 +3,7 @@ import FilterSidebar from "@/components/properties/FilterSidebar";
 import PropertyCard from "@/components/properties/PropertyCard";
 import prisma from "@/lib/prisma";
 import { calculateBookingPrice } from "@/app/actions/booking";
+import { getAllMonthlyRates, lowestMonthlyRate } from "@/lib/monthlyPricing";
 
 // Price computed for a single unit against the selected stay. `null` when the
 // dates can't be priced for that unit (e.g. Khareef without a promo, or a
@@ -12,6 +13,7 @@ type CardPrice = {
   grandTotal: number;
   totalNights: number;
   hasPromotion: boolean;
+  monthlyRate?: number;
 };
 
 type PageProps = {
@@ -83,28 +85,30 @@ export default async function PropertiesPage({
     datePattern.test(checkOut) &&
     checkOut > checkIn;
 
-  // Sidebar price-range filter. Applied against the unit's base rate for the
-  // active rental mode (monthlyPrice when browsing monthly, dailyPrice otherwise).
+  // Sidebar price-range filter. Daily browsing filters on the unit's daily
+  // rate in the query; monthly browsing filters on the building + type's
+  // lowest monthly rate after the query (monthly rates live in MonthlyPrice).
   const minPrice = resolvedSearchParams.min
     ? parseFloat(resolvedSearchParams.min)
     : undefined;
   const maxPrice = resolvedSearchParams.max
     ? parseFloat(resolvedSearchParams.max)
     : undefined;
-  const priceField = rentTypeFilter === "MONTHLY" ? "monthlyPrice" : "dailyPrice";
+  const hasMin = minPrice !== undefined && !isNaN(minPrice);
+  const hasMax = maxPrice !== undefined && !isNaN(maxPrice);
   const priceRangeFilter =
-    (minPrice !== undefined && !isNaN(minPrice)) ||
-    (maxPrice !== undefined && !isNaN(maxPrice))
+    rentTypeFilter !== "MONTHLY" && (hasMin || hasMax)
       ? {
-          [priceField]: {
-            ...(minPrice !== undefined && !isNaN(minPrice) && { gte: minPrice }),
-            ...(maxPrice !== undefined && !isNaN(maxPrice) && { lte: maxPrice }),
+          dailyPrice: {
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
           },
         }
       : undefined;
+  const monthlyRates = rentTypeFilter === "MONTHLY" ? await getAllMonthlyRates() : null;
 
   // Fetch properties dynamically based on filters
-  const units = await prisma.unit.findMany({
+  const fetchedUnits = await prisma.unit.findMany({
     where: {
       isPublished: true,
       ...(rentTypeFilter && {
@@ -119,6 +123,18 @@ export default async function PropertiesPage({
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // Monthly browsing: only units whose building + type actually has a monthly
+  // rate, within the price range.
+  const units = monthlyRates
+    ? fetchedUnits.filter((u) => {
+        const from = lowestMonthlyRate(monthlyRates.get(`${u.buildingId}|${u.unitType}`));
+        if (!from) return false;
+        if (hasMin && from.rate < minPrice!) return false;
+        if (hasMax && from.rate > maxPrice!) return false;
+        return true;
+      })
+    : fetchedUnits;
 
   // When the visitor picked dates, price every unit for that exact stay so the
   // card shows a real number instead of a generic "Show Price". Pricing runs
@@ -139,6 +155,7 @@ export default async function PropertiesPage({
               grandTotal: p.grandTotal,
               totalNights: p.totalNights,
               hasPromotion: !!p.promotion,
+              monthlyRate: p.monthly?.selected.monthlyRate,
             } as CardPrice,
           ] as const;
         } catch {

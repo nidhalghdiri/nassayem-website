@@ -2,8 +2,8 @@
 // Chatbot tools — the ONLY way the model learns facts about units, prices,
 // availability and promotions. Each tool is zod-validated and reuses the same
 // battle-tested logic the website itself runs on:
-//   • checkUnitAvailability / calculateBookingPrice (app/actions/booking.ts)
-//   • getActivePromotionForUnit pricing priority incl. the Khareef gate
+//   • checkUnitAvailability / calculateBookingPrice (app/actions/booking.ts),
+//     incl. promotions, the Khareef gate and monthly rates (lib/monthlyPricing)
 // Soft holds (ChatbotHold) are subtracted from availability HERE only — the
 // public checkout flow is intentionally untouched.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,15 +11,21 @@
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import prisma from "@/lib/prisma";
-import { differenceInDays, parseISO, startOfDay } from "date-fns";
-import type { Prisma, UnitType } from "@prisma/client";
+import { parseISO, startOfDay } from "date-fns";
+import type { MonthlyOption, Prisma, UnitType } from "@prisma/client";
 import {
   checkUnitAvailability,
   calculateBookingPrice,
 } from "@/app/actions/booking";
-import { getActivePromotionForUnit } from "@/app/actions/promotion";
-import { getPeriodPricing } from "@/app/actions/pricing";
 import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
+import {
+  getAllMonthlyRates,
+  getMonthlyRates,
+  MONTHLY_MIN_NIGHTS,
+  MONTHLY_OPTION_LABELS,
+  stayTouchesKhareef,
+  type MonthlyRates,
+} from "@/lib/monthlyPricing";
 import {
   checkNetsuiteAvailability,
   createNetsuiteReservation,
@@ -207,13 +213,32 @@ async function unifiedAvailability(
 
 
 
+type MonthlyPriceInfo = {
+  /** The option this total is priced with. */
+  selected_option: MonthlyOption;
+  utilities_included: boolean;
+  monthly_rate_omr: number;
+  months: number;
+  /** Paid up front to confirm a monthly booking; the rest at reception. */
+  first_month_payment_omr: number;
+  /** Every rate on offer — when there are two, the customer must choose. */
+  options: {
+    option: MonthlyOption;
+    label_ar: string;
+    label_en: string;
+    monthly_rate_omr: number;
+    total_omr: number;
+  }[];
+};
+
 type PriceInfo =
   | {
       total_omr: number;
       original_total_omr?: number;
       nights: number;
       per_night_omr: number;
-      monthly_rate_omr?: number;
+      /** Present only for monthly stays (30+ nights, outside July/August). */
+      monthly?: MonthlyPriceInfo;
       promotion: { title_en: string; title_ar: string; savings_omr: number } | null;
       note?: string;
     }
@@ -221,115 +246,49 @@ type PriceInfo =
 
 /** True when any night in [checkIn, checkOut) falls in July or August. */
 function stayContainsKhareef(checkIn: string, checkOut: string): boolean {
-  const cursor = startOfDay(parseISO(checkIn));
-  const end = startOfDay(parseISO(checkOut));
-  while (cursor < end) {
-    const m = cursor.getMonth();
-    if (m === 6 || m === 7) return true;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return false;
+  return stayTouchesKhareef(startOfDay(parseISO(checkIn)), startOfDay(parseISO(checkOut)));
 }
 
 const KHAREEF_MONTHLY_NOTE =
-  "Monthly rentals are NOT available during Khareef season (July–August). This total is calculated at the DAILY rate — tell the customer that monthly isn't offered in Khareef and this is the daily-rate total.";
+  "Monthly rentals run until 30/06 and are NOT available for stays that include July or August. This total is calculated at the DAILY rate — tell the customer monthly isn't offered for these dates and this is the daily-rate total.";
 
 /**
- * Daily-rate pricing for long Khareef stays. The website engine switches to
- * the monthly rate at 30+ nights, but monthly rentals do not exist during
- * Khareef — so we price such stays night-by-night using the same priority
- * the engine's daily branch uses: promotion > per-day pricing table
- * (Khareef gate applies — no published rate means call center).
+ * Full pricing via the website engine (the same numbers the website charges),
+ * translated for the model. Monthly stays carry every rate option so the bot
+ * can offer "شامل" vs "غير شامل"; `monthlyOption` picks which one the total uses.
  */
-async function dailyRatePrice(
-  unit: { id: string; buildingId: string; unitType: UnitType; dailyPrice: number | null },
-  checkIn: string,
-  checkOut: string,
-): Promise<PriceInfo> {
-  const nights = differenceInDays(
-    startOfDay(parseISO(checkOut)),
-    startOfDay(parseISO(checkIn)),
-  );
-  if (nights <= 0) return { price_unavailable: "Invalid date range." };
-
-  const [promo, modulePricing] = await Promise.all([
-    getActivePromotionForUnit(unit.id, checkIn, checkOut),
-    getPeriodPricing({
-      buildingId: unit.buildingId,
-      unitType: unit.unitType,
-      unitId: unit.id,
-      startDate: checkIn,
-      endDate: checkOut,
-    }),
-  ]);
-  const moduleAllPriced =
-    modulePricing !== null &&
-    modulePricing.totals.unpricedNights === 0 &&
-    modulePricing.totals.pricedNights > 0;
-
-  if (promo) {
-    const total = Math.round(promo.promoPrice * nights * 100) / 100;
-    const originalDaily = unit.dailyPrice ?? promo.regularPrice;
-    return {
-      total_omr: total,
-      original_total_omr: originalDaily * nights,
-      nights,
-      per_night_omr: Math.floor(promo.promoPrice),
-      promotion: {
-        title_en: promo.titleEn,
-        title_ar: promo.titleAr,
-        savings_omr: Math.round((originalDaily - promo.promoPrice) * nights * 100) / 100,
-      },
-      note: KHAREEF_MONTHLY_NOTE,
-    };
-  }
-  if (moduleAllPriced) {
-    const inclusiveSum = modulePricing!.totals.total ?? 0;
-    const dailyAverage = Math.floor(inclusiveSum / (nights + 1));
-    return {
-      total_omr: dailyAverage * nights,
-      original_total_omr: dailyAverage * nights,
-      nights,
-      per_night_omr: dailyAverage,
-      promotion: null,
-      note: KHAREEF_MONTHLY_NOTE,
-    };
-  }
-  return {
-    price_unavailable:
-      "Online rates for these Khareef (July/August) dates are not published, and monthly rates are not available in Khareef. The call center can quote and book these dates.",
-  };
-}
-
-/** Full pricing via the website engine, translating its errors for the model. */
 async function priceForStay(
   unitId: string,
   checkIn: string,
   checkOut: string,
+  monthlyOption?: MonthlyOption | null,
 ): Promise<PriceInfo> {
-  // Khareef exception: 30+ night stays would normally get the monthly rate,
-  // but monthly rentals don't exist during Khareef — price them daily.
-  const nights = differenceInDays(
-    startOfDay(parseISO(checkOut)),
-    startOfDay(parseISO(checkIn)),
-  );
-  if (nights >= 30 && stayContainsKhareef(checkIn, checkOut)) {
-    const unit = await prisma.unit.findUnique({
-      where: { id: unitId },
-      select: { id: true, buildingId: true, unitType: true, dailyPrice: true },
-    });
-    if (!unit) return { price_unavailable: "Unit not found." };
-    return dailyRatePrice(unit, checkIn, checkOut);
-  }
-
   try {
-    const p = await calculateBookingPrice(unitId, checkIn, checkOut);
+    const p = await calculateBookingPrice(unitId, checkIn, checkOut, monthlyOption ?? null);
+    const longKhareefStay = !p.monthly && p.totalNights >= MONTHLY_MIN_NIGHTS && stayContainsKhareef(checkIn, checkOut);
     return {
       total_omr: p.grandTotal,
       original_total_omr: p.promotion ? p.grandTotal + p.promotion.savings : p.grandTotal,
       nights: p.totalNights,
       per_night_omr: p.dailyAverage,
-      monthly_rate_omr: p.monthlyRate ?? undefined,
+      ...(p.monthly
+        ? {
+            monthly: {
+              selected_option: p.monthly.selected.option,
+              utilities_included: p.monthly.selected.option === "INCLUSIVE",
+              monthly_rate_omr: p.monthly.selected.monthlyRate,
+              months: p.monthly.months,
+              first_month_payment_omr: p.monthly.selected.firstMonthAmount,
+              options: p.monthly.options.map((o) => ({
+                option: o.option,
+                label_ar: MONTHLY_OPTION_LABELS[o.option].detailAr,
+                label_en: MONTHLY_OPTION_LABELS[o.option].detailEn,
+                monthly_rate_omr: o.monthlyRate,
+                total_omr: o.total,
+              })),
+            },
+          }
+        : {}),
       promotion: p.promotion
         ? {
             title_en: p.promotion.titleEn,
@@ -337,6 +296,7 @@ async function priceForStay(
             savings_omr: p.promotion.savings,
           }
         : null,
+      ...(longKhareefStay ? { note: KHAREEF_MONTHLY_NOTE } : {}),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
@@ -348,6 +308,15 @@ async function priceForStay(
     }
     return { price_unavailable: message };
   }
+}
+
+/** Monthly rates on offer for a unit's building + type, for date-less answers. */
+function indicativeMonthly(rates: MonthlyRates | null | undefined) {
+  if (!rates) return null;
+  return {
+    ...(rates.INCLUSIVE !== undefined ? { utilities_included_omr: rates.INCLUSIVE } : {}),
+    ...(rates.EXCLUSIVE !== undefined ? { utilities_not_included_omr: rates.EXCLUSIVE } : {}),
+  };
 }
 
 // ── Escalation recipients ─────────────────────────────────────────────────────
@@ -587,18 +556,20 @@ function defineTool<S extends z.ZodType>(def: ToolDef<S>): ToolDef<z.ZodType> {
 const searchUnits = defineTool({
   name: "search_units",
   description:
-    "Search available apartments. Use whenever the customer describes what they need (type, dates, building). Group size NEVER restricts results — we welcome any group size in any apartment type; ask the customer which TYPE they prefer (studio / one / two / three bedrooms / villa) and search by that. With check_in/check_out, results are filtered to available units and include exact total prices. Without dates, returns matching units with indicative base rates only. If a promotion is active, ALWAYS mention the promotion directly to the customer including the original price and the discounted total.",
+    "Search available apartments. Use whenever the customer describes what they need (type, dates, building). Group size NEVER restricts results — we welcome any group size in any apartment type; ask the customer which TYPE they prefer (studio / one / two / three bedrooms / villa) and search by that. With check_in/check_out, results are filtered to available units and include exact total prices. Stays of 30+ nights outside July/August are priced monthly when the building offers it (price.monthly lists the rate options). Without dates, returns matching units with indicative base rates only. If a promotion is active, ALWAYS mention the promotion directly to the customer including the original price and the discounted total.",
   schema: z.object({
     unit_type: z.enum(UNIT_TYPES).optional().describe("Apartment type the CUSTOMER chose — always ask their preference instead of guessing from group size"),
     building_id: realId.optional().describe("Filter to one building (from get_building_info)"),
     check_in: dateString.optional().describe("Check-in date YYYY-MM-DD"),
     check_out: dateString.optional().describe("Check-out date YYYY-MM-DD"),
     rent_type: z.enum(["DAILY", "MONTHLY"]).optional().describe("DAILY for short stays, MONTHLY for 30+ nights"),
+    monthly_option: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional().describe("Monthly stays only: the rate the customer chose — INCLUSIVE = شامل (water + electricity included), EXCLUSIVE = غير شامل. Omit until they choose; totals for every option are returned anyway."),
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
 
-    // Business rule: NO monthly rentals during Khareef (July–August).
+    // Business rule: monthly rentals run until 30/06 — never for a stay that
+    // includes July or August.
     if (
       input.rent_type === "MONTHLY" &&
       input.check_in &&
@@ -608,7 +579,7 @@ const searchUnits = defineTool({
       return {
         count: 0,
         units: [],
-        note: "Monthly rentals are NOT available during Khareef season (July–August) — only daily rentals. Tell the customer this and ask if they would like the stay calculated at the daily rate; if yes, search again without rent_type MONTHLY.",
+        note: "Monthly rentals run until 30/06 and are NOT available for stays that include July or August — only daily rentals. Tell the customer this and ask if they would like the stay calculated at the daily rate; if yes, search again without rent_type MONTHLY.",
       };
     }
 
@@ -621,15 +592,23 @@ const searchUnits = defineTool({
     if (input.rent_type === "DAILY") where.rentType = { in: ["DAILY", "BOTH"] };
     if (input.rent_type === "MONTHLY") where.rentType = { in: ["MONTHLY", "BOTH"] };
 
-    const units = await prisma.unit.findMany({
-      where,
-      include: {
-        building: true,
-        images: { orderBy: { displayOrder: "asc" }, take: 1 },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 20,
-    });
+    const [fetchedUnits, monthlyRates] = await Promise.all([
+      prisma.unit.findMany({
+        where,
+        include: {
+          building: true,
+          images: { orderBy: { displayOrder: "asc" }, take: 1 },
+        },
+        orderBy: { createdAt: "asc" },
+        take: input.rent_type === "MONTHLY" ? 100 : 20,
+      }),
+      getAllMonthlyRates(),
+    ]);
+    const monthlyRatesOf = (u: (typeof fetchedUnits)[number]) =>
+      u.rentType === "DAILY" ? null : (monthlyRates.get(`${u.buildingId}|${u.unitType}`) ?? null);
+    // Monthly searches only return units whose building + type has a monthly rate.
+    const units =
+      input.rent_type === "MONTHLY" ? fetchedUnits.filter((u) => monthlyRatesOf(u)) : fetchedUnits;
 
     // Featured building (admin config) floats to the top of results — the
     // prompt tells the model to present it first when it fits. It stays pinned
@@ -696,7 +675,7 @@ const searchUnits = defineTool({
         bookable.map(async ({ unit, availability }) => {
           let price = null;
           if (settings.show_prices) {
-            price = await priceForStay(unit.id, input.check_in!, input.check_out!);
+            price = await priceForStay(unit.id, input.check_in!, input.check_out!, input.monthly_option);
           }
           return { unit, availability, price };
         }),
@@ -743,8 +722,8 @@ const searchUnits = defineTool({
             ? {
                 indicative_rates_omr: {
                   daily: unit.dailyPrice,
-                  monthly: unit.monthlyPrice,
-                  note: "Base rates only — use check_availability with dates for the exact total (promotions and seasonal pricing may change it).",
+                  monthly: indicativeMonthly(monthlyRatesOf(unit)),
+                  note: "Base rates only — use check_availability with dates for the exact total (promotions and seasonal pricing may change it). Monthly applies to 30+ night stays outside July/August.",
                 },
               }
             : {}),
@@ -808,8 +787,10 @@ const getUnitDetails = defineTool({
         ? {
             indicative_rates_omr: {
               daily: unit.dailyPrice,
-              monthly: unit.monthlyPrice,
-              note: "Use check_availability with dates for the exact total.",
+              monthly: indicativeMonthly(
+                unit.rentType === "DAILY" ? null : await getMonthlyRates(unit.buildingId, unit.unitType),
+              ),
+              note: "Use check_availability with dates for the exact total. Monthly applies to 30+ night stays outside July/August.",
             },
           }
         : {}),
@@ -836,11 +817,12 @@ const getUnitDetails = defineTool({
 const checkAvailability = defineTool({
   name: "check_availability",
   description:
-    "Check whether one specific unit is free for exact dates, with the exact total price. ALWAYS use this before quoting availability or a total for specific dates.",
+    "Check whether one specific unit is free for exact dates, with the exact total price. ALWAYS use this before quoting availability or a total for specific dates. For monthly stays the price includes every monthly rate option (شامل / غير شامل).",
   schema: z.object({
     unit_id: realId,
     check_in: dateString,
     check_out: dateString,
+    monthly_option: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional().describe("Monthly stays only: INCLUSIVE = شامل (water + electricity included), EXCLUSIVE = غير شامل"),
   }),
   execute: async (input, ctx) => {
     const settings = await getChatbotSettings();
@@ -874,7 +856,7 @@ const checkAvailability = defineTool({
     }
     let price: unknown = undefined;
     if (settings.show_prices) {
-      price = await priceForStay(input.unit_id, input.check_in, input.check_out);
+      price = await priceForStay(input.unit_id, input.check_in, input.check_out, input.monthly_option);
     }
 
     return {
@@ -1114,6 +1096,7 @@ const createReservation = defineTool({
         unit_id: realId,
         check_in: dateString,
         check_out: dateString,
+        monthly_option: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional().describe("Monthly stays only (30+ nights): the rate the customer chose — INCLUSIVE = شامل (water + electricity included), EXCLUSIVE = غير شامل. Required when both are offered."),
       })
     ).min(1).describe("List of units the customer wants to reserve"),
     customer_name: z.string().min(2).max(120),
@@ -1125,6 +1108,9 @@ const createReservation = defineTool({
     const settings = await getChatbotSettings();
 
     let finalTotal = 0;
+    // What the customer pays now: the first month for monthly stays, 50% for daily stays.
+    let payNowTotal = 0;
+    let hasMonthly = false;
     const unitDetails = [];
     
     // 1. Fetch, price, and check availability for all units
@@ -1136,9 +1122,20 @@ const createReservation = defineTool({
       if (!unit) return { reserved: false, reason: `Unit ${u.unit_id} not found.` };
 
       const price = settings.show_prices
-        ? await priceForStay(unit.id, u.check_in, u.check_out)
+        ? await priceForStay(unit.id, u.check_in, u.check_out, u.monthly_option)
         : null;
       const priced = price && !("price_unavailable" in price) ? price : null;
+
+      // Monthly stay with both rates on offer: the customer must pick one.
+      if (priced?.monthly && priced.monthly.options.length > 1 && !u.monthly_option) {
+        return {
+          reserved: false,
+          reason: `Monthly rate not chosen for ${unit.titleAr}.`,
+          options: priced.monthly.options,
+          suggestion:
+            "Ask the customer which monthly rate they want — شامل (water + electricity included) or غير شامل — quoting both monthly rates and totals, then call create_reservation again with monthly_option.",
+        };
+      }
       
       if (settings.reservations_enabled && settings.show_prices && !priced) {
         return {
@@ -1173,14 +1170,24 @@ const createReservation = defineTool({
       }
 
       finalTotal += priced?.total_omr ?? 0;
-      unitDetails.push({ unit, priced, check_in: u.check_in, check_out: u.check_out });
+      if (priced?.monthly) {
+        hasMonthly = true;
+        payNowTotal += priced.monthly.first_month_payment_omr;
+      } else {
+        payNowTotal += (priced?.total_omr ?? 0) * 0.5;
+      }
+      const monthlyNote = priced?.monthly
+        ? `شهري — ${MONTHLY_OPTION_LABELS[priced.monthly.selected_option].detailAr} (${priced.monthly.monthly_rate_omr} ر.ع/شهر)`
+        : null;
+      unitDetails.push({ unit, priced, monthlyNote, check_in: u.check_in, check_out: u.check_out });
     }
 
     // ── Paused mode (default) ────────────────────────────────────────────────
     if (!settings.reservations_enabled) {
       const summaryNotes = unitDetails.map(d => 
         `- ${d.unit.titleAr} (${d.unit.building.nameAr}): ${d.check_in} ← ${d.check_out} ` +
-        (d.priced ? `· ${d.priced.total_omr} ر.ع` : "")
+        (d.priced ? `· ${d.priced.total_omr} ر.ع` : "") +
+        (d.monthlyNote ? ` · ${d.monthlyNote}` : "")
       ).join("\n");
       
       // We create a lead attached to the FIRST unit, but with combined notes
@@ -1224,7 +1231,10 @@ const createReservation = defineTool({
     // Loop and create reservations
     const createdReservations = [];
     for (const d of unitDetails) {
-      const forceDaily = d.priced && d.priced.nights >= 30 && stayContainsKhareef(d.check_in, d.check_out);
+      // NetSuite switches to the monthly cycle at 30+ nights; keep the daily
+      // cycle unless the stay was actually priced monthly (e.g. Khareef stays,
+      // or buildings without a monthly rate).
+      const forceDaily = !d.priced?.monthly;
       const res = await createNetsuiteReservation({
         netsuiteBuildingId: d.unit.building.netsuiteId,
         unitType: d.unit.unitType,
@@ -1235,7 +1245,7 @@ const createReservation = defineTool({
         customerEmail: input.customer_email ?? null,
         idPassport: input.id_passport,
         totalAmount: d.priced?.total_omr ?? 0,
-        notes: `AI chatbot reservation — ${d.unit.titleEn} (Multi-unit booking)`,
+        notes: `AI chatbot reservation — ${d.unit.titleEn} (Multi-unit booking)${d.monthlyNote ? ` — ${d.monthlyNote}` : ""}`,
         forceDaily: forceDaily || false,
         conversationId: ctx.conversationId,
       });
@@ -1262,7 +1272,8 @@ const createReservation = defineTool({
       }
     }
 
-    const advance = Math.round(finalTotal * 0.5 * 1000) / 1000;
+    const advance = Math.round(payNowTotal * 1000) / 1000;
+    const advanceLabel = hasMonthly ? "first month payment" : "50% advance payment";
     const remaining = Math.round((finalTotal - advance) * 1000) / 1000;
     
     // Combine IDs
@@ -1286,7 +1297,7 @@ const createReservation = defineTool({
       customerPhone: input.customer_phone,
       customerEmail: input.customer_email ?? null,
       amount: advance,
-      description: `Advance payment (50%) for ${createdReservations.length} units — total ${finalTotal} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
+      description: `${hasMonthly ? "First month payment" : "Advance payment (50%)"} for ${createdReservations.length} units — total ${finalTotal} OMR, remaining ${remaining} OMR at reception. Created by the Nassayem AI assistant.`,
       locale: conversation?.language === "ar" ? "ar" : "en",
     });
 
@@ -1302,7 +1313,7 @@ const createReservation = defineTool({
         status: "CONTACTED",
         idNumber: input.id_passport,
         reservationNumber: combinedRefs || combinedIds,
-        notes: `Multi-unit NetSuite reservations ${combinedRefs || combinedIds} created by chatbot; ID/passport: ${input.id_passport}; 50% advance link sent (${advance} OMR of ${finalTotal}).`,
+        notes: `Multi-unit NetSuite reservations ${combinedRefs || combinedIds} created by chatbot; ID/passport: ${input.id_passport}; ${advanceLabel} link sent (${advance} OMR of ${finalTotal}).${unitDetails.some((d) => d.monthlyNote) ? ` ${unitDetails.map((d) => d.monthlyNote).filter(Boolean).join("; ")}` : ""}`,
       },
     });
 
@@ -1319,7 +1330,7 @@ const createReservation = defineTool({
       remaining_at_reception_omr: remaining,
       payment_url: paymentLink.url,
       payment_link_expires_at: paymentLink.expiresAt.toISOString(),
-      next: `Tell the customer: their reservations have been registered in the system (Refs: ${combinedRefs || combinedIds}). Send the 50% advance payment link (${paymentLink.url} as a bare URL) to pay ${advance} OMR now to confirm all reservations. The remaining ${remaining} OMR will be paid upon arrival at reception. Total: ${finalTotal} OMR.`,
+      next: `Tell the customer: their reservations have been registered in the system (Refs: ${combinedRefs || combinedIds}). Send the ${advanceLabel} link (${paymentLink.url} as a bare URL) to pay ${advance} OMR now to confirm all reservations${hasMonthly ? " (for monthly stays this is the first month's rent; say whether the rate is شامل or غير شامل)" : ""}. The remaining ${remaining} OMR will be paid upon arrival at reception. Total: ${finalTotal} OMR.`,
     };
   },
 });
