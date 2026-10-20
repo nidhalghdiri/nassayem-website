@@ -7,6 +7,10 @@ import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import MaintenanceTasksReport from "./supervisor/MaintenanceTasksReport";
+import OtherMaintenanceSummary from "./supervisor/OtherMaintenanceSummary";
+import EquipmentMaintenanceSummary from "./supervisor/EquipmentMaintenanceSummary";
+import DashboardSectionTabs, { useDashboardSection } from "./DashboardSectionTabs";
+import EquipmentListTab from "./EquipmentListTab";
 import AuditList from "./AuditList";
 import LastAuditPerBuilding from "./LastAuditPerBuilding";
 import EmployeeDailyNotebook, { EmployeeNoteProps } from "./EmployeeDailyNotebook";
@@ -35,6 +39,7 @@ export default function SupervisorDashboard({ locale, currentUserId, currentUser
   // Task details panel (opened from the maintenance report) + report reload after changes
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [reportKey, setReportKey] = useState(0);
+  const [section, setSection] = useDashboardSection();
 
   const closeTaskPanel = useCallback(() => {
     setOpenTaskId(null);
@@ -75,64 +80,83 @@ export default function SupervisorDashboard({ locale, currentUserId, currentUser
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-slate-500 font-medium mb-3">{t.stats.lateBuildings}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold text-red-600">{stats.lateBuildingsCount}</span>
+      <DashboardSectionTabs isEn={isEn} section={section} onChange={setSection} />
+
+      {section === "equipment" && (
+        <>
+          <EquipmentMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+          <MaintenanceTasksReport scope="EQUIPMENT" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+        </>
+      )}
+
+      {section === "devices" && <EquipmentListTab locale={locale} />}
+
+      {section === "other" && (
+        <>
+          <OtherMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+          <MaintenanceTasksReport scope="OTHER" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+        </>
+      )}
+
+      {section === "tasks" && (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <p className="text-slate-500 font-medium mb-3">{t.stats.lateBuildings}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-red-600">{stats.lateBuildingsCount}</span>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <p className="text-slate-500 font-medium mb-3">{t.stats.responseTime}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-slate-800">{stats.avgResponseTimeMins}</span>
+                <span className="text-xl font-bold text-slate-400">{t.stats.mins}</span>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <p className="text-slate-500 font-medium mb-3">{t.stats.acceptanceRate}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-emerald-600">{stats.firstTimeAcceptanceRate}</span>
+                <span className="text-xl font-bold text-emerald-400">%</span>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <p className="text-slate-500 font-medium mb-3">{t.stats.awaitingNow}</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-orange-500">{stats.pendingAuditsCount}</span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-slate-500 font-medium mb-3">{t.stats.responseTime}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold text-slate-800">{stats.avgResponseTimeMins}</span>
-            <span className="text-xl font-bold text-slate-400">{t.stats.mins}</span>
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Left Column (Last Audit) */}
+            <div className="lg:col-span-1">
+              <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
+            </div>
+
+            {/* Right Column (Audit List) */}
+            <div className="lg:col-span-2">
+              <AuditList audits={pendingAudits} locale={locale} />
+            </div>
+
           </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-slate-500 font-medium mb-3">{t.stats.acceptanceRate}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold text-emerald-600">{stats.firstTimeAcceptanceRate}</span>
-            <span className="text-xl font-bold text-emerald-400">%</span>
+          {/* Units Grid & Timeline */}
+          <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
+
+          {/* Employee Daily Notebook */}
+          <div>
+            <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-slate-500 font-medium mb-3">{t.stats.awaitingNow}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold text-orange-500">{stats.pendingAuditsCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column (Last Audit) */}
-        <div className="lg:col-span-1">
-          <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
-        </div>
-
-        {/* Right Column (Audit List) */}
-        <div className="lg:col-span-2">
-          <AuditList audits={pendingAudits} locale={locale} />
-        </div>
-
-      </div>
-
-      {/* Maintenance tasks report */}
-      <MaintenanceTasksReport isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
-
-      {/* Units Grid & Timeline */}
-      <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
-
-      {/* Employee Daily Notebook */}
-      <div>
-        <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
-      </div>
+        </>
+      )}
 
       {/* Task details (slide-over) */}
       <TaskDetailPanel

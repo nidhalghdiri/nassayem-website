@@ -4,8 +4,9 @@ import React, { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
-  Briefcase, CircleDot, Timer, PackageX, Star, QrCode, ListChecks, History, CheckCircle2,
+  Briefcase, CircleDot, Timer, PackageX, Star, QrCode, ListChecks, History, CheckCircle2, MonitorSmartphone,
 } from "lucide-react";
+import EquipmentListTab from "../EquipmentListTab";
 import type { MaintenanceDashboardData, MaintenanceTask } from "@/lib/reports/maintenanceDashboard";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
@@ -24,7 +25,7 @@ type Props = {
   technicians: { id: string; name: string | null; email: string }[];
 };
 
-type Tab = "tasks" | "log";
+type Tab = "tasks" | "log" | "equipment";
 
 export default function MaintenanceDashboard({ locale, currentUserId, currentUserRole, data, technicians }: Props) {
   const isEn = locale === "en";
@@ -54,6 +55,7 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
     visitByCode: isEn ? "Visit by code" : "زيارة بالكود",
     myTasks: isOwnDashboard ? (isEn ? "My tasks" : "مهامي") : (isEn ? "Tasks" : "المهام"),
     taskLog: isEn ? "Task log" : "سجل المهام",
+    equipmentList: isEn ? "Equipment list" : "قائمة الأجهزة",
     technician: isEn ? "Technician" : "الفني",
     open: isEn ? "Open tasks" : "مهام مفتوحة",
     notStarted: isEn ? "Not started yet" : "لم يبدأ العمل عليها",
@@ -182,6 +184,9 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
         <TabButton active={tab === "log"} onClick={() => setTab("log")} icon={<History className="w-4 h-4" />}>
           {t.taskLog}
         </TabButton>
+        <TabButton active={tab === "equipment"} onClick={() => setTab("equipment")} icon={<MonitorSmartphone className="w-4 h-4" />}>
+          {t.equipmentList}
+        </TabButton>
         <Link
           href={`/${locale}/admin/maintenance/scan`}
           className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent whitespace-nowrap"
@@ -191,93 +196,99 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
         </Link>
       </nav>
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <header className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-slate-900 truncate">
-            {data.technician.name} <span className="text-slate-400 font-medium">— {t.roleTitle}</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {canPickTechnician && technicians.length > 0 && (
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              {t.technician}
-              <select
-                value={data.technician.id}
-                onChange={(e) => changeTechnician(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
-              >
-                {!technicians.some((u) => u.id === data.technician.id) && (
-                  <option value={data.technician.id}>{data.technician.name}</option>
-                )}
-                {technicians.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name ?? u.email.split("@")[0]}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Link
-            href={`/${locale}/admin/maintenance/scan`}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-nassayem/40 transition-colors"
-          >
-            <QrCode className="w-4 h-4 text-nassayem" />
-            {t.visitByCode}
-          </Link>
-        </div>
-      </header>
-
-      {/* ── KPI cards ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {statCards.map((c) => (
-          <div key={c.label} title={c.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
-            <span className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>{c.icon}</span>
+      {tab === "equipment" ? (
+        <EquipmentListTab locale={locale} />
+      ) : (
+        <>
+          {/* ── Header ───────────────────────────────────────────────────────── */}
+          <header className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className={`text-2xl font-black leading-none ${c.valueCls ?? "text-slate-900"}`}>{c.value}</p>
-              <p className="text-xs text-slate-500 mt-1.5 leading-snug">{c.label}</p>
+              <h1 className="text-xl font-bold text-slate-900 truncate">
+                {data.technician.name} <span className="text-slate-400 font-medium">— {t.roleTitle}</span>
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Content ──────────────────────────────────────────────────────── */}
-      <div className={`transition-opacity ${isRefreshing ? "opacity-60" : ""}`}>
-        {tab === "tasks" ? (
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800">{t.myTasks}</h3>
-              <span className="text-xs text-slate-500 font-medium">{t.sortHint}</span>
-            </div>
-            <div className="p-4 md:p-5 space-y-4">
-              {data.openTasks.length === 0 ? (
-                <div className="py-14 text-center text-sm text-slate-500 flex flex-col items-center gap-2">
-                  <CheckCircle2 className="w-9 h-9 text-emerald-400" />
-                  {t.empty}
-                </div>
-              ) : (
-                <>
-                  {activeTasks.map(renderCard)}
-
-                  {awaitingTasks.length > 0 && (
-                    <div className="pt-2 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <h4 className="text-sm font-bold text-emerald-700 whitespace-nowrap">
-                          {t.awaitingGroup} ({awaitingTasks.length})
-                        </h4>
-                        <span className="h-px flex-1 bg-emerald-100" />
-                        <span className="text-xs text-slate-400 hidden sm:inline">{t.awaitingHint}</span>
-                      </div>
-                      {awaitingTasks.map(renderCard)}
-                    </div>
-                  )}
-                </>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {canPickTechnician && technicians.length > 0 && (
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                  {t.technician}
+                  <select
+                    value={data.technician.id}
+                    onChange={(e) => changeTechnician(e.target.value)}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem"
+                  >
+                    {!technicians.some((u) => u.id === data.technician.id) && (
+                      <option value={data.technician.id}>{data.technician.name}</option>
+                    )}
+                    {technicians.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name ?? u.email.split("@")[0]}</option>
+                    ))}
+                  </select>
+                </label>
               )}
+              <Link
+                href={`/${locale}/admin/maintenance/scan`}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-nassayem/40 transition-colors"
+              >
+                <QrCode className="w-4 h-4 text-nassayem" />
+                {t.visitByCode}
+              </Link>
             </div>
-          </section>
-        ) : (
-          <MaintenanceLog isEn={isEn} tasks={data.logTasks} onOpenTask={setOpenTaskId} />
-        )}
-      </div>
+          </header>
+
+          {/* ── KPI cards ────────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {statCards.map((c) => (
+              <div key={c.label} title={c.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
+                <span className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>{c.icon}</span>
+                <div className="min-w-0">
+                  <p className={`text-2xl font-black leading-none ${c.valueCls ?? "text-slate-900"}`}>{c.value}</p>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-snug">{c.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Content ──────────────────────────────────────────────────────── */}
+          <div className={`transition-opacity ${isRefreshing ? "opacity-60" : ""}`}>
+            {tab === "tasks" ? (
+              <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800">{t.myTasks}</h3>
+                  <span className="text-xs text-slate-500 font-medium">{t.sortHint}</span>
+                </div>
+                <div className="p-4 md:p-5 space-y-4">
+                  {data.openTasks.length === 0 ? (
+                    <div className="py-14 text-center text-sm text-slate-500 flex flex-col items-center gap-2">
+                      <CheckCircle2 className="w-9 h-9 text-emerald-400" />
+                      {t.empty}
+                    </div>
+                  ) : (
+                    <>
+                      {activeTasks.map(renderCard)}
+
+                      {awaitingTasks.length > 0 && (
+                        <div className="pt-2 space-y-4">
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-sm font-bold text-emerald-700 whitespace-nowrap">
+                              {t.awaitingGroup} ({awaitingTasks.length})
+                            </h4>
+                            <span className="h-px flex-1 bg-emerald-100" />
+                            <span className="text-xs text-slate-400 hidden sm:inline">{t.awaitingHint}</span>
+                          </div>
+                          {awaitingTasks.map(renderCard)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <MaintenanceLog isEn={isEn} tasks={data.logTasks} onOpenTask={setOpenTaskId} />
+            )}
+          </div>
+        </>
+      )}
 
       {rescheduleTask && (
         <RescheduleModal

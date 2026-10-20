@@ -11,6 +11,14 @@ import {
   type MaintenanceReportFilters,
   type MaintenanceReportResult,
 } from "@/lib/reports/maintenanceTasksReport";
+import {
+  getEquipmentMaintenanceSummary as queryEquipmentSummary,
+  getOtherMaintenanceSummary as queryOtherSummary,
+  SUMMARY_PERIODS,
+  type EquipmentMaintenanceSummary,
+  type OtherMaintenanceSummary,
+  type SummaryPeriod,
+} from "@/lib/reports/maintenanceSummary";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
 export type MaintenanceReportError = "UNAUTHORIZED" | "FORBIDDEN" | "SERVER";
@@ -46,18 +54,51 @@ export async function getMaintenanceTasksReport(input: {
       page: Number.isInteger(input.page) && input.page > 0 ? Math.min(input.page, 1000) : 1,
     };
 
-    let scopeBuildingIds: string[] | null = null;
-    if (user.role === "SUPERVISOR") {
-      const assigned = await prisma.adminUserBuilding.findMany({
-        where: { adminUserId: user.id },
-        select: { buildingId: true },
-      });
-      if (assigned.length > 0) scopeBuildingIds = assigned.map((b) => b.buildingId);
-    }
-
-    return { ok: true, data: await queryReport(filters, scopeBuildingIds) };
+    return { ok: true, data: await queryReport(filters, await getScopeBuildingIds(user)) };
   } catch (err) {
     console.error("getMaintenanceTasksReport failed:", err);
     return { ok: false, error: "SERVER" };
   }
+}
+
+/** Loads the "Equipment maintenance" summary cards for the chosen period. */
+export async function getEquipmentMaintenanceSummary(
+  period: string,
+): Promise<{ ok: true; data: EquipmentMaintenanceSummary } | { ok: false; error: MaintenanceReportError }> {
+  return loadSummary(period, queryEquipmentSummary, "getEquipmentMaintenanceSummary");
+}
+
+/** Loads the "Other maintenance" summary cards for the chosen period. */
+export async function getOtherMaintenanceSummary(
+  period: string,
+): Promise<{ ok: true; data: OtherMaintenanceSummary } | { ok: false; error: MaintenanceReportError }> {
+  return loadSummary(period, queryOtherSummary, "getOtherMaintenanceSummary");
+}
+
+async function loadSummary<T>(
+  period: string,
+  query: (period: SummaryPeriod, scopeBuildingIds: string[] | null) => Promise<T>,
+  name: string,
+): Promise<{ ok: true; data: T } | { ok: false; error: MaintenanceReportError }> {
+  try {
+    const user = await getCurrentAdminUser();
+    if (!user) return { ok: false, error: "UNAUTHORIZED" };
+    if (!canSeeAllTasks(user.role as TStaffRole)) return { ok: false, error: "FORBIDDEN" };
+
+    const safePeriod: SummaryPeriod = (SUMMARY_PERIODS as readonly string[]).includes(period) ? (period as SummaryPeriod) : "7D";
+    return { ok: true, data: await query(safePeriod, await getScopeBuildingIds(user)) };
+  } catch (err) {
+    console.error(`${name} failed:`, err);
+    return { ok: false, error: "SERVER" };
+  }
+}
+
+/** A supervisor linked to specific buildings only sees those (null = all buildings). */
+async function getScopeBuildingIds(user: { id: string; role: string }): Promise<string[] | null> {
+  if (user.role !== "SUPERVISOR") return null;
+  const assigned = await prisma.adminUserBuilding.findMany({
+    where: { adminUserId: user.id },
+    select: { buildingId: true },
+  });
+  return assigned.length > 0 ? assigned.map((b) => b.buildingId) : null;
 }

@@ -18,12 +18,16 @@ import { formatDuration } from "../../timeUtils";
 
 type BuildingOption = { id: string; nameEn: string; nameAr: string; shortName?: string | null };
 
+/** Which requests the report covers: registered devices, or everything else. */
+export type MaintenanceReportScope = "EQUIPMENT" | "OTHER";
+
 type Props = {
   isEn: boolean;
   buildings: BuildingOption[];
   onOpenTask: (id: string) => void;
   /** Bump to reload the report (e.g. after a task was changed in the details panel). */
   refreshKey: number;
+  scope: MaintenanceReportScope;
 };
 
 type Filters = {
@@ -35,7 +39,10 @@ type Filters = {
   to: string;
 };
 
-const DEFAULT_FILTERS: Filters = { buildingId: "", status: "NOT_CLOSED", source: "ALL", category: "ALL", from: "", to: "" };
+const SCOPE_ALL_CATEGORY: Record<MaintenanceReportScope, MaintenanceCategoryFilter> = {
+  EQUIPMENT: "ALL_EQUIPMENT",
+  OTHER: "ALL_OTHER",
+};
 
 const STAGE_BADGE: Record<MaintenanceStage, string> = {
   NEW: "bg-blue-50 text-blue-700",
@@ -46,8 +53,11 @@ const STAGE_BADGE: Record<MaintenanceStage, string> = {
   CANCELLED: "bg-slate-100 text-slate-400",
 };
 
-/** Supervisor dashboard: every maintenance request, filterable, with timings. */
-export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, refreshKey }: Props) {
+/** Manager / Supervisor dashboards: the maintenance requests of one scope, filterable, with timings. */
+export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, refreshKey, scope }: Props) {
+  const DEFAULT_FILTERS: Filters = {
+    buildingId: "", status: "NOT_CLOSED", source: "ALL", category: SCOPE_ALL_CATEGORY[scope], from: "", to: "",
+  };
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<MaintenanceReportResult | null>(null);
@@ -56,7 +66,9 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
   const requestId = useRef(0);
 
   const t = {
-    title: isEn ? "Maintenance tasks" : "مهام الصيانة",
+    title: scope === "EQUIPMENT"
+      ? (isEn ? "Equipment maintenance tasks" : "مهام صيانة الأجهزة")
+      : (isEn ? "Other maintenance tasks" : "مهام الصيانة الأخرى"),
     branch: isEn ? "Branch" : "الفرع",
     allBranches: isEn ? "All branches" : "جميع الفروع",
     status: isEn ? "Status" : "الحالة",
@@ -69,7 +81,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
     arrivalFrom: isEn ? "Arrival date — from" : "تاريخ الوصول — من",
     arrivalTo: isEn ? "to" : "إلى",
     reset: isEn ? "Reset filters" : "إعادة ضبط الفلاتر",
-    device: isEn ? "Device" : "الجهاز",
+    device: scope === "EQUIPMENT" ? (isEn ? "Device" : "الجهاز") : (isEn ? "Job" : "العمل"),
     location: isEn ? "Location" : "الموقع",
     issue: isEn ? "Issue" : "المشكلة",
     sourceCol: isEn ? "Source" : "المصدر",
@@ -112,12 +124,15 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
     { value: "MAINTENANCE", label: isEn ? "Maintenance" : "الصيانة" },
   ];
 
+  // Equipment requests are one type (registered devices), so only "Other" gets a type filter
   const categoryOptions: { value: MaintenanceCategoryFilter; label: string }[] = [
-    { value: "ALL", label: t.allTypes },
-    ...(Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[]).map((k) => ({
-      value: k as MaintenanceCategoryFilter,
-      label: isEn ? CATEGORY_LABELS[k].en : CATEGORY_LABELS[k].ar,
-    })),
+    { value: "ALL_OTHER", label: t.allTypes },
+    ...(Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[])
+      .filter((k) => k !== "EQUIPMENT")
+      .map((k) => ({
+        value: k as MaintenanceCategoryFilter,
+        label: isEn ? CATEGORY_LABELS[k].en : CATEGORY_LABELS[k].ar,
+      })),
     { value: "UNCATEGORIZED", label: t.uncategorized },
   ];
 
@@ -184,7 +199,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 ${scope === "OTHER" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
           <label className="block">
             <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.branch}</span>
             <select value={filters.buildingId} onChange={(e) => updateFilter({ buildingId: e.target.value })} className={selectCls}>
@@ -206,12 +221,14 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
               {sourceOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
-          <label className="block">
-            <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.type}</span>
-            <select value={filters.category} onChange={(e) => updateFilter({ category: e.target.value as MaintenanceCategoryFilter })} className={selectCls}>
-              {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
+          {scope === "OTHER" && (
+            <label className="block">
+              <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.type}</span>
+              <select value={filters.category} onChange={(e) => updateFilter({ category: e.target.value as MaintenanceCategoryFilter })} className={selectCls}>
+                {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.arrivalFrom}</span>
             <input type="date" dir="ltr" value={filters.from} max={filters.to || undefined} onChange={(e) => updateFilter({ from: e.target.value })} className={selectCls} />

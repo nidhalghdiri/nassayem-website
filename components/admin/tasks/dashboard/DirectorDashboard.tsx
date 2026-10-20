@@ -2,12 +2,16 @@
 
 import React, { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CheckCircle2, AlertCircle, TrendingUp, CalendarDays, X, Clock, Activity, CheckSquare } from "lucide-react";
+import { Plus, CheckCircle2, AlertCircle, TrendingUp, X, Clock, Activity, CheckSquare } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import CreateTaskForm from "@/components/admin/tasks/CreateTaskForm";
 import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
 import MaintenanceTasksReport from "./supervisor/MaintenanceTasksReport";
+import OtherMaintenanceSummary from "./supervisor/OtherMaintenanceSummary";
+import EquipmentMaintenanceSummary from "./supervisor/EquipmentMaintenanceSummary";
+import DashboardSectionTabs, { useDashboardSection } from "./DashboardSectionTabs";
+import EquipmentListTab from "./EquipmentListTab";
 import EmployeeOfTheWeekReport from "../reports/EmployeeOfTheWeekReport";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
@@ -72,6 +76,7 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
   // Task details panel (opened from the maintenance report) + report reload after changes
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [reportKey, setReportKey] = useState(0);
+  const [section, setSection] = useDashboardSection();
 
   const closeTaskPanel = useCallback(() => {
     setOpenTaskId(null);
@@ -126,9 +131,6 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
 
   // Translations
   const t = {
-    systemName: isEn ? "Nassayem Staff" : "نسائم صلالة",
-    systemDesc: isEn ? "Maintenance Tracking System - Nassayem Staff" : "نظام متابعة الصيانة - موظفي نسائم",
-    todayDate: isEn ? new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString("ar-EG", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
     headerTitle: isEn ? "Assign New Task" : "إسناد مهمة جديدة لموظف",
     headerDesc: isEn ? "Your screen to manage daily affairs for cleaning and maintenance operations employees" : "شاشتك لإدارة الشؤون اليومية لموظفي قسم عمليات النظافة والصيانة",
     newTaskBtn: isEn ? "New Task" : "مهمة جديدة",
@@ -160,24 +162,6 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
     <div className="min-h-screen bg-slate-50/50 p-4 md:p-8 font-sans" dir={isEn ? "ltr" : "rtl"}>
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Top Navigation */}
-        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-nassayem text-white flex items-center justify-center rounded-full font-bold">
-              {isEn ? "N" : "ن"}
-            </div>
-            <div>
-              <p className="font-bold text-sm text-slate-800">{t.systemName}</p>
-              <p className="text-xs text-slate-500">{t.systemDesc}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 text-sm text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-            <CalendarDays className="w-4 h-4" />
-            <span>{t.todayDate}</span>
-          </div>
-        </div>
-
         {/* Header Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
           <div>
@@ -196,163 +180,180 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div 
-            onClick={() => setModalType("ACTIVE")}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-nassayem/50 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-3 group-hover:scale-110 transition-transform">
-              <Activity className="w-5 h-5" />
-            </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">{t.activeTasks}</p>
-            <p className="text-3xl font-bold text-slate-800">{stats.active}</p>
-          </div>
+        <DashboardSectionTabs isEn={isEn} section={section} onChange={setSection} />
+
+        {section === "equipment" && (
+          <>
+            <EquipmentMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+            <MaintenanceTasksReport scope="EQUIPMENT" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+          </>
+        )}
+
+        {section === "devices" && <EquipmentListTab locale={locale} />}
+
+        {section === "other" && (
+          <>
+            <OtherMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+            <MaintenanceTasksReport scope="OTHER" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
+          </>
+        )}
+
+        {section === "tasks" && (
+          <>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div 
+                onClick={() => setModalType("ACTIVE")}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-nassayem/50 hover:shadow-md transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-3 group-hover:scale-110 transition-transform">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 mb-1">{t.activeTasks}</p>
+                <p className="text-3xl font-bold text-slate-800">{stats.active}</p>
+              </div>
           
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mb-3">
-              <Clock className="w-5 h-5" />
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mb-3">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 mb-1">{t.timeAdherence}</p>
+                <p className="text-3xl font-bold text-emerald-600">{stats.timeAdherence}%</p>
+              </div>
+
+              <div 
+                onClick={() => setModalType("DELAYED")}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-red-300 hover:shadow-md transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 mb-3 group-hover:scale-110 transition-transform">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 mb-1">{t.delayedTasks}</p>
+                <p className="text-3xl font-bold text-red-500">{stats.delayed}</p>
+              </div>
+
+              <div 
+                onClick={() => setModalType("WAITING_AUDIT")}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-orange-300 hover:shadow-md transition-all group"
+              >
+                <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 mb-3 group-hover:scale-110 transition-transform">
+                  <CheckSquare className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 mb-1">{t.waitingAudit}</p>
+                <p className="text-3xl font-bold text-orange-500">{stats.waitingAudit}</p>
+              </div>
             </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">{t.timeAdherence}</p>
-            <p className="text-3xl font-bold text-emerald-600">{stats.timeAdherence}%</p>
-          </div>
 
-          <div 
-            onClick={() => setModalType("DELAYED")}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-red-300 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 mb-3 group-hover:scale-110 transition-transform">
-              <AlertCircle className="w-5 h-5" />
+            {/* Trend Chart Area */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-base font-bold text-slate-800">{t.trendTitle}</h2>
+                <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md">{isEn ? "Last 14 Days" : "آخر 14 يوماً"}</span>
+              </div>
+              <div className="h-64 w-full" dir="ltr">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0f766e" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#0f766e" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                    <YAxis hide />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      labelStyle={{ fontWeight: 'bold', color: '#334155' }}
+                    />
+                    <Area type="monotone" dataKey="count" stroke="#0f766e" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">{t.delayedTasks}</p>
-            <p className="text-3xl font-bold text-red-500">{stats.delayed}</p>
-          </div>
 
-          <div 
-            onClick={() => setModalType("WAITING_AUDIT")}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center cursor-pointer hover:border-orange-300 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 mb-3 group-hover:scale-110 transition-transform">
-              <CheckSquare className="w-5 h-5" />
-            </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">{t.waitingAudit}</p>
-            <p className="text-3xl font-bold text-orange-500">{stats.waitingAudit}</p>
-          </div>
-        </div>
-
-        {/* Trend Chart Area */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-base font-bold text-slate-800">{t.trendTitle}</h2>
-            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md">{isEn ? "Last 14 Days" : "آخر 14 يوماً"}</span>
-          </div>
-          <div className="h-64 w-full" dir="ltr">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0f766e" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#0f766e" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                <YAxis hide />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  labelStyle={{ fontWeight: 'bold', color: '#334155' }}
-                />
-                <Area type="monotone" dataKey="count" stroke="#0f766e" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Middle Section: Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Middle Section: Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Building Performance Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <h2 className="text-base font-bold text-slate-800 mb-6">{t.buildingPerf}</h2>
-            <div className="space-y-6">
-              {buildingPerformance.length > 0 ? (
-                buildingPerformance.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 text-sm">
-                    <span className="w-24 font-medium text-slate-700 truncate" title={isEn ? item.labelEn : item.labelAr}>
-                      {isEn ? item.labelEn : item.labelAr}
-                    </span>
-                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden relative">
-                      <div
-                        className={`absolute top-0 bottom-0 ${isEn ? "left-0" : "right-0"} rounded-full ${item.color}`}
-                        style={{ width: `${item.val}%` }}
-                      />
+              {/* Building Performance Chart */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <h2 className="text-base font-bold text-slate-800 mb-6">{t.buildingPerf}</h2>
+                <div className="space-y-6">
+                  {buildingPerformance.length > 0 ? (
+                    buildingPerformance.map((item) => (
+                      <div key={item.id} className="flex items-center gap-4 text-sm">
+                        <span className="w-24 font-medium text-slate-700 truncate" title={isEn ? item.labelEn : item.labelAr}>
+                          {isEn ? item.labelEn : item.labelAr}
+                        </span>
+                        <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden relative">
+                          <div
+                            className={`absolute top-0 bottom-0 ${isEn ? "left-0" : "right-0"} rounded-full ${item.color}`}
+                            style={{ width: `${item.val}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-end font-bold text-slate-600">{item.val}%</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-slate-500 text-sm">
+                      {isEn ? "No completed tasks in the last 30 days." : "لا توجد مهام منجزة في آخر 30 يوماً."}
                     </div>
-                    <span className="w-8 text-end font-bold text-slate-600">{item.val}%</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-500 text-sm">
-                  {isEn ? "No completed tasks in the last 30 days." : "لا توجد مهام منجزة في آخر 30 يوماً."}
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Nomination Criteria Report */}
+              <NominationCriteriaReport employees={topEmployees} locale={locale} />
             </div>
-          </div>
 
-          {/* Nomination Criteria Report */}
-          <NominationCriteriaReport employees={topEmployees} locale={locale} />
-        </div>
-
-        {/* Building Audit Status (حالة الوحدات - الجدول) */}
-        <div className="mt-8">
-          <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
-        </div>
-
-        {/* Maintenance tasks report */}
-        <div className="mt-8">
-          <MaintenanceTasksReport isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
-        </div>
-
-        {/* Units Grid & Timeline (حالة الوحدات - الشبكة) */}
-        <div className="mt-8">
-          <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
-        </div>
-
-        {/* Employee of the Week Detailed Report */}
-        <div className="mt-8 -mx-4 md:-mx-8">
-          <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} locale={locale} />
-        </div>
-
-        {/* Employee Daily Notebook (Added here) */}
-        <div className="mt-8">
-          <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
-        </div>
-
-        {/* Bottom Section: Notes & Alerts */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RecentSupervisorNotes notes={recentNotes} locale={locale} />
-
-          {/* Alerts Feed */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <h2 className="text-base font-bold text-slate-800 mb-4">{t.alertsTitle}</h2>
-            <div className="space-y-3">
-              {alerts.length > 0 ? alerts.map((alert) => (
-                <div key={alert.id} className={`border p-3 rounded-xl flex items-start gap-3 ${alert.severity === 'high' ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
-                  <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${alert.severity === 'high' ? 'text-red-600' : 'text-orange-600'}`} />
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{isEn ? alert.textEn : alert.textAr}</p>
-                    <p className="text-xs text-slate-500 mt-1">{isEn ? "Alert" : "تنبيه"}</p>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-slate-500 text-sm">
-                  {isEn ? "No alerts at this time." : "لا توجد تنبيهات في الوقت الحالي."}
-                </div>
-              )}
+            {/* Building Audit Status (حالة الوحدات - الجدول) */}
+            <div className="mt-8">
+              <LastAuditPerBuilding data={buildingAuditStatus} locale={locale} />
             </div>
-          </div>
-        </div>
+
+            {/* Units Grid & Timeline (حالة الوحدات - الشبكة) */}
+            <div className="mt-8">
+              <UnitsStatusSection isEn={isEn} units={unitsStatus} timeline={readinessTimeline} />
+            </div>
+
+            {/* Employee of the Week Detailed Report */}
+            <div className="mt-8 -mx-4 md:-mx-8">
+              <EmployeeOfTheWeekReport employees={topEmployees} lastWeekEmployees={lastWeekEmployees} locale={locale} />
+            </div>
+
+            {/* Employee Daily Notebook (Added here) */}
+            <div className="mt-8">
+              <EmployeeDailyNotebook locale={locale} todaysNotes={todaysEmployeeNotes} assignableStaff={assignableStaff} />
+            </div>
+
+            {/* Bottom Section: Notes & Alerts */}
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RecentSupervisorNotes notes={recentNotes} locale={locale} />
+
+              {/* Alerts Feed */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <h2 className="text-base font-bold text-slate-800 mb-4">{t.alertsTitle}</h2>
+                <div className="space-y-3">
+                  {alerts.length > 0 ? alerts.map((alert) => (
+                    <div key={alert.id} className={`border p-3 rounded-xl flex items-start gap-3 ${alert.severity === 'high' ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                      <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${alert.severity === 'high' ? 'text-red-600' : 'text-orange-600'}`} />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{isEn ? alert.textEn : alert.textAr}</p>
+                        <p className="text-xs text-slate-500 mt-1">{isEn ? "Alert" : "تنبيه"}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-6 text-slate-500 text-sm">
+                      {isEn ? "No alerts at this time." : "لا توجد تنبيهات في الوقت الحالي."}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      
+
       {/* Task details (slide-over) */}
       <TaskDetailPanel
         locale={locale}

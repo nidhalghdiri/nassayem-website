@@ -60,7 +60,8 @@ export type BranchMaintenanceData = {
   closed: ClosedMaintenanceRequest[];
 };
 
-function parseRatingNote(text: string | undefined): { rating: number | null; comment: string | null } {
+/** "★4 - comment" → 4 + the comment (the default approval texts count as no comment). */
+export function parseRatingNote(text: string | undefined): { rating: number | null; comment: string | null } {
   if (!text) return { rating: null, comment: null };
   const m = text.match(/^★\s*(\d+)\s*(?:-\s*)?([\s\S]*)$/);
   if (!m) return { rating: null, comment: null };

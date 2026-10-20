@@ -28,17 +28,19 @@ type NavItem = {
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions, WhatsApp Log, and the per-role
 //                Tasks dashboards: Supervisor / Receptionist / Worker / Maintenance)
-// SUPERVISOR   : Tasks, Tasks List, Maintenance, Laundry
+// SUPERVISOR   : Tasks, Tasks List, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
-// MAINTENANCE  : Dashboard, Tasks, Tasks List, Maintenance
+// MAINTENANCE  : Dashboard, Tasks, Tasks List
 // LAUNDRY      : Dashboard, Laundry
+// The equipment list is a tab on the Manager / Supervisor / Maintenance Tasks
+// dashboards (the /admin/maintenance pages still work for direct links).
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "maintenance", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
-  SUPERVISOR:   ["tasks", "tasksList", "maintenance", "laundry"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  SUPERVISOR:   ["tasks", "tasksList", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
-  MAINTENANCE:  ["dashboard", "tasks", "tasksList", "maintenance"],
+  MAINTENANCE:  ["dashboard", "tasks", "tasksList"],
   LAUNDRY:      ["dashboard", "laundry"],
 };
 
@@ -166,14 +168,6 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       exact: false,
       sub: true,
       icon: "M4 6h16M4 10h16M4 14h16M4 18h16",
-    },
-    {
-      key: "maintenance",
-      nameEn: "Maintenance",
-      nameAr: "الصيانة",
-      href: `/${locale}/admin/maintenance/equipment`,
-      exact: false,
-      icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
     },
     {
       key: "laundry",

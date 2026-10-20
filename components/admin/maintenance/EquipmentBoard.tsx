@@ -13,6 +13,10 @@ type Props = {
   buildings: any[];
   locale: string;
   currentUserRole: string;
+  /** Shown inside a dashboard tab: no page padding / width of its own. */
+  embedded?: boolean;
+  /** Called after a device or type was added or edited, so an embedded list can reload. */
+  onChanged?: () => void;
 };
 
 export default function EquipmentBoard({
@@ -21,6 +25,8 @@ export default function EquipmentBoard({
   buildings,
   locale,
   currentUserRole,
+  embedded = false,
+  onChanged,
 }: Props) {
   const isEn = locale === "en";
   const [search, setSearch] = useState("");
@@ -67,6 +73,7 @@ export default function EquipmentBoard({
       setNewTypeNameAr("");
       setNewTypeNameEn("");
       setIsTypesModalOpen(false);
+      onChanged?.();
     } catch (err) {
       alert(isEn ? "Failed to add type" : "حدث خطأ أثناء إضافة النوع");
     } finally {
@@ -89,6 +96,7 @@ export default function EquipmentBoard({
       });
       setIsAddModalOpen(false);
       setAddForm({ qrCode: "", buildingId: "", unitNumber: "", typeId: "", brandModel: "" });
+      onChanged?.();
       alert(isEn ? "Equipment added successfully!" : "تمت إضافة الجهاز بنجاح!");
       // Note: Revalidation handles refreshing the list
     } catch (err) {
@@ -105,7 +113,7 @@ export default function EquipmentBoard({
       buildingId: eq.buildingId,
       unitNumber: eq.unitNumber || "",
       typeId: eq.typeId,
-      brandModel: eq.brandModel,
+      brandModel: eq.brandModel ?? "",
       status: eq.status,
     });
   };
@@ -125,6 +133,7 @@ export default function EquipmentBoard({
         status: editForm.status as any,
       });
       setEditingEq(null);
+      onChanged?.();
       alert(isEn ? "Equipment updated successfully!" : "تم تحديث الجهاز بنجاح!");
     } catch (err) {
       alert(isEn ? "Failed to update equipment." : "فشل التحديث.");
@@ -134,7 +143,7 @@ export default function EquipmentBoard({
   };
 
   const filteredEquipments = equipments.filter((eq) => {
-    if (search && !eq.qrCode.includes(search) && !eq.brandModel.toLowerCase().includes(search.toLowerCase())) {
+    if (search && !eq.qrCode.includes(search) && !(eq.brandModel ?? "").toLowerCase().includes(search.toLowerCase())) {
       return false;
     }
     if (statusFilter && eq.status !== statusFilter) return false;
@@ -178,7 +187,7 @@ export default function EquipmentBoard({
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6"}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

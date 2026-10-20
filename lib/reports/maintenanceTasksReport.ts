@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { AUDITED_STATUSES, getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
 import { analyzeTimeline, TIMELINE_ACTIONS } from "./taskTimeline";
-import { CATEGORY_LABELS, isCategoryKey } from "@/lib/maintenance/categories";
+import { CATEGORY_LABELS, EQUIPMENT_CATEGORY, isCategoryKey } from "@/lib/maintenance/categories";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Supervisor dashboard — "Maintenance tasks" report: every maintenance request
@@ -23,9 +23,48 @@ export type MaintenanceStatusFilter = (typeof STATUS_FILTERS)[number];
 export const SOURCE_FILTERS = ["ALL", "RECEPTIONIST", "SUPERVISOR", "MANAGER", "HOUSEKEEPING", "MAINTENANCE"] as const;
 export type MaintenanceSourceFilter = (typeof SOURCE_FILTERS)[number];
 
-/** ALL = no filter · UNCATEGORIZED = older requests made before categories existed · otherwise a category key */
-export const CATEGORY_FILTERS = ["ALL", ...Object.keys(CATEGORY_LABELS), "UNCATEGORIZED"] as const;
+/**
+ * ALL = no filter ·
+ * ALL_EQUIPMENT = requests linked to a registered device ·
+ * ALL_OTHER = every other maintenance request ·
+ * UNCATEGORIZED = older requests made before categories existed, not linked to a device ·
+ * otherwise a category key
+ */
+export const CATEGORY_FILTERS = ["ALL", "ALL_EQUIPMENT", "ALL_OTHER", ...Object.keys(CATEGORY_LABELS), "UNCATEGORIZED"] as const;
 export type MaintenanceCategoryFilter = (typeof CATEGORY_FILTERS)[number];
+
+/** Category keys of the "Other maintenance" path (everything but equipment). */
+export const OTHER_CATEGORY_KEYS = Object.keys(CATEGORY_LABELS).filter((k) => k !== EQUIPMENT_CATEGORY);
+
+/**
+ * Older requests (no category) whose title ends with a registered device's QR code
+ * ("مكيف سبليت — HS-310-AC-01"). Most older requests are general work
+ * ("Change shower set(m04)"), so only these count as equipment maintenance.
+ */
+async function deviceLinkedOlderTaskIds(): Promise<string[]> {
+  const [older, devices] = await Promise.all([
+    prisma.task.findMany({ where: { type: "MAINTENANCE", category: null }, select: { id: true, title: true } }),
+    prisma.equipment.findMany({ select: { qrCode: true } }),
+  ]);
+  const codes = new Set(devices.map((d) => d.qrCode));
+  return older.filter((t) => {
+    const code = splitDevice(t.title).code;
+    return code !== null && codes.has(code);
+  }).map((t) => t.id);
+}
+
+export async function categoryWhere(category: MaintenanceCategoryFilter): Promise<Prisma.TaskWhereInput> {
+  switch (category) {
+    case "ALL": return {};
+    case "ALL_EQUIPMENT":
+      return { OR: [{ category: EQUIPMENT_CATEGORY }, { id: { in: await deviceLinkedOlderTaskIds() } }] };
+    case "ALL_OTHER":
+      return { OR: [{ category: { in: OTHER_CATEGORY_KEYS } }, { category: null, id: { notIn: await deviceLinkedOlderTaskIds() } }] };
+    case "UNCATEGORIZED":
+      return { category: null, id: { notIn: await deviceLinkedOlderTaskIds() } };
+    default: return { category };
+  }
+}
 
 export type MaintenanceReportFilters = {
   buildingId?: string;
@@ -128,8 +167,7 @@ export async function getMaintenanceTasksReport(
   if (scopeBuildingIds) and.push({ buildingId: { in: scopeBuildingIds } });
   if (filters.buildingId) and.push({ buildingId: filters.buildingId });
   if (filters.source !== "ALL") and.push({ createdBy: { role: filters.source } });
-  if (filters.category === "UNCATEGORIZED") and.push({ category: null });
-  else if (filters.category !== "ALL") and.push({ category: filters.category });
+  and.push(await categoryWhere(filters.category));
   if (filters.from) and.push({ createdAt: { gte: new Date(`${filters.from}T00:00:00+04:00`) } });
   if (filters.to) and.push({ createdAt: { lte: new Date(`${filters.to}T23:59:59.999+04:00`) } });
   const where: Prisma.TaskWhereInput = { AND: and };
