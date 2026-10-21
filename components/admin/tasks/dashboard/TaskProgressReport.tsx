@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AlertCircle, ChevronDown, Loader2, RotateCcw, Search, Users, X } from "lucide-react";
-import { getTaskProgress } from "@/app/actions/taskProgress";
+import { Activity, AlertCircle, ChevronDown, ListChecks, Loader2, RotateCcw, Search, Users, X } from "lucide-react";
+import { getTaskProgress, getTotalTasks } from "@/app/actions/taskProgress";
 import type { TaskProgressResult } from "@/lib/reports/taskProgress";
+import type { DashboardTask } from "@/lib/reports/receptionistDashboard";
 import { STAFF_ROLE_CONFIG, type TStaffRole } from "@/lib/tasks/constants";
 import TaskListModal from "./receptionist/TaskListModal";
 
@@ -17,9 +18,14 @@ type Props = {
   refreshKey: number;
 };
 
+type CardKey = "total" | "inProgress" | "overdue";
+
 const staffName = (u: StaffUser) => u.name || u.email.split("@")[0];
 
-/** Manager dashboard: tasks in progress now and overdue tasks, by employee and assignment date. */
+/**
+ * Manager dashboard: total tasks (by employee and assignment date), and tasks in
+ * progress now / overdue (by employee, live).
+ */
 export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey }: Props) {
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [from, setFrom] = useState("");
@@ -27,7 +33,11 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
   const [data, setData] = useState<TaskProgressResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [openList, setOpenList] = useState<"inProgress" | "overdue" | null>(null);
+  const [openList, setOpenList] = useState<CardKey | null>(null);
+  /** The total list is loaded when its card is opened (it can be long) */
+  const [totalList, setTotalList] = useState<DashboardTask[] | null>(null);
+  const [loadingTotal, setLoadingTotal] = useState(false);
+  const [totalFailed, setTotalFailed] = useState(false);
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -43,14 +53,42 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  async function openCard(key: CardKey) {
+    if (key !== "total") return setOpenList(key);
+    setLoadingTotal(true);
+    setTotalFailed(false);
+    const res = await getTotalTasks({ assigneeIds, from: from || undefined, to: to || undefined });
+    setLoadingTotal(false);
+    if (!res.ok) return setTotalFailed(true);
+    setTotalList(res.data);
+    setOpenList("total");
+  }
+
   const isFiltered = assigneeIds.length > 0 || from !== "" || to !== "";
+  const hasDates = from !== "" || to !== "";
+  const live = isEn ? "Live — not affected by the dates" : "وقتي — لا يتأثر بالتاريخ";
   const dateCls = "w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem";
 
-  const cards = [
+  const cards: {
+    key: CardKey; label: string; hint: string; count: number | undefined;
+    icon: React.ReactNode; bubble: string; valueCls: string; hover: string;
+  }[] = [
     {
-      key: "inProgress" as const,
+      key: "total",
+      label: isEn ? "Total tasks" : "إجمالي المهام",
+      hint: hasDates
+        ? isEn ? "Assigned in the chosen dates" : "المُسندة في الفترة المحددة"
+        : isEn ? "All assigned tasks" : "كل المهام المُسندة",
+      count: data?.totalCount,
+      icon: <ListChecks className="w-5 h-5" />,
+      bubble: "bg-slate-100 text-slate-600",
+      valueCls: "text-slate-900",
+      hover: "hover:border-nassayem/40",
+    },
+    {
+      key: "inProgress",
       label: isEn ? "Tasks in progress now" : "المهام قيد الإنجاز حالياً",
-      hint: isEn ? "Work started, not finished" : "بدأ العمل ولم ينتهِ",
+      hint: `${isEn ? "Work started, not finished" : "بدأ العمل ولم ينتهِ"} · ${live}`,
       count: data?.inProgress.length,
       icon: <Activity className="w-5 h-5" />,
       bubble: "bg-blue-50 text-blue-600",
@@ -58,9 +96,9 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
       hover: "hover:border-blue-300",
     },
     {
-      key: "overdue" as const,
+      key: "overdue",
       label: isEn ? "Overdue tasks" : "المهام المتأخرة",
-      hint: isEn ? "Not finished and past the due time" : "لم تكتمل وتجاوزت موعد التسليم",
+      hint: `${isEn ? "Not finished and past the due time" : "لم تكتمل وتجاوزت موعد التسليم"} · ${live}`,
       count: data?.overdue.length,
       icon: <AlertCircle className="w-5 h-5" />,
       bubble: "bg-red-50 text-red-600",
@@ -109,16 +147,18 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
           <button type="button" onClick={load} className="font-bold text-nassayem hover:underline">{isEn ? "Try again" : "إعادة المحاولة"}</button>
         </div>
       ) : (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity ${loading && data ? "opacity-60" : ""}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 transition-opacity ${loading && data ? "opacity-60" : ""}`}>
           {cards.map((c) => (
             <button
               key={c.key}
               type="button"
-              disabled={!data}
-              onClick={() => setOpenList(c.key)}
+              disabled={!data || loadingTotal}
+              onClick={() => openCard(c.key)}
               className={`text-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 transition-all hover:shadow-md ${c.hover} disabled:cursor-wait`}
             >
-              <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>{c.icon}</span>
+              <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>
+                {c.key === "total" && loadingTotal ? <Loader2 className="w-5 h-5 animate-spin" /> : c.icon}
+              </span>
               <span className="min-w-0">
                 <span className={`block text-3xl font-black leading-none tabular-nums ${c.valueCls}`}>
                   {c.count ?? <Loader2 className="w-6 h-6 animate-spin text-slate-300" />}
@@ -131,12 +171,18 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
         </div>
       )}
 
+      {totalFailed && (
+        <p role="alert" className="text-sm text-red-600">
+          {isEn ? "Could not load the task list. Please try again." : "تعذّر تحميل قائمة المهام. يرجى المحاولة مجدداً."}
+        </p>
+      )}
+
       {openList && data && (
         <TaskListModal
           isEn={isEn}
           title={cards.find((c) => c.key === openList)!.label}
-          accentClass={openList === "overdue" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}
-          tasks={data[openList]}
+          accentClass={cards.find((c) => c.key === openList)!.bubble}
+          tasks={openList === "total" ? totalList ?? [] : data[openList]}
           onClose={() => setOpenList(null)}
           onOpenTask={onOpenTask}
         />
