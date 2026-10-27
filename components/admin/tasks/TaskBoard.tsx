@@ -5,7 +5,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import TaskKanbanView from "./TaskKanbanView";
 import TaskListView from "./TaskListView";
 import TaskDetailPanel from "./TaskDetailPanel";
-import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
+import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, type TStaffRole } from "@/lib/tasks/constants";
+import { canCreateTasks, canOpenCreateTask } from "@/lib/tasks/permissions";
 import type { SerializedTask, Building, StaffUser } from "./types";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -368,7 +369,7 @@ export default function TaskBoard({
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
               </button>
             </div>
-            {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST") && (
+            {canCreateTasks(currentUserRole as TStaffRole) && (
               <button onClick={() => router.push(`/${locale}/admin/tasks/bulk`)} className="flex items-center gap-1.5 px-3 py-2 border border-nassayem/40 text-nassayem rounded-lg text-sm font-medium hover:bg-nassayem/5 transition-colors">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -376,7 +377,7 @@ export default function TaskBoard({
                 <span className="hidden sm:inline">{isEn ? "Bulk Add" : "إضافة متعددة"}</span>
               </button>
             )}
-            {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR" || currentUserRole === "RECEPTIONIST" || currentUserRole === "MAINTENANCE") && (
+            {canOpenCreateTask(currentUserRole as TStaffRole) && (
               <button onClick={() => router.push(`/${locale}/admin/tasks/new`)} className="flex items-center gap-1.5 bg-nassayem text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-nassayem/90 transition-colors">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />

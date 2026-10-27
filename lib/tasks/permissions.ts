@@ -25,10 +25,12 @@ export function canCreateTasks(role: TStaffRole): boolean {
 
 /**
  * Can this role create tasks ONLY for themselves (cannot assign to others)?
- * MAINTENANCE staff may self-assign work but never pick another assignee.
+ * Every staff role may log their own work; only the roles in canCreateTasks()
+ * may pick a different assignee. LAUNDRY is excluded — laundry staff work from
+ * laundry orders, not tasks.
  */
 export function canCreateSelfTasks(role: TStaffRole): boolean {
-  return role === "MAINTENANCE";
+  return role !== "LAUNDRY";
 }
 
 /** Can this role open the create-task form at all (self or others)? */
