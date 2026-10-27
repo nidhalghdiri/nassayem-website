@@ -20,6 +20,18 @@ const REVIEW_ACTIONS = ["approved", "rejected", "approved_receptionist", "reject
 const DAY_MS = 24 * 60 * 60 * 1000;
 const mins = (ms: number) => Math.max(0, Math.round(ms / 60000));
 
+export type TaskEquipment = {
+  id: string;
+  qrCode: string;
+  typeNameEn: string | null;
+  typeNameAr: string;
+  brandModel: string | null;
+  status: string;
+  unitNumber: string | null;
+  /** How many visits the device has had in total. */
+  visitCount: number;
+};
+
 export type MaintenanceTask = {
   id: string;
   requestNumber: number;
@@ -50,6 +62,12 @@ export type MaintenanceTask = {
   workMins: number | null;
   /** Total time spent on hold (incl. the current hold). */
   holdMins: number;
+  /**
+   * The registered device this request is about, when it can be resolved from
+   * the request title ("مكيف سبليت — HS-310-AC-01"). Null for work that is not
+   * about a specific device.
+   */
+  equipment: TaskEquipment | null;
   /** Set while the task is on hold. */
   holdSince: Date | null;
   holdReason: string | null;
@@ -118,6 +136,30 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
     }),
   ]);
 
+  // Tasks carry no equipmentId, so the device is resolved from the request
+  // title's trailing code ("مكيف سبليت — HS-310-AC-01"). The candidate is taken
+  // as the raw tail and confirmed against the registered codes, rather than
+  // relying on splitDevice's shape test — a handful of real QR codes are bare
+  // numbers with no hyphen, which that test rejects. Confirming against the
+  // table keeps free-text titles ("أثاث ونجارة — إصلاح كنبة") from matching.
+  const codesInTitles = new Map<string, string>(); // taskId -> candidate code
+  for (const t of tasks) {
+    const idx = t.title.lastIndexOf(" — ");
+    const tail = idx > 0 ? t.title.slice(idx + 3).trim() : null;
+    if (tail) codesInTitles.set(t.id, tail);
+  }
+  const devices = codesInTitles.size > 0
+    ? await prisma.equipment.findMany({
+        where: { qrCode: { in: [...new Set(codesInTitles.values())] } },
+        select: {
+          id: true, qrCode: true, brandModel: true, status: true, unitNumber: true,
+          type: { select: { nameEn: true, nameAr: true } },
+          _count: { select: { visits: true } },
+        },
+      })
+    : [];
+  const deviceByCode = new Map(devices.map((d) => [d.qrCode, d]));
+
   const openTasks: MaintenanceTask[] = [];
   const logTasks: MaintenanceTask[] = [];
   const arrivalSamples: number[] = [];
@@ -176,6 +218,22 @@ export async function getMaintenanceDashboardData(technicianId: string): Promise
       holdSince,
       holdReason,
       completedAt: isTerminal ? (completedAt ?? t.updatedAt) : null,
+      equipment: (() => {
+        const code = codesInTitles.get(t.id);
+        const d = code ? deviceByCode.get(code) : undefined;
+        return d
+          ? {
+              id: d.id,
+              qrCode: d.qrCode,
+              typeNameEn: d.type.nameEn,
+              typeNameAr: d.type.nameAr,
+              brandModel: d.brandModel,
+              status: d.status,
+              unitNumber: d.unitNumber,
+              visitCount: d._count.visits,
+            }
+          : null;
+      })(),
       // Only audited statuses (cleaning / maintenance completed) have a review state. A
       // task back in a completed status after a rejection was redone → pending again.
       review: !isTerminal || !AUDITED_STATUSES.includes(t.status as never)

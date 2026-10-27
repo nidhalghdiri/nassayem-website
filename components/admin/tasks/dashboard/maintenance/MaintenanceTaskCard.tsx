@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   MapPin, UserRound, AlertTriangle, Clock, PlayCircle, Wrench, PackageX,
   Play, CheckCircle2, Pause, Loader2, ClipboardCheck, Image as ImageIcon, CalendarClock,
+  MonitorSmartphone, ChevronRight,
 } from "lucide-react";
 import type { MaintenanceTask } from "@/lib/reports/maintenanceDashboard";
 import { STAFF_ROLE_CONFIG, TASK_TYPE_CONFIG } from "@/lib/tasks/constants";
@@ -42,6 +44,24 @@ type Props = {
   /** When set, active tasks show a "Reschedule" link next to their due time. */
   onReschedule?: (task: MaintenanceTask) => void;
 };
+
+/** Device condition shown on the linked-equipment row. */
+const EQ_STATUS_CLS: Record<string, string> = {
+  GOOD: "bg-emerald-50 text-emerald-700",
+  NEEDS_REPAIR: "bg-red-50 text-red-700",
+  NEEDS_REPLACEMENT: "bg-orange-50 text-orange-700",
+  OUT_OF_SERVICE: "bg-slate-200 text-slate-600",
+};
+const EQ_STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  GOOD: { en: "Good", ar: "جيدة" },
+  NEEDS_REPAIR: { en: "Needs repair", ar: "يحتاج صيانة" },
+  NEEDS_REPLACEMENT: { en: "Needs replacement", ar: "يحتاج استبدال" },
+  OUT_OF_SERVICE: { en: "Out of service", ar: "خارج الخدمة" },
+};
+function eqStatusLabel(status: string, isEn: boolean): string {
+  const l = EQ_STATUS_LABELS[status];
+  return l ? (isEn ? l.en : l.ar) : status;
+}
 
 export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, onAdvance, onPause, onOpenTask, onReschedule }: Props) {
   const t = {
@@ -148,6 +168,36 @@ export default function MaintenanceTaskCard({ task, isEn, locale, busy, error, o
             {t.from}: <span className="font-semibold text-slate-800">{task.createdByName}</span>
             {role && <span className="text-xs text-slate-400">({isEn ? role.labelEn : role.labelAr})</span>}
           </span>
+        </div>
+
+        {/* The registered device this request is about, when there is one */}
+        {task.equipment && (
+          <Link
+            href={`/${locale}/admin/maintenance/equipment/${task.equipment.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-white hover:border-nassayem/40 transition-colors group/eq"
+          >
+            <MonitorSmartphone className="w-4 h-4 text-nassayem shrink-0" />
+            <span className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-bold text-slate-800">
+                {(isEn ? task.equipment.typeNameEn || task.equipment.typeNameAr : task.equipment.typeNameAr)}
+              </span>
+              {task.equipment.brandModel && (
+                <span className="text-xs text-slate-500">{task.equipment.brandModel}</span>
+              )}
+              <span className="font-mono text-xs font-bold text-slate-600" dir="ltr">{task.equipment.qrCode}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${EQ_STATUS_CLS[task.equipment.status] ?? "bg-slate-100 text-slate-600"}`}>
+                {eqStatusLabel(task.equipment.status, isEn)}
+              </span>
+              <span className="text-[11px] text-slate-400">
+                {task.equipment.visitCount} {isEn ? "visits" : "زيارة"}
+              </span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 group-hover/eq:text-nassayem" />
+          </Link>
+        )}
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-600">
         </div>
 
         {task.description && (
