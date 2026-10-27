@@ -173,18 +173,25 @@ export async function getEmployeeRanking(days: number = 7, offsetDays: number = 
       }
     }
 
+    // Quality is earned, never assumed: an unrated task scores nothing here, so
+    // the 20 points reflect the supervisor's actual ratings. Only the share of
+    // work that was rated counts towards the score, which also stops unaudited
+    // work from diluting (or inflating) the average.
     let qualityScore = 0;
-    let averageStars = 5; // Default to 5 if no tasks are audited yet
+    let averageStars: number | null = null;
     if (starRatedTasksCount > 0) {
       averageStars = totalStars / starRatedTasksCount;
+      const ratedShare = taskCount > 0 ? Math.min(1, starRatedTasksCount / taskCount) : 1;
+      qualityScore = (averageStars / 5) * 20 * ratedShare;
     }
-
-    if (taskCount > 0) {
-      qualityScore = (averageStars / 5) * 20;
-    } else {
-      qualityScore = 20; // Base score if no tasks
-    }
-    const qualityNote = `★${averageStars.toFixed(1)}`;
+    const qualityNote =
+      averageStars === null
+        ? taskCount > 0
+          ? `بانتظار التقييم (${taskCount})`
+          : "لا مهام منجزة"
+        : starRatedTasksCount < taskCount
+          ? `★${averageStars.toFixed(1)} (${starRatedTasksCount}/${taskCount} مُقيَّمة)`
+          : `★${averageStars.toFixed(1)}`;
 
     // 4. Documentation & Response (Max 10)
     // 5 points for photos on tasks, 5 points for fast response

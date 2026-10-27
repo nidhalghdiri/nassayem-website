@@ -45,6 +45,19 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // A supervisor's approval must carry a deliberate 1-5 quality rating: it feeds
+  // the "work quality" score in the employee-of-the-week report, so a silent
+  // default would make that score meaningless.
+  const isSupervisorApproval = action === "approved";
+  if (isSupervisorApproval) {
+    if (typeof rating !== "number" || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { error: "A work quality rating from 1 to 5 is required to approve a task." },
+        { status: 400 },
+      );
+    }
+  }
+
   // Create activity
   const activity = await prisma.taskActivity.create({
     data: {
@@ -56,17 +69,25 @@ export async function POST(request: Request, { params }: RouteContext) {
     include: { user: { select: { id: true, name: true, email: true } } },
   });
 
-  // If notes provided, add a task note
-  if (notes) {
-    let finalNote = notes;
-    if (rating) finalNote = `★${rating} - ${notes}`;
-    await prisma.taskNote.create({
-      data: {
-        taskId,
-        userId: adminUser.id,
-        text: finalNote,
-      }
-    });
+  // Store the rating and/or the note. The rating lives in the note text as
+  // "★n - ...", so it must be written even when no note was typed — otherwise
+  // the rating would be silently lost.
+  if (notes || rating) {
+    const trimmedNote = typeof notes === "string" ? notes.trim() : "";
+    const finalNote = rating
+      ? trimmedNote
+        ? `★${rating} - ${trimmedNote}`
+        : `★${rating}`
+      : trimmedNote;
+    if (finalNote) {
+      await prisma.taskNote.create({
+        data: {
+          taskId,
+          userId: adminUser.id,
+          text: finalNote,
+        }
+      });
+    }
   }
 
   // If newStatus is provided (e.g., rejecting sends it back to WORK_STARTED)
