@@ -12,6 +12,7 @@ import EquipmentMaintenanceSummary from "./supervisor/EquipmentMaintenanceSummar
 import DashboardSectionTabs, { useDashboardSection } from "./DashboardSectionTabs";
 import EquipmentListTab from "./EquipmentListTab";
 import TaskProgressReport from "./TaskProgressReport";
+import SizeReviewSection from "./SizeReviewSection";
 import EmployeeOfTheWeekReport from "../reports/EmployeeOfTheWeekReport";
 import type { LeaderboardEmployee } from "@/lib/reports/employeeRanking";
 import type { BuildingPerformance } from "@/lib/reports/buildingPerformance";
@@ -197,6 +198,7 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
 
         {section === "tasks" && (
           <>
+            <SizeReviewSection isEn={isEn} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div 
