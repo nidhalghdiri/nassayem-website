@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AlertCircle, ChevronDown, ListChecks, Loader2, RotateCcw, Search, Users, X } from "lucide-react";
+import { Activity, AlertCircle, ChevronDown, Download, ListChecks, Loader2, RotateCcw, Search, Users, X } from "lucide-react";
 import { getTaskProgress, getTotalTasks } from "@/app/actions/taskProgress";
 import type { TaskProgressResult } from "@/lib/reports/taskProgress";
 import type { DashboardTask } from "@/lib/reports/receptionistDashboard";
@@ -27,7 +27,7 @@ const staffName = (u: StaffUser) => u.name || u.email.split("@")[0];
  * progress now / overdue (by employee, live).
  */
 export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey }: Props) {
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeId, setAssigneeId] = useState<string>("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [data, setData] = useState<TaskProgressResult | null>(null);
@@ -44,12 +44,12 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
     const id = ++requestId.current;
     setLoading(true);
     setFailed(false);
-    const res = await getTaskProgress({ assigneeIds, from: from || undefined, to: to || undefined });
+    const res = await getTaskProgress({ assigneeIds: assigneeId ? [assigneeId] : [], from: from || undefined, to: to || undefined });
     if (id !== requestId.current) return;
     if (res.ok) setData(res.data);
     else setFailed(true);
     setLoading(false);
-  }, [assigneeIds, from, to]);
+  }, [assigneeId, from, to]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -57,14 +57,27 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
     if (key !== "total") return setOpenList(key);
     setLoadingTotal(true);
     setTotalFailed(false);
-    const res = await getTotalTasks({ assigneeIds, from: from || undefined, to: to || undefined });
+    const res = await getTotalTasks({ assigneeIds: assigneeId ? [assigneeId] : [], from: from || undefined, to: to || undefined });
     setLoadingTotal(false);
     if (!res.ok) return setTotalFailed(true);
     setTotalList(res.data);
     setOpenList("total");
   }
 
-  const isFiltered = assigneeIds.length > 0 || from !== "" || to !== "";
+  /** Export the card's own rows, honouring the current filters. */
+  const exportHref = (key: CardKey) => {
+    const q = new URLSearchParams();
+    q.set("card", key);
+    if (assigneeId) q.append("assignee", assigneeId);
+    // The live cards ignore the dates, exactly like the counts above.
+    if (key === "total") {
+      if (from) q.set("from", from);
+      if (to) q.set("to", to);
+    }
+    return `/api/admin/tasks/progress-export?${q.toString()}`;
+  };
+
+  const isFiltered = assigneeId !== "" || from !== "" || to !== "";
   const hasDates = from !== "" || to !== "";
   const live = isEn ? "Live — not affected by the dates" : "وقتي — لا يتأثر بالتاريخ";
   const dateCls = "w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem";
@@ -117,8 +130,8 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-3 items-end">
         <div>
-          <span className="block text-xs font-bold text-slate-500 mb-1.5">{isEn ? "Assigned employees" : "الموظفون المكلَّفون"}</span>
-          <EmployeeMultiSelect isEn={isEn} staff={staff} selected={assigneeIds} onChange={setAssigneeIds} />
+          <span className="block text-xs font-bold text-slate-500 mb-1.5">{isEn ? "Assigned employee" : "الموظف المكلَّف"}</span>
+          <EmployeeSelect isEn={isEn} staff={staff} selected={assigneeId} onChange={setAssigneeId} />
         </div>
         <label className="block">
           <span className="block text-xs font-bold text-slate-500 mb-1.5">{isEn ? "Assigned from" : "تاريخ الإسناد — من"}</span>
@@ -132,7 +145,7 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
       {isFiltered && (
         <button
           type="button"
-          onClick={() => { setAssigneeIds([]); setFrom(""); setTo(""); }}
+          onClick={() => { setAssigneeId(""); setFrom(""); setTo(""); }}
           className="-mt-2 flex items-center gap-1.5 text-xs font-bold text-nassayem hover:text-nassayem/80"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -149,24 +162,39 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
       ) : (
         <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 transition-opacity ${loading && data ? "opacity-60" : ""}`}>
           {cards.map((c) => (
-            <button
+            <div
               key={c.key}
-              type="button"
-              disabled={!data || loadingTotal}
-              onClick={() => openCard(c.key)}
-              className={`text-start bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 transition-all hover:shadow-md ${c.hover} disabled:cursor-wait`}
+              className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col transition-all hover:shadow-md ${c.hover}`}
             >
-              <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>
-                {c.key === "total" && loadingTotal ? <Loader2 className="w-5 h-5 animate-spin" /> : c.icon}
-              </span>
-              <span className="min-w-0">
-                <span className={`block text-3xl font-black leading-none tabular-nums ${c.valueCls}`}>
-                  {c.count ?? <Loader2 className="w-6 h-6 animate-spin text-slate-300" />}
+              <button
+                type="button"
+                disabled={!data || loadingTotal}
+                onClick={() => openCard(c.key)}
+                className="text-start p-5 flex items-center gap-4 disabled:cursor-wait"
+              >
+                <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>
+                  {c.key === "total" && loadingTotal ? <Loader2 className="w-5 h-5 animate-spin" /> : c.icon}
                 </span>
-                <span className="block text-sm font-bold text-slate-800 mt-2">{c.label}</span>
-                <span className="block text-xs text-slate-400 mt-0.5">{c.hint}</span>
-              </span>
-            </button>
+                <span className="min-w-0">
+                  <span className={`block text-3xl font-black leading-none tabular-nums ${c.valueCls}`}>
+                    {c.count ?? <Loader2 className="w-6 h-6 animate-spin text-slate-300" />}
+                  </span>
+                  <span className="block text-sm font-bold text-slate-800 mt-2">{c.label}</span>
+                  <span className="block text-xs text-slate-400 mt-0.5">{c.hint}</span>
+                </span>
+              </button>
+              {/* Export this card's tasks with every column from the database */}
+              <div className="px-5 pb-4 pt-0 mt-auto flex justify-end">
+                <a
+                  href={exportHref(c.key)}
+                  title={isEn ? "Export all task details to Excel" : "تصدير كل تفاصيل المهام إلى Excel"}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50 hover:border-nassayem/40 hover:text-nassayem transition-colors ${!c.count ? "pointer-events-none opacity-40" : ""}`}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {isEn ? "Export" : "تصدير"}
+                </a>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -191,8 +219,8 @@ export default function TaskProgressReport({ isEn, staff, onOpenTask, refreshKey
   );
 }
 
-/** Dropdown with a search box and a checkbox per employee; nothing selected = everyone. */
-function EmployeeMultiSelect({
+/** Dropdown with a search box; one employee at a time, nothing selected = everyone. */
+function EmployeeSelect({
   isEn,
   staff,
   selected,
@@ -200,8 +228,9 @@ function EmployeeMultiSelect({
 }: {
   isEn: boolean;
   staff: StaffUser[];
-  selected: string[];
-  onChange: (ids: string[]) => void;
+  /** "" = every employee */
+  selected: string;
+  onChange: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -226,19 +255,18 @@ function EmployeeMultiSelect({
     return q ? sorted.filter((u) => staffName(u).toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) : sorted;
   }, [sorted, query]);
 
-  const toggle = (id: string) =>
-    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  const pick = (id: string) => {
+    onChange(id);
+    setOpen(false);
+    setQuery("");
+  };
   const roleLabel = (role: string) => {
     const conf = STAFF_ROLE_CONFIG[role as TStaffRole];
     return conf ? (isEn ? conf.labelEn : conf.labelAr) : role;
   };
 
-  const summary =
-    selected.length === 0
-      ? isEn ? "All employees" : "كل الموظفين"
-      : selected.length === 1
-        ? staffName(staff.find((u) => u.id === selected[0]) ?? { id: "", name: null, email: "—", role: "" })
-        : isEn ? `${selected.length} employees` : `${selected.length} موظفين`;
+  const chosen = selected ? staff.find((u) => u.id === selected) : undefined;
+  const summary = chosen ? staffName(chosen) : isEn ? "All employees" : "كل الموظفين";
 
   return (
     <div ref={rootRef} className="relative">
@@ -251,13 +279,13 @@ function EmployeeMultiSelect({
       >
         <Users className="w-4 h-4 text-slate-400 shrink-0" />
         <span className="flex-1 text-start truncate">{summary}</span>
-        {selected.length > 0 && (
+        {selected !== "" && (
           <span
             role="button"
             tabIndex={0}
             aria-label={isEn ? "Clear" : "مسح"}
-            onClick={(e) => { e.stopPropagation(); onChange([]); }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange([]); } }}
+            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange(""); } }}
             className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
           >
             <X className="w-3.5 h-3.5" />
@@ -281,24 +309,32 @@ function EmployeeMultiSelect({
               />
             </div>
           </div>
-          <ul role="listbox" aria-multiselectable="true" className="max-h-64 overflow-y-auto py-1">
+          <ul role="listbox" className="max-h-64 overflow-y-auto py-1">
+            <li role="option" aria-selected={selected === ""}>
+              <button
+                type="button"
+                onClick={() => pick("")}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-start hover:bg-slate-50 ${selected === "" ? "bg-nassayem/5 font-bold text-nassayem" : "text-slate-800"}`}
+              >
+                <Users className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="flex-1 truncate">{isEn ? "All employees" : "كل الموظفين"}</span>
+              </button>
+            </li>
             {visible.length === 0 ? (
               <li className="px-3 py-3 text-sm text-slate-500 text-center">{isEn ? "No employees found." : "لا يوجد موظفون."}</li>
             ) : (
               visible.map((u) => {
-                const checked = selected.includes(u.id);
+                const checked = selected === u.id;
                 return (
                   <li key={u.id} role="option" aria-selected={checked}>
-                    <label className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggle(u.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-nassayem focus:ring-nassayem/30"
-                      />
-                      <span className="flex-1 truncate text-slate-800">{staffName(u)}</span>
+                    <button
+                      type="button"
+                      onClick={() => pick(u.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-start hover:bg-slate-50 ${checked ? "bg-nassayem/5" : ""}`}
+                    >
+                      <span className={`flex-1 truncate ${checked ? "font-bold text-nassayem" : "text-slate-800"}`}>{staffName(u)}</span>
                       <span className="text-[11px] text-slate-400 shrink-0">{roleLabel(u.role)}</span>
-                    </label>
+                    </button>
                   </li>
                 );
               })
