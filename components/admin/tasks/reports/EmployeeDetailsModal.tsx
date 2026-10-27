@@ -44,13 +44,7 @@ export default function EmployeeDetailsModal({ employee, onClose }: Props) {
             </div>
             
             <div className="space-y-1">
-              {[
-                { label: "حجم الإنتاجية", score: employee.productivity?.score || 0, note: employee.productivity?.note || "", max: 30 },
-                { label: "الالتزام بالوقت", score: employee.timeAdherence?.score || 0, note: employee.timeAdherence?.note || "", max: 30 },
-                { label: "جودة العمل", score: employee.workQuality?.score || 0, note: employee.workQuality?.note || "", max: 20 },
-                { label: "التوثيق وسرعة الاستجابة", score: employee.docAndResponse?.score || 0, note: employee.docAndResponse?.note || "", max: 10 },
-                { label: "تقييم المشرف", score: employee.supervisorEval?.score || 0, note: employee.supervisorEval?.note || "", max: 10 },
-              ].map((item, idx) => (
+              {employee.criteria.map((c) => ({ label: c.labelAr, score: c.score, note: c.note, max: c.max })).map((item, idx) => (
                 <div key={idx} className="grid grid-cols-12 py-3 px-2 border-t border-slate-50 text-sm items-center hover:bg-slate-50 transition-colors rounded-lg">
                   <div className="col-span-5 font-bold text-slate-700">{item.label}</div>
                   <div className="col-span-3 text-center font-bold text-slate-800">

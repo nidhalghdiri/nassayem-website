@@ -26,6 +26,8 @@ export default function EmployeeOfTheWeekReport({ employees, lastWeekEmployees =
     );
   }
 
+  // Column order, labels and weights come from the engine so they cannot drift.
+  const columns = currentEmployees[0].criteria.map((c) => ({ key: c.key, labelEn: c.labelEn, labelAr: c.labelAr, max: c.max }));
   const bestEmployee = currentEmployees[0];
   const lowestEmployee = currentEmployees[currentEmployees.length - 1];
   const teamAverage = (currentEmployees.reduce((acc, curr) => acc + curr.totalScore, 0) / currentEmployees.length).toFixed(1);
@@ -101,11 +103,12 @@ export default function EmployeeOfTheWeekReport({ employees, lastWeekEmployees =
                 <tr>
                   <th className={`px-4 py-4 w-12 ${isEn ? "text-left" : "text-center"}`}>#</th>
                   <th className={`px-4 py-4 ${isEn ? "text-left" : ""}`}>{isEn ? "Employee" : "الموظف"}</th>
-                  <th className="px-2 py-4 text-center">{isEn ? "Productivity" : "حجم الإنتاجية"}<br/><span className="text-[10px] font-normal">{isEn ? "out of 30" : "من 30"}</span></th>
-                  <th className="px-2 py-4 text-center">{isEn ? "Time Adherence" : "الالتزام بالوقت"}<br/><span className="text-[10px] font-normal">{isEn ? "out of 30" : "من 30"}</span></th>
-                  <th className="px-2 py-4 text-center">{isEn ? "Work Quality" : "جودة العمل"}<br/><span className="text-[10px] font-normal">{isEn ? "out of 20" : "من 20"}</span></th>
-                  <th className="px-2 py-4 text-center">{isEn ? "Documentation" : "التوثيق والاستجابة"}<br/><span className="text-[10px] font-normal">{isEn ? "out of 10" : "من 10"}</span></th>
-                  <th className="px-2 py-4 text-center">{isEn ? "Supervisor Eval" : "تقييم المشرف"}<br/><span className="text-[10px] font-normal">{isEn ? "out of 10" : "من 10"}</span></th>
+                  {columns.map((c) => (
+                    <th key={c.key} className="px-2 py-4 text-center">
+                      {isEn ? c.labelEn : c.labelAr}
+                      <br/><span className="text-[10px] font-normal">{isEn ? `out of ${c.max}` : `من ${c.max}`}</span>
+                    </th>
+                  ))}
                   <th className="px-4 py-4 text-center">{isEn ? "Total" : "الإجمالي"}</th>
                   <th className="px-4 py-4 text-center">{isEn ? "Status" : "الحالة"}</th>
                 </tr>
@@ -127,18 +130,17 @@ export default function EmployeeOfTheWeekReport({ employees, lastWeekEmployees =
                         {emp.isEmployeeOfWeek && <Star className={`w-4 h-4 text-orange-400 fill-orange-400 ${isEn ? "ml-2" : "mr-2"}`} />}
                       </div>
                     </td>
-                    <ScoreCell score={emp.productivity?.score || 0} note={emp.productivity?.note || ""} />
-                    <ScoreCell score={emp.timeAdherence?.score || 0} note={emp.timeAdherence?.note || ""} />
-                    <ScoreCell score={emp.workQuality?.score || 0} note={emp.workQuality?.note || ""} />
-                    <ScoreCell score={emp.docAndResponse?.score || 0} note={emp.docAndResponse?.note || ""} />
-                    <ScoreCell score={emp.supervisorEval?.score || 0} note={emp.supervisorEval?.note || ""} />
+                    {columns.map((col) => {
+                      const c = emp.criteria.find((x) => x.key === col.key);
+                      return <ScoreCell key={col.key} score={c?.score ?? 0} note={c?.note ?? ""} />;
+                    })}
                     
                     <td className="px-4 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <span className="font-bold text-slate-800 w-12 text-left">{emp.totalScore}%</span>
                         <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
                           <div 
-                            className={`h-full rounded-full ${emp.totalScore >= 90 ? 'bg-emerald-600' : emp.totalScore >= 80 ? 'bg-emerald-500' : emp.totalScore >= 70 ? 'bg-orange-500' : 'bg-red-500'}`}
+                            className={`h-full rounded-full ${emp.band === "EXCELLENT" ? 'bg-emerald-600' : emp.band === "GOOD" ? 'bg-emerald-500' : emp.band === "NEEDS_FOLLOW_UP" ? 'bg-orange-500' : 'bg-red-500'}`}
                             style={{ width: `${emp.totalScore}%` }}
                           />
                         </div>
@@ -151,11 +153,15 @@ export default function EmployeeOfTheWeekReport({ employees, lastWeekEmployees =
                           <Star className="w-3 h-3 fill-white" />
                           {isEn ? "Employee of the Week" : "موظف الأسبوع"}
                         </span>
-                      ) : emp.totalScore >= 80 ? (
+                      ) : emp.band === "EXCELLENT" ? (
                         <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full text-[11px] font-bold">
-                          {isEn ? "Good Performance" : "أداء جيد"}
+                          {isEn ? "Excellent" : "ممتاز"}
                         </span>
-                      ) : emp.totalScore >= 70 ? (
+                      ) : emp.band === "GOOD" ? (
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full text-[11px] font-bold">
+                          {isEn ? "Good" : "جيد"}
+                        </span>
+                      ) : emp.band === "NEEDS_FOLLOW_UP" ? (
                         <span className="bg-orange-50 text-orange-700 border border-orange-100 px-3 py-1.5 rounded-full text-[11px] font-bold">
                           {isEn ? "Needs Follow-up" : "يحتاج متابعة"}
                         </span>
@@ -184,8 +190,8 @@ export default function EmployeeOfTheWeekReport({ employees, lastWeekEmployees =
         {/* Footer info */}
         <p className="text-[11px] text-slate-500 leading-relaxed text-justify">
           {isEn 
-            ? <>Total = sum of 5 criteria points out of 100. Productivity, time, quality, and documentation are automatically calculated (90 points). Supervisor evaluation is from the notebook (10 points). <Star className="inline-block w-3 h-3 text-orange-400 fill-orange-400 align-text-bottom mx-0.5" /> The one with the highest percentage is the Employee of the Week, and "Needs Warning" for anyone below 70%. Click on any employee to view their details.</>
-            : <>الإجمالي = مجموع نقاط المعايير الخمسة من 100. تُحسب الإنتاجية والوقت والجودة والتوثيق آلياً من النظام (90 نقطة). وتقييم المشرف من دفتر الملاحظات (10 نقاط). <Star className="inline-block w-3 h-3 text-orange-400 fill-orange-400 align-text-bottom mx-0.5" /> صاحب أعلى نسبة هو موظف الأسبوع، و«يحتاج تنبيه» لكل من ينزل عن 70%. اضغط على أي موظف لعرض تفاصيله.</>}
+            ? <>Total = sum of 6 criteria out of 100; each criterion = ratio × its weight. Work hours (35) and task count (5) are compared against the highest <strong>within the same department</strong>. <Star className="inline-block w-3 h-3 text-orange-400 fill-orange-400 align-text-bottom mx-0.5" /> Employee of the Week is the top scorer in each department, with 75 or more. Bands: 85+ excellent, 70–84 good, 55–69 needs follow-up, under 55 needs warning. Click on any employee to view their details.</>
+            : <>الإجمالي = مجموع نقاط المعايير الستة من 100، وكل معيار = النسبة × درجة المعيار. ساعات العمل (35) وعدد المهام (5) تُقارَن بأعلى قيمة <strong>داخل القسم نفسه</strong>. <Star className="inline-block w-3 h-3 text-orange-400 fill-orange-400 align-text-bottom mx-0.5" /> موظف الأسبوع هو الأعلى في كل قسم بشرط 75 فأكثر. التصنيف: 85 فأكثر ممتاز، 70–84 جيد، 55–69 يحتاج متابعة، أقل من 55 يحتاج تنبيه. اضغط على أي موظف لعرض تفاصيله.</>}
         </p>
 
       </div>
