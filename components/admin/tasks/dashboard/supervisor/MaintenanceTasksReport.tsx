@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, AlertTriangle, RefreshCw, RotateCcw, ChevronRight, ChevronLeft } from "lucide-react";
-import { getMaintenanceTasksReport } from "@/app/actions/maintenanceReport";
+import { getMaintenanceTasksReport, getMaintenanceAssignees, type MaintenanceAssignee } from "@/app/actions/maintenanceReport";
 import { CATEGORY_LABELS, categoryLabel, roomLabel } from "@/lib/maintenance/categories";
 import type {
   MaintenanceCategoryFilter,
@@ -32,6 +32,7 @@ type Props = {
 
 type Filters = {
   buildingId: string;
+  assignedToId: string;
   status: MaintenanceStatusFilter;
   source: MaintenanceSourceFilter;
   category: MaintenanceCategoryFilter;
@@ -56,7 +57,7 @@ const STAGE_BADGE: Record<MaintenanceStage, string> = {
 /** Manager / Supervisor dashboards: the maintenance requests of one scope, filterable, with timings. */
 export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, refreshKey, scope }: Props) {
   const DEFAULT_FILTERS: Filters = {
-    buildingId: "", status: "NOT_CLOSED", source: "ALL", category: SCOPE_ALL_CATEGORY[scope], from: "", to: "",
+    buildingId: "", assignedToId: "", status: "NOT_CLOSED", source: "ALL", category: SCOPE_ALL_CATEGORY[scope], from: "", to: "",
   };
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
@@ -64,12 +65,24 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const requestId = useRef(0);
+  const [assignees, setAssignees] = useState<MaintenanceAssignee[]>([]);
+
+  // The employee list is the staff who hold maintenance tasks — loaded once.
+  useEffect(() => {
+    let active = true;
+    getMaintenanceAssignees().then((res) => {
+      if (active && res.ok) setAssignees(res.data);
+    });
+    return () => { active = false; };
+  }, [refreshKey]);
 
   const t = {
     title: scope === "EQUIPMENT"
       ? (isEn ? "Equipment maintenance tasks" : "مهام صيانة الأجهزة")
       : (isEn ? "Other maintenance tasks" : "مهام الصيانة الأخرى"),
     branch: isEn ? "Branch" : "الفرع",
+    employee: isEn ? "Employee" : "الموظف",
+    allEmployees: isEn ? "All employees" : "جميع الموظفين",
     allBranches: isEn ? "All branches" : "جميع الفروع",
     status: isEn ? "Status" : "الحالة",
     source: isEn ? "Source" : "المصدر",
@@ -143,6 +156,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
     setFailed(false);
     const res = await getMaintenanceTasksReport({
       buildingId: filters.buildingId || undefined,
+      assignedToId: filters.assignedToId || undefined,
       status: filters.status,
       source: filters.source,
       category: filters.category,
@@ -199,7 +213,7 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 ${scope === "OTHER" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 ${scope === "OTHER" ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
           <label className="block">
             <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.branch}</span>
             <select value={filters.buildingId} onChange={(e) => updateFilter({ buildingId: e.target.value })} className={selectCls}>
@@ -207,6 +221,20 @@ export default function MaintenanceTasksReport({ isEn, buildings, onOpenTask, re
               {buildings.map((b) => (
                 <option key={b.id} value={b.id}>{isEn ? b.shortName || b.nameEn : b.shortName || b.nameAr}</option>
               ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-500 mb-1.5">{t.employee}</span>
+            <select value={filters.assignedToId} onChange={(e) => updateFilter({ assignedToId: e.target.value })} className={selectCls}>
+              <option value="">{t.allEmployees}</option>
+              {assignees.map((u) => {
+                const roleConf = STAFF_ROLE_CONFIG[u.role as TStaffRole];
+                return (
+                  <option key={u.id} value={u.id}>
+                    {u.name}{roleConf ? ` (${isEn ? roleConf.labelEn : roleConf.labelAr})` : ""}
+                  </option>
+                );
+              })}
             </select>
           </label>
           <label className="block">

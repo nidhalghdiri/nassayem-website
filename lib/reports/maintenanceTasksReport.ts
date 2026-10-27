@@ -68,6 +68,8 @@ export async function categoryWhere(category: MaintenanceCategoryFilter): Promis
 
 export type MaintenanceReportFilters = {
   buildingId?: string;
+  /** Assigned technician / employee ("" or undefined = everyone). */
+  assignedToId?: string;
   status: MaintenanceStatusFilter;
   source: MaintenanceSourceFilter;
   category: MaintenanceCategoryFilter;
@@ -166,6 +168,7 @@ export async function getMaintenanceTasksReport(
   const and: Prisma.TaskWhereInput[] = [{ type: "MAINTENANCE" }, statusWhere(filters.status)];
   if (scopeBuildingIds) and.push({ buildingId: { in: scopeBuildingIds } });
   if (filters.buildingId) and.push({ buildingId: filters.buildingId });
+  if (filters.assignedToId) and.push({ assignedToId: filters.assignedToId });
   if (filters.source !== "ALL") and.push({ createdBy: { role: filters.source } });
   and.push(await categoryWhere(filters.category));
   if (filters.from) and.push({ createdAt: { gte: new Date(`${filters.from}T00:00:00+04:00`) } });

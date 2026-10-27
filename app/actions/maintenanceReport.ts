@@ -42,6 +42,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export async function getMaintenanceTasksReport(input: {
   buildingId?: string;
+  assignedToId?: string;
   status: string;
   source: string;
   category?: string;
@@ -56,6 +57,7 @@ export async function getMaintenanceTasksReport(input: {
 
     const filters: MaintenanceReportFilters = {
       buildingId: typeof input.buildingId === "string" && input.buildingId.length > 0 && input.buildingId.length <= 64 ? input.buildingId : undefined,
+      assignedToId: typeof input.assignedToId === "string" && input.assignedToId.length > 0 && input.assignedToId.length <= 64 ? input.assignedToId : undefined,
       status: (STATUS_FILTERS as readonly string[]).includes(input.status) ? (input.status as MaintenanceReportFilters["status"]) : "NOT_CLOSED",
       source: (SOURCE_FILTERS as readonly string[]).includes(input.source) ? (input.source as MaintenanceReportFilters["source"]) : "ALL",
       category: (CATEGORY_FILTERS as readonly string[]).includes(input.category ?? "") ? (input.category as MaintenanceReportFilters["category"]) : "ALL",
@@ -140,4 +142,45 @@ export async function getOtherCardTasks(
 ): Promise<{ ok: true; data: DrilldownResult } | { ok: false; error: MaintenanceReportError }> {
   if (!(OTHER_CARDS as readonly string[]).includes(card)) return { ok: false, error: "SERVER" };
   return loadSummary(range, (r, scope) => queryOtherCard(card as OtherCard, r, scope), "getOtherCardTasks");
+}
+
+export type MaintenanceAssignee = { id: string; name: string; role: string };
+
+/**
+ * Employees assignable in the maintenance reports' employee filter — anyone who
+ * actually holds a maintenance task (not every staff member), so the list stays
+ * short and relevant. Honours a supervisor's building scope.
+ */
+export async function getMaintenanceAssignees(): Promise<
+  { ok: true; data: MaintenanceAssignee[] } | { ok: false; error: MaintenanceReportError }
+> {
+  try {
+    const user = await getCurrentAdminUser();
+    if (!user) return { ok: false, error: "UNAUTHORIZED" };
+    if (!canSeeAllTasks(user.role as TStaffRole)) return { ok: false, error: "FORBIDDEN" };
+
+    const scopeBuildingIds = await getScopeBuildingIds(user);
+    const users = await prisma.adminUser.findMany({
+      where: {
+        assignedTasks: {
+          some: {
+            AND: [
+              { type: "MAINTENANCE" },
+              scopeBuildingIds ? { buildingId: { in: scopeBuildingIds } } : {},
+            ],
+          },
+        },
+      },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" },
+    });
+
+    return {
+      ok: true,
+      data: users.map((u) => ({ id: u.id, name: u.name || u.email.split("@")[0], role: u.role })),
+    };
+  } catch (err) {
+    console.error("getMaintenanceAssignees failed:", err);
+    return { ok: false, error: "SERVER" };
+  }
 }
