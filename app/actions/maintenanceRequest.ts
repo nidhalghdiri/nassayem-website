@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
-import { canCreateTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canOpenMaintenanceRequest, isSelfOnlyRequester } from "@/lib/tasks/permissions";
 import { isKnownIssue, isOtherIssue } from "@/lib/maintenance/issues";
 import {
   CATEGORY_LABELS,
@@ -99,11 +99,21 @@ const TERMINAL_STATUSES: TaskStatus[] = [
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/**
+ * Buildings this requester may report against. Maintenance technicians float
+ * between buildings (they are not assigned to any), so they report anywhere;
+ * everyone else keeps their normal scope (receptionists: their buildings).
+ */
+async function getRequestScope(user: AdminUser) {
+  if (isSelfOnlyRequester(user.role as TStaffRole)) return null; // all buildings
+  return getBuildingScopeFilter(user);
+}
+
 async function getRequester(): Promise<{ user: AdminUser } | { error: MaintenanceRequestError }> {
   const user = await getCurrentAdminUser();
   if (!user) return { error: "UNAUTHORIZED" };
   const role = user.role as TStaffRole;
-  if (!canCreateTasks(role) || !ASSIGNABLE_ROLES[role].includes("MAINTENANCE")) {
+  if (!canOpenMaintenanceRequest(role)) {
     return { error: "FORBIDDEN" };
   }
   return { user };
@@ -118,7 +128,7 @@ export async function getMaintenanceRequestOptions(): Promise<
     if ("error" in requester) return { ok: false, error: requester.error };
     const { user } = requester;
 
-    const scope = await getBuildingScopeFilter(user); // null = all buildings
+    const scope = await getRequestScope(user); // null = all buildings
     const [buildings, equipments, units, technicians, openCounts] = await Promise.all([
       prisma.building.findMany({
         where: scope ? { id: { in: scope.buildingId.in } } : {},
@@ -138,8 +148,11 @@ export async function getMaintenanceRequestOptions(): Promise<
         select: { id: true, buildingId: true, name: true },
         orderBy: { name: "asc" },
       }),
+      // A technician logs their own finds, so they are the only choice.
       prisma.adminUser.findMany({
-        where: { role: "MAINTENANCE" },
+        where: isSelfOnlyRequester(user.role as TStaffRole)
+          ? { id: user.id }
+          : { role: "MAINTENANCE" },
         select: { id: true, name: true, email: true },
         orderBy: { name: "asc" },
       }),
@@ -196,18 +209,20 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
 
     const locale = input.locale === "ar" ? "ar" : "en";
     const details = (input.details ?? "").trim().slice(0, 1000);
-    if (!input.assignedToId) return { ok: false, error: "INVALID_INPUT" };
+    // Technicians always get their own request — ignore any submitted value.
+    const assignedToId = isSelfOnlyRequester(user.role as TStaffRole) ? user.id : input.assignedToId;
+    if (!assignedToId) return { ok: false, error: "INVALID_INPUT" };
     const priority = findRequestPriority(input.priority);
     if (!priority || !isTaskSize(input.taskSize)) return { ok: false, error: "INVALID_INPUT" };
 
     const technician = await prisma.adminUser.findUnique({
-      where: { id: input.assignedToId },
+      where: { id: assignedToId },
       select: { id: true, name: true, email: true, role: true, whatsappNumber: true, preferredLanguage: true },
     });
     if (!technician || technician.role !== "MAINTENANCE") return { ok: false, error: "TECHNICIAN_INVALID" };
     const technicianName = technician.name || technician.email.split("@")[0];
 
-    const scope = await getBuildingScopeFilter(user); // receptionists: their buildings only
+    const scope = await getRequestScope(user); // receptionists: their buildings only
     const inScope = (buildingId: string) => !scope || scope.buildingId.in.includes(buildingId);
 
     // What gets saved depends on the kind; everything else is shared below

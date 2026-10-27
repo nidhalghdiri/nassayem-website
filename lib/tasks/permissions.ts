@@ -51,6 +51,24 @@ export function canCreateMaintenanceRequest(role: TStaffRole): boolean {
   return role === "HOUSEKEEPING";
 }
 
+/**
+ * Can this role open the full "new maintenance request" modal?
+ * MAINTENANCE is included so a technician can log a request for work they
+ * found themselves — but it is always assigned to them (see
+ * isSelfOnlyRequester), never routed to another technician.
+ */
+export function canOpenMaintenanceRequest(role: TStaffRole): boolean {
+  return (canCreateTasks(role) && ASSIGNABLE_ROLES[role].includes("MAINTENANCE")) || role === "MAINTENANCE";
+}
+
+/**
+ * Must this role's maintenance requests be assigned to themselves?
+ * A technician logs their own finds; everyone else picks the technician.
+ */
+export function isSelfOnlyRequester(role: TStaffRole): boolean {
+  return role === "MAINTENANCE";
+}
+
 /** Can this role spawn sub-tasks from an Inspection task? */
 export function canSpawnSubtasks(role: TStaffRole): boolean {
   return ["MANAGER", "SUPERVISOR", "RECEPTIONIST"].includes(role);

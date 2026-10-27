@@ -16,6 +16,7 @@ import { DEFAULT_REQUEST_PRIORITY, REQUEST_PRIORITIES } from "@/lib/maintenance/
 import { TASK_SIZES, TASK_SIZE_LABELS, type TaskSize } from "@/lib/maintenance/taskSize";
 import { STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
 import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
+import { isSelfOnlyRequester } from "@/lib/tasks/permissions";
 import EquipmentPicker from "./maintenance-request/EquipmentPicker";
 import LocationPicker from "./maintenance-request/LocationPicker";
 import OtherProblemFields from "./maintenance-request/OtherProblemFields";
@@ -261,6 +262,8 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
   }
 
   const requesterRole = options ? STAFF_ROLE_CONFIG[options.requester.role as TStaffRole] : null;
+  // A technician's request is always their own — the server forces this too.
+  const selfOnly = options ? isSelfOnlyRequester(options.requester.role as TStaffRole) : false;
   const busy = submitting || uploadProgress !== null;
 
   return (
@@ -288,22 +291,29 @@ export default function MaintenanceRequestModal({ locale, onClose, onCreated }: 
                   {requesterRole && <span className="text-slate-400"> ({isEn ? requesterRole.labelEn : requesterRole.labelAr})</span>}
                 </span>
                 <span aria-hidden>—</span>
-                <label className="flex items-center gap-1.5">
-                  {t.to}:
-                  <select
-                    value={technicianId}
-                    onChange={(e) => setTechnicianId(e.target.value)}
-                    disabled={busy || options.technicians.length === 0}
-                    className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem max-w-[220px]"
-                  >
-                    {options.technicians.length === 0 && <option value="">—</option>}
-                    {options.technicians.map((tech) => (
-                      <option key={tech.id} value={tech.id}>
-                        {tech.name} · {tech.openCount} {t.openShort}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {selfOnly ? (
+                  <span>
+                    {t.to}: <span className="font-semibold text-slate-700">{options.technicians[0]?.name ?? options.requester.name}</span>
+                    <span className="text-slate-400"> ({isEn ? "yourself" : "نفسك"})</span>
+                  </span>
+                ) : (
+                  <label className="flex items-center gap-1.5">
+                    {t.to}:
+                    <select
+                      value={technicianId}
+                      onChange={(e) => setTechnicianId(e.target.value)}
+                      disabled={busy || options.technicians.length === 0}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem max-w-[220px]"
+                    >
+                      {options.technicians.length === 0 && <option value="">—</option>}
+                      {options.technicians.map((tech) => (
+                        <option key={tech.id} value={tech.id}>
+                          {tech.name} · {tech.openCount} {t.openShort}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
             )}
           </div>
