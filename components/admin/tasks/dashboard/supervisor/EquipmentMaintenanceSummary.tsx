@@ -1,8 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { CheckCircle2, Timer, Wrench, PackageX, Star, RotateCcw, CircleDot, Hammer, PauseCircle } from "lucide-react";
-import { getEquipmentMaintenanceSummary } from "@/app/actions/maintenanceReport";
+import { getEquipmentMaintenanceSummary, getEquipmentCardTasks } from "@/app/actions/maintenanceReport";
+import CardDrilldownModal from "./CardDrilldownModal";
+import MaintenanceExportButton from "./MaintenanceExportButton";
+import { EQUIPMENT_CARDS, type EquipmentCard } from "@/lib/reports/maintenanceDrilldown";
 import { formatDuration } from "../../timeUtils";
 import {
   SummaryLoadError,
@@ -22,10 +25,13 @@ type Props = {
   isEn: boolean;
   /** Bump to reload (e.g. after a task was changed in the details panel). */
   refreshKey: number;
+  /** Open a task from a card's list. */
+  onOpenTask: (id: string) => void;
 };
 
 /** Manager / Supervisor dashboards: summary cards for equipment maintenance. */
-export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props) {
+export default function EquipmentMaintenanceSummary({ isEn, refreshKey, onOpenTask }: Props) {
+  const [openCard, setOpenCard] = useState<EquipmentCard | null>(null);
   const { range, setRange, data, loading, failed, reload } = useMaintenanceSummary(getEquipmentMaintenanceSummary, refreshKey);
 
   const duration = (mins: number | null) => (mins === null ? "—" : formatDuration(mins, isEn));
@@ -112,12 +118,17 @@ export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props)
 
   return (
     <section className="space-y-4" aria-label={isEn ? "Equipment maintenance summary" : "ملخص صيانة الأجهزة"}>
-      <SummaryPeriodBar
-        isEn={isEn}
-        range={range}
-        onChange={setRange}
-        note={isEn ? "Registered devices — AC, washer, fridge…" : "الأجهزة المسجّلة — مكيف، غسالة، ثلاجة…"}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex-1 min-w-[240px]">
+          <SummaryPeriodBar
+            isEn={isEn}
+            range={range}
+            onChange={setRange}
+            note={isEn ? "Registered devices — AC, washer, fridge…" : "الأجهزة المسجّلة — مكيف، غسالة، ثلاجة…"}
+          />
+        </div>
+        <MaintenanceExportButton isEn={isEn} report="equipment" range={range} />
+      </div>
 
       {failed && !data ? (
         <SummaryLoadError isEn={isEn} onRetry={reload} />
@@ -125,19 +136,37 @@ export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props)
         <div className={`space-y-4 transition-opacity ${loading && data ? "opacity-50" : ""}`} aria-busy={loading}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data
-              ? cards.map((c) => (
-                  <div key={c.key} title={c.hint} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-                    <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>{c.icon}</span>
-                    <div className="min-w-0">
-                      <p className={`text-3xl font-black leading-none ${c.valueCls ?? "text-slate-900"}`}>
-                        {c.value}
-                        {c.extra && <span className="ms-1.5 text-xs font-bold text-slate-500">{c.extra}</span>}
-                      </p>
-                      <p className="text-sm font-bold text-slate-800 mt-2 leading-snug">{c.label}</p>
-                      {c.hint && <p className="text-xs text-slate-400 mt-0.5">{c.hint}</p>}
+              ? cards.map((c) => {
+                  const drillable = (EQUIPMENT_CARDS as readonly string[]).includes(c.key);
+                  const body = (
+                    <>
+                      <span className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${c.bubble}`}>{c.icon}</span>
+                      <div className="min-w-0 text-start">
+                        <p className={`text-3xl font-black leading-none ${c.valueCls ?? "text-slate-900"}`}>
+                          {c.value}
+                          {c.extra && <span className="ms-1.5 text-xs font-bold text-slate-500">{c.extra}</span>}
+                        </p>
+                        <p className="text-sm font-bold text-slate-800 mt-2 leading-snug">{c.label}</p>
+                        {c.hint && <p className="text-xs text-slate-400 mt-0.5">{c.hint}</p>}
+                      </div>
+                    </>
+                  );
+                  return drillable ? (
+                    <button
+                      key={c.key}
+                      type="button"
+                      title={c.hint}
+                      onClick={() => setOpenCard(c.key as EquipmentCard)}
+                      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-start transition-all hover:shadow-md hover:border-nassayem/40 focus:outline-none focus:ring-2 focus:ring-nassayem/30"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div key={c.key} title={c.hint} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
+                      {body}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               : Array.from({ length: 9 }, (_, i) => <SummarySkeletonCard key={i} />)}
           </div>
 
@@ -160,6 +189,19 @@ export default function EquipmentMaintenanceSummary({ isEn, refreshKey }: Props)
             </>
           )}
         </div>
+      )}
+
+      {openCard && (
+        <CardDrilldownModal
+          isEn={isEn}
+          title={cards.find((c) => c.key === openCard)?.label ?? ""}
+          accentClass={cards.find((c) => c.key === openCard)?.bubble ?? "bg-slate-100 text-slate-600"}
+          range={range}
+          load={(r) => getEquipmentCardTasks(openCard, r)}
+          showCompletedAt={openCard === "completed"}
+          onClose={() => setOpenCard(null)}
+          onOpenTask={(id) => { setOpenCard(null); onOpenTask(id); }}
+        />
       )}
     </section>
   );

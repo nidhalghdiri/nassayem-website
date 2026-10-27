@@ -84,7 +84,7 @@ export default function SupervisorDashboard({ locale, currentUserId, currentUser
 
       {section === "equipment" && (
         <>
-          <EquipmentMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+          <EquipmentMaintenanceSummary isEn={isEn} refreshKey={reportKey} onOpenTask={setOpenTaskId} />
           <MaintenanceTasksReport scope="EQUIPMENT" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
         </>
       )}
@@ -93,7 +93,7 @@ export default function SupervisorDashboard({ locale, currentUserId, currentUser
 
       {section === "other" && (
         <>
-          <OtherMaintenanceSummary isEn={isEn} refreshKey={reportKey} />
+          <OtherMaintenanceSummary isEn={isEn} refreshKey={reportKey} onOpenTask={setOpenTaskId} />
           <MaintenanceTasksReport scope="OTHER" isEn={isEn} buildings={buildings} onOpenTask={setOpenTaskId} refreshKey={reportKey} />
         </>
       )}

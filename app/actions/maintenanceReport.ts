@@ -20,6 +20,15 @@ import {
   type SummaryPeriod,
   type SummaryRange,
 } from "@/lib/reports/maintenanceSummary";
+import {
+  getEquipmentCardTasks as queryEquipmentCard,
+  getOtherCardTasks as queryOtherCard,
+  EQUIPMENT_CARDS,
+  OTHER_CARDS,
+  type DrilldownResult,
+  type EquipmentCard,
+  type OtherCard,
+} from "@/lib/reports/maintenanceDrilldown";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
 export type MaintenanceReportError = "UNAUTHORIZED" | "FORBIDDEN" | "SERVER";
@@ -113,4 +122,22 @@ async function getScopeBuildingIds(user: { id: string; role: string }): Promise<
     select: { buildingId: true },
   });
   return assigned.length > 0 ? assigned.map((b) => b.buildingId) : null;
+}
+
+/** Tasks behind one "Equipment maintenance" summary card (opened from the card). */
+export async function getEquipmentCardTasks(
+  card: string,
+  range: RangeInput,
+): Promise<{ ok: true; data: DrilldownResult } | { ok: false; error: MaintenanceReportError }> {
+  if (!(EQUIPMENT_CARDS as readonly string[]).includes(card)) return { ok: false, error: "SERVER" };
+  return loadSummary(range, (r, scope) => queryEquipmentCard(card as EquipmentCard, r, scope), "getEquipmentCardTasks");
+}
+
+/** Tasks behind one "Other maintenance" summary card (opened from the card). */
+export async function getOtherCardTasks(
+  card: string,
+  range: RangeInput,
+): Promise<{ ok: true; data: DrilldownResult } | { ok: false; error: MaintenanceReportError }> {
+  if (!(OTHER_CARDS as readonly string[]).includes(card)) return { ok: false, error: "SERVER" };
+  return loadSummary(range, (r, scope) => queryOtherCard(card as OtherCard, r, scope), "getOtherCardTasks");
 }

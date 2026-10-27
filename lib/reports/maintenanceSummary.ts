@@ -182,13 +182,13 @@ export const RECURRING_DAYS = 30;
 export const RECURRING_MIN = 3;
 const RECURRING_SHOWN = 8;
 
-const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED"];
-const REVIEW_ACTIONS = ["approved", "rejected", "approved_receptionist", "rejected_receptionist"];
+export const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED", "CANCELLED"];
+export const REVIEW_ACTIONS = ["approved", "rejected", "approved_receptionist", "rejected_receptionist"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OMAN_OFFSET_MS = 4 * 60 * 60 * 1000; // UTC+4 all year
 
 /** The period as [since, until). Presets end now; a custom range ends after its last day. */
-function periodRange(range: SummaryRange, now: number): { since: Date; until: Date } {
+export function periodRange(range: SummaryRange, now: number): { since: Date; until: Date } {
   const end = new Date(now);
   if (range.period === "7D") return { since: new Date(now - 7 * DAY_MS), until: end };
   if (range.period === "30D") return { since: new Date(now - 30 * DAY_MS), until: end };
@@ -208,7 +208,7 @@ const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / who
 
 // Conditions are combined with AND — several of them use OR, and spreading
 // them into one object would let one OR silently replace another.
-async function baseWhere(scope: "ALL_EQUIPMENT" | "ALL_OTHER", scopeBuildingIds: string[] | null): Promise<Prisma.TaskWhereInput> {
+export async function baseWhere(scope: "ALL_EQUIPMENT" | "ALL_OTHER", scopeBuildingIds: string[] | null): Promise<Prisma.TaskWhereInput> {
   return {
     AND: [
       { type: "MAINTENANCE" },
@@ -219,7 +219,7 @@ async function baseWhere(scope: "ALL_EQUIPMENT" | "ALL_OTHER", scopeBuildingIds:
 }
 
 /** Requests with something in the period: created, or any activity (start, completion, review…). */
-const touchedSince = (since: Date, until: Date): Prisma.TaskWhereInput => ({
+export const touchedSince = (since: Date, until: Date): Prisma.TaskWhereInput => ({
   OR: [
     { createdAt: { gte: since, lt: until } },
     { activities: { some: { createdAt: { gte: since, lt: until } } } },

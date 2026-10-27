@@ -6,6 +6,8 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 import { createEquipmentType, createEquipment, updateEquipment } from "@/app/actions/maintenance";
+import DeviceListModal from "./DeviceListModal";
+import MaintenanceExportButton from "@/components/admin/tasks/dashboard/supervisor/MaintenanceExportButton";
 
 type Props = {
   equipments: any[];
@@ -34,6 +36,8 @@ export default function EquipmentBoard({
   const [buildingFilter, setBuildingFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
   const [visitDateFilter, setVisitDateFilter] = useState("");
+  /** Which KPI card's device list is open. */
+  const [openKpi, setOpenKpi] = useState<"total" | "needsRepair" | null>(null);
 
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [newTypeNameAr, setNewTypeNameAr] = useState("");
@@ -224,6 +228,11 @@ export default function EquipmentBoard({
             <Plus className="w-4 h-4" />
             {isEn ? "Add Equipment" : "إضافة جهاز"}
           </button>
+          <MaintenanceExportButton
+            isEn={isEn}
+            report="devices"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg hover:bg-gray-50 hover:border-nassayem/40 hover:text-nassayem transition-colors text-sm font-medium shrink-0"
+          />
         </div>
       </div>
 
@@ -252,7 +261,11 @@ export default function EquipmentBoard({
       {/* Stats/Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Cards */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setOpenKpi("total")}
+          className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 text-start transition-all hover:shadow-md hover:border-nassayem/40 focus:outline-none focus:ring-2 focus:ring-nassayem/30"
+        >
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0">
             <Activity className="w-6 h-6" />
           </div>
@@ -260,8 +273,12 @@ export default function EquipmentBoard({
             <div className="text-2xl font-bold text-gray-900">{kpiEquipments.length}</div>
             <div className="text-sm text-gray-500">{isEn ? "Total Equipment" : "إجمالي الأجهزة"}</div>
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpenKpi("needsRepair")}
+          className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 text-start transition-all hover:shadow-md hover:border-nassayem/40 focus:outline-none focus:ring-2 focus:ring-nassayem/30"
+        >
           <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center shrink-0">
             <Wrench className="w-6 h-6" />
           </div>
@@ -271,7 +288,7 @@ export default function EquipmentBoard({
             </div>
             <div className="text-sm text-gray-500">{isEn ? "Needs Repair" : "يحتاج صيانة"}</div>
           </div>
-        </div>
+        </button>
         
         {/* Dynamic Type Cards */}
         {equipmentTypes.map(type => {
@@ -739,6 +756,17 @@ export default function EquipmentBoard({
           </div>
         </div>
       )}
+      {openKpi && (
+        <DeviceListModal
+          isEn={isEn}
+          locale={locale}
+          title={openKpi === "total" ? (isEn ? "Total Equipment" : "إجمالي الأجهزة") : (isEn ? "Needs Repair" : "يحتاج صيانة")}
+          accentClass={openKpi === "total" ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600"}
+          devices={openKpi === "total" ? kpiEquipments : kpiEquipments.filter((e: any) => e.status === "NEEDS_REPAIR")}
+          onClose={() => setOpenKpi(null)}
+        />
+      )}
+
     </div>
   );
 }
