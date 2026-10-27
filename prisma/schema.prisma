@@ -515,6 +515,7 @@ model AdminUser {
   // Task relations
   createdTasks   Task[]         @relation("TaskCreatedBy")
   assignedTasks  Task[]         @relation("TaskAssignedTo")
+  sizeApprovedTasks Task[]      @relation("TaskSizeApprovedBy")
   taskNotes      TaskNote[]
   taskPhotos     TaskPhoto[]
   taskActivities TaskActivity[]
@@ -569,7 +570,23 @@ model Task {
   category String? // EQUIPMENT | PLUMBING | ELECTRICAL | FURNITURE | PAINTING | INSTALLATION | DOORS_WINDOWS | GENERAL | OTHER
   room     String? // room inside the unit (key), or the place when the request is for a common area
   guestInUnit Boolean? // is a guest staying in the unit right now? null = not asked (common area / older tasks)
-  taskSize    String? // LARGE | MEDIUM | SMALL — set by the maintenance request form; null on older tasks
+  taskSize    String? // LARGE | MEDIUM | SMALL — derived from expectedHours (see lib/maintenance/taskSize.ts); null on older tasks
+
+  // Expected duration entered when the task is created. taskSize is classified
+  // from it, so the size is never picked by hand.
+  expectedHours Float?
+  // Actual timing, stamped on the first start and the completion so durations
+  // can be queried and exported directly instead of replaying the activity log.
+  startedAt     DateTime?
+  completedAt   DateTime?
+  actualHours   Float? // completedAt - startedAt, in hours
+
+  // A LARGE task only counts with its full hours once a manager approves the
+  // size; until then the scoring treats it as MEDIUM, so an inflated estimate
+  // cannot lift a rating on its own.
+  sizeApprovedAt   DateTime?
+  sizeApprovedById String?
+  sizeApprovedBy   AdminUser? @relation("TaskSizeApprovedBy", fields: [sizeApprovedById], references: [id])
 
   // Human-friendly sequential number shown as "#3046" in lists
   requestNumber Int @unique @default(autoincrement())
