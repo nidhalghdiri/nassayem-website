@@ -39,6 +39,9 @@ const COLUMNS: ExcelColumn[] = [
   { header: "التصنيف", key: "category", width: 16 },
   { header: "الغرفة / المكان", key: "room", width: 16 },
   { header: "حجم المهمة", key: "taskSize", width: 12 },
+  { header: "المدة المتوقعة (ساعة)", key: "expectedHours", width: 18 },
+  { header: "المدة الفعلية (ساعة)", key: "actualHours", width: 17 },
+  { header: "فرق المدة %", key: "durationVariancePct", width: 13 },
   { header: "ضيف في الوحدة", key: "guestInUnit", width: 14 },
   { header: "المُكلَّف", key: "assignedTo", width: 24 },
   { header: "وظيفة المُكلَّف", key: "assignedToRole", width: 14 },
@@ -136,7 +139,13 @@ export async function GET(req: NextRequest) {
       cleaningType: t.cleaningType ?? "",
       category: categoryLabel(t.category, false) ?? t.category ?? "",
       room: roomLabel(t.room, false) ?? "",
-      taskSize: taskSizeLabel(t.taskSize, false) ?? "",
+      taskSize: taskSizeLabel(t.taskSize, false) ?? "غير محدد",
+      expectedHours: t.expectedHours ?? "",
+      actualHours: t.actualHours ?? "",
+      durationVariancePct:
+        typeof t.expectedHours === "number" && t.expectedHours > 0 && typeof t.actualHours === "number"
+          ? Math.round(((t.actualHours - t.expectedHours) / t.expectedHours) * 100)
+          : "",
       guestInUnit: t.guestInUnit === null ? "" : t.guestInUnit ? "نعم" : "لا",
       assignedTo: t.assignedTo.name || t.assignedTo.email.split("@")[0],
       assignedToRole: roleAr(t.assignedTo.role),

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canUpdateTaskStatus, canRescheduleTask } from "@/lib/tasks/permissions";
+import { classifyTaskSize, parseExpectedHours, sizeNeedsApproval } from "@/lib/maintenance/taskSize";
+import { canUpdateTaskStatus, canRescheduleTask, canCreateTasks } from "@/lib/tasks/permissions";
+import type { TStaffRole } from "@/lib/tasks/constants";
 import { STATUS_TRANSITIONS, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import { notifyTaskCompleted } from "@/lib/whatsapp";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
@@ -15,6 +17,11 @@ const COMPLETED_STATUSES: TaskStatus[] = [
 ];
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+/** Statuses that mean the work has actually begun. */
+const WORK_STARTED_STATUSES = ["CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"] as const;
+/** Statuses that mean the work is finished (CANCELLED is not an outcome). */
+const WORK_FINISHED_STATUSES = ["CLEANING_COMPLETED", "NO_ISSUES", "WORK_COMPLETED", "COMPLETED"] as const;
 
 // Readable Oman-time stamp for the activity log, e.g. "13 Oct 2026, 09:00"
 function formatOman(date: Date): string {
@@ -151,6 +158,26 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       details: `Status changed from ${task.status} to ${newStatus}`,
     });
 
+    // ── Actual timing ───────────────────────────────────────────────────────
+    // Stamped once each: the first time work starts, and when it finishes. Both
+    // are only set "if not already present", so a task that is rejected and
+    // redone keeps its original start.
+    const now = new Date();
+    const startsWork = (WORK_STARTED_STATUSES as readonly string[]).includes(newStatus);
+    const finishesWork = (WORK_FINISHED_STATUSES as readonly string[]).includes(newStatus);
+
+    if (startsWork && !task.startedAt) {
+      updates.startedAt = now;
+    }
+    if (finishesWork && !task.completedAt) {
+      updates.completedAt = now;
+      // Actual duration in hours; needs a start to measure from.
+      const start = task.startedAt ?? (updates.startedAt as Date | undefined) ?? null;
+      if (start) {
+        updates.actualHours = Math.round(((now.getTime() - start.getTime()) / 36e5) * 100) / 100;
+      }
+    }
+
     // Optional reason when pausing (e.g. "Thermostat — ordered from supplier");
     // shown on the Maintenance dashboard while the task is on hold.
     const holdReason = typeof body.holdReason === "string" ? body.holdReason.trim().slice(0, 300) : "";
@@ -163,6 +190,33 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (body.priority)     updates.priority    = body.priority as TaskPriority;
   if (body.title)        updates.title       = body.title as string;
   if (body.description !== undefined) updates.description = body.description as string;
+
+  // ── Expected duration (re-classifies the size, and is always logged) ──────
+  // Only roles that can assign work may change an estimate, and every change is
+  // recorded with who made it and what it was before.
+  if (body.expectedHours !== undefined) {
+    if (!canCreateTasks(adminUser.role as TStaffRole)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const hours = parseExpectedHours(body.expectedHours);
+    if (hours === null) {
+      return NextResponse.json({ error: "Invalid expected duration" }, { status: 400 });
+    }
+    if (hours !== task.expectedHours) {
+      const newSize = classifyTaskSize(hours);
+      updates.expectedHours = hours;
+      updates.taskSize = newSize;
+      // A re-sized task must be approved again before it counts in full.
+      if (newSize !== task.taskSize) {
+        updates.sizeApprovedAt = null;
+        updates.sizeApprovedById = null;
+      }
+      activities.push({
+        action: "expected_hours_changed",
+        details: `Expected duration changed from ${task.expectedHours ?? "—"}h to ${hours}h (size ${task.taskSize ?? "—"} → ${newSize ?? "—"})`,
+      });
+    }
+  }
 
   // ── Reschedule (due date) ─────────────────────────────────────────────────
   if (body.dueDate) {

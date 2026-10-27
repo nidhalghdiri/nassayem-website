@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { canCreateTasks, canCreateMaintenanceRequest, canOpenCreateTask, isSelfOnlyCreator, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { classifyTaskSize, parseExpectedHours } from "@/lib/maintenance/taskSize";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
@@ -42,6 +43,8 @@ export async function createTask(
   const assignedToId = selfOnly ? adminUser.id : (formData.get("assignedToId") as string);
   const dueDate = formData.get("dueDate") as string;
   const parentTaskId = (formData.get("parentTaskId") as string) || null;
+  // The size is classified from the expected duration — never submitted directly.
+  const expectedHours = parseExpectedHours(formData.get("expectedHours"));
 
   let titleStr = (formData.get("title") as string)?.trim();
   if (!titleStr) {
@@ -52,6 +55,9 @@ export async function createTask(
 
   if (!type || !buildingId || (!finalUnitNumber && !unitId) || !assignedToId || !dueDate) {
     return { error: "Please fill in all required fields." };
+  }
+  if (expectedHours === null) {
+    return { error: "Please enter a valid expected duration (1 hour or more)." };
   }
 
   // If unitId is provided but unitNumber is not, fetch the unit name from the DB
@@ -93,6 +99,8 @@ export async function createTask(
       assignedToId,
       dueDate: new Date(dueDate),
       parentTaskId,
+      expectedHours,
+      taskSize: classifyTaskSize(expectedHours),
     },
   });
 

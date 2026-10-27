@@ -8,6 +8,12 @@ export type SerializedTask = {
   description: string | null;
   priority: TTaskPriority;
   status: TTaskStatus;
+  /** Classified from expectedHours; null on tasks created before the field existed. */
+  taskSize: string | null;
+  expectedHours: number | null;
+  actualHours: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
   dueDate: string;
   building: { id: string; nameEn: string; nameAr: string; shortName?: string | null } | null;
   unitId: string | null;

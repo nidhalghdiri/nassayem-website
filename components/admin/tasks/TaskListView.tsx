@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG } from "@/lib/tasks/constants";
+import { TASK_SIZE_BADGE, taskSizeLabelOrUnset, isTaskSize } from "@/lib/maintenance/taskSize";
 import { STATUS_CONFIG, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import { buildingLabel } from "@/lib/buildingLabel";
 import type { SerializedTask } from "./types";
@@ -122,10 +123,20 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm border border-white/50 ${prioConf.badge}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${prioConf.dot} shadow-sm`} />
-                      {isEn ? prioConf.labelEn : prioConf.labelAr}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm border border-white/50 ${prioConf.badge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${prioConf.dot} shadow-sm`} />
+                        {isEn ? prioConf.labelEn : prioConf.labelAr}
+                      </span>
+                      {/* Size, classified from the expected duration */}
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold border ${
+                          isTaskSize(task.taskSize) ? TASK_SIZE_BADGE[task.taskSize] : "bg-slate-50 text-slate-400 border-slate-200"
+                        }`}
+                      >
+                        {taskSizeLabelOrUnset(task.taskSize, isEn)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase shadow-sm border border-white/50 ${statusConf.badge}`}>
@@ -187,6 +198,11 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${statusConf.badge}`}>
                   {isEn ? statusConf.labelEn : statusConf.labelAr}
                 </span>
+                {isTaskSize(task.taskSize) && (
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${TASK_SIZE_BADGE[task.taskSize]}`}>
+                    {taskSizeLabelOrUnset(task.taskSize, isEn)}
+                  </span>
+                )}
               </div>
               <p className="font-semibold text-gray-800 mb-1.5">{task.title}</p>
               {task.building && (

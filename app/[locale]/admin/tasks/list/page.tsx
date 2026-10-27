@@ -42,6 +42,7 @@ export default async function AdminTasksListPage({ params, searchParams }: PageP
   const unitNumber = sp.unitNumber as string | undefined;
   const dateStr = sp.date as string | undefined;
   const statusGroup = (sp.statusGroup as string) || "ACTIVE"; // "ACTIVE" | "COMPLETED" | "ALL"
+  const taskSize = sp.taskSize as string | undefined; // SMALL | MEDIUM | LARGE | UNSET
 
   const canSeeAll = adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR";
 
@@ -85,6 +86,11 @@ export default async function AdminTasksListPage({ params, searchParams }: PageP
         ...(buildingId ? { buildingId } : {}),
         ...(unitNumber ? { unitNumber: { contains: unitNumber, mode: "insensitive" } } : {}),
         ...(assignedToId ? { assignedToId } : {}),
+        ...(taskSize
+          ? taskSize === "UNSET"
+            ? { taskSize: null }
+            : { taskSize }
+          : {}),
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
         ...(dateStr
           ? {
@@ -146,6 +152,8 @@ export default async function AdminTasksListPage({ params, searchParams }: PageP
     dueDate: t.dueDate.toISOString(),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
+    startedAt: t.startedAt ? t.startedAt.toISOString() : null,
+    completedAt: t.completedAt ? t.completedAt.toISOString() : null,
   }));
 
   return (

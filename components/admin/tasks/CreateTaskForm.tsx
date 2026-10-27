@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import imageCompression from "browser-image-compression";
 import { createTask, type CreateTaskState } from "@/app/actions/tasks";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, STAFF_ROLE_CONFIG } from "@/lib/tasks/constants";
+import {
+  EXPECTED_HOURS_MAX, EXPECTED_HOURS_MIN, EXPECTED_HOURS_STEP,
+  TASK_SIZE_BADGE, TASK_SIZE_LABELS, classifyTaskSize,
+} from "@/lib/maintenance/taskSize";
 import { buildingLabel } from "@/lib/buildingLabel";
 import type { TStaffRole } from "@/lib/tasks/constants";
 
@@ -40,6 +44,9 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const [selectedType, setSelectedType] = useState("");
+  // Expected duration drives the task size; the size is never picked by hand.
+  const [expectedHours, setExpectedHours] = useState("");
+  const size = classifyTaskSize(expectedHours === "" ? null : Number(expectedHours));
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [unitMode, setUnitMode] = useState<"dropdown" | "custom">("dropdown");
   const router = useRouter();
@@ -471,6 +478,41 @@ export default function CreateTaskForm({ buildings, assignableStaff, locale, par
           min={new Date().toISOString().slice(0, 16)}
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
         />
+      </div>
+
+      {/* ── Expected duration → task size ────────────────────────────────── */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="expectedHours">
+          {isEn ? "Expected duration (hours)" : "المدة المتوقعة للإنجاز (بالساعات)"} <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            id="expectedHours"
+            name="expectedHours"
+            type="number"
+            required
+            inputMode="decimal"
+            min={EXPECTED_HOURS_MIN}
+            max={EXPECTED_HOURS_MAX}
+            step={EXPECTED_HOURS_STEP}
+            value={expectedHours}
+            onChange={(e) => setExpectedHours(e.target.value)}
+            className="w-full px-4 py-2.5 pe-28 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+          />
+          {/* The size follows the number; it is never chosen by hand. */}
+          {size && (
+            <span
+              className={`absolute top-1/2 -translate-y-1/2 end-3 text-[11px] font-bold px-2.5 py-1 rounded-md border ${TASK_SIZE_BADGE[size]}`}
+            >
+              {isEn ? TASK_SIZE_LABELS[size].en : TASK_SIZE_LABELS[size].ar}
+            </span>
+          )}
+        </div>
+        <p className="mt-1.5 text-xs text-gray-500">
+          {isEn
+            ? `A number from ${EXPECTED_HOURS_MIN} upwards, in half-hour steps. The size badge updates as you type.`
+            : `رقم من ${EXPECTED_HOURS_MIN} فأكثر، بخطوة نصف ساعة. الشارة تتحدّث فوراً مع الكتابة.`}
+        </p>
       </div>
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}

@@ -7,6 +7,7 @@ import TaskListView from "./TaskListView";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, type TStaffRole } from "@/lib/tasks/constants";
 import { canCreateTasks, canOpenCreateTask } from "@/lib/tasks/permissions";
+import { TASK_SIZES, TASK_SIZE_LABELS } from "@/lib/maintenance/taskSize";
 import type { SerializedTask, Building, StaffUser } from "./types";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -33,6 +34,7 @@ const BoardFilters = memo(({
   isEn, 
   currentType, 
   currentPriority, 
+  currentTaskSize,
   currentAssignedTo, 
   currentSearch,
   currentBuildingId,
@@ -137,6 +139,19 @@ const BoardFilters = memo(({
           {Object.entries(TASK_PRIORITY_CONFIG).map(([key, conf]: any) => (
             <option key={key} value={key}>{isEn ? conf.labelEn : conf.labelAr}</option>
           ))}
+        </select>
+
+        {/* Size — classified from the expected duration */}
+        <select
+          value={currentTaskSize}
+          onChange={(e) => updateFilter("taskSize", e.target.value)}
+          className="col-span-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem bg-white"
+        >
+          <option value="">{isEn ? "All Sizes" : "كل الأحجام"}</option>
+          {TASK_SIZES.map((key) => (
+            <option key={key} value={key}>{isEn ? TASK_SIZE_LABELS[key].en : TASK_SIZE_LABELS[key].ar}</option>
+          ))}
+          <option value="UNSET">{isEn ? "Unspecified" : "غير محدد"}</option>
         </select>
 
         {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && staffUsers?.length > 0 && (
@@ -309,6 +324,7 @@ export default function TaskBoard({
   // ── Derived Filter Values ──────────────────────────────────────────────────
   const currentType = searchParams.get("type") ?? "";
   const currentPriority = searchParams.get("priority") ?? "";
+  const currentTaskSize = searchParams.get("taskSize") ?? "";
   const currentAssignedTo = searchParams.get("assignedToId") ?? "";
   const currentSearch = searchParams.get("search") ?? "";
   const currentBuildingId = searchParams.get("buildingId") ?? "";
@@ -319,6 +335,7 @@ export default function TaskBoard({
   const hasActiveFilters = !!(
     currentType ||
     currentPriority ||
+    currentTaskSize ||
     currentAssignedTo ||
     currentSearch ||
     currentBuildingId ||
@@ -403,6 +420,7 @@ export default function TaskBoard({
           isEn={isEn}
           currentType={currentType}
           currentPriority={currentPriority}
+          currentTaskSize={currentTaskSize}
           currentAssignedTo={currentAssignedTo}
           currentSearch={currentSearch}
           currentBuildingId={currentBuildingId}

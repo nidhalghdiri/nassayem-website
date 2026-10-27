@@ -20,7 +20,7 @@ import {
 } from "@/lib/tasks/permissions";
 import { buildingLabel } from "@/lib/buildingLabel";
 import { categoryLabel, roomLabel } from "@/lib/maintenance/categories";
-import { taskSizeLabel } from "@/lib/maintenance/taskSize";
+import { taskSizeLabel, TASK_SIZE_BADGE, isTaskSize, SIZE_THRESHOLDS } from "@/lib/maintenance/taskSize";
 import type { TStaffRole, TTaskType, TTaskPriority } from "@/lib/tasks/constants";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 
@@ -56,6 +56,8 @@ type FullTask = {
   room?: string | null;
   guestInUnit?: boolean | null;
   taskSize?: string | null;
+  expectedHours?: number | null;
+  actualHours?: number | null;
   type: string;
   title: string;
   description: string | null;
@@ -128,6 +130,9 @@ const ACTIVITY_ICON: Record<string, { path: string; color: string }> = {
   request_approved: { path: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-green-600 bg-green-50" },
   request_rejected: { path: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-red-500 bg-red-50" },
   due_date_changed: { path: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", color: "text-sky-600 bg-sky-50" },
+  // Anti-inflation trail: every estimate change and size approval is shown here.
+  expected_hours_changed: { path: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-amber-600 bg-amber-50" },
+  size_approved: { path: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-600 bg-emerald-50" },
   on_hold_reason:   { path: "M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-amber-600 bg-amber-50" },
   inspection_completed: { path: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", color: "text-teal-600 bg-teal-50" },
 };
@@ -818,11 +823,34 @@ export default function TaskDetailPanel({
                         {roomLabel(task.room, isEn) && <span className="ms-1.5">• {roomLabel(task.room, isEn)}</span>}
                       </dd>
                     )}
-                    {taskSizeLabel(task.taskSize, isEn) && (
-                      <dd className="mt-1.5">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
-                          {isEn ? "Size: " : "الحجم: "}{taskSizeLabel(task.taskSize, isEn)}
-                        </span>
+                    {(isTaskSize(task.taskSize) || typeof task.expectedHours === "number" || typeof task.actualHours === "number") && (
+                      <dd className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                        {isTaskSize(task.taskSize) && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-md font-bold border ${TASK_SIZE_BADGE[task.taskSize]}`}
+                            title={
+                              typeof task.expectedHours === "number"
+                                ? isEn
+                                  ? `Expected ${task.expectedHours}h — under ${SIZE_THRESHOLDS.medium}h is small, under ${SIZE_THRESHOLDS.large}h is medium, ${SIZE_THRESHOLDS.large}h or more is large`
+                                  : `المدة المتوقعة ${task.expectedHours} ساعة — أقل من ${SIZE_THRESHOLDS.medium} صغيرة، أقل من ${SIZE_THRESHOLDS.large} متوسطة، ${SIZE_THRESHOLDS.large} فأكثر كبيرة`
+                                : undefined
+                            }
+                          >
+                            {isEn ? "Size: " : "الحجم: "}{taskSizeLabel(task.taskSize, isEn)}
+                          </span>
+                        )}
+                        {typeof task.expectedHours === "number" && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700">
+                            {isEn ? "Expected: " : "المتوقعة: "}{task.expectedHours}
+                            {isEn ? "h" : " س"}
+                          </span>
+                        )}
+                        {typeof task.actualHours === "number" && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md font-semibold bg-sky-50 text-sky-700">
+                            {isEn ? "Actual: " : "الفعلية: "}{task.actualHours}
+                            {isEn ? "h" : " س"}
+                          </span>
+                        )}
                       </dd>
                     )}
                     {typeof task.guestInUnit === "boolean" && (
