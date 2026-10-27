@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
 import type { TaskStatus } from "@prisma/client";
 
 export type PendingAudit = {
@@ -15,6 +16,14 @@ export type PendingAudit = {
   completedAt: Date;
   startedAt: Date | null;
   photos: { id: string; url: string }[];
+  /**
+   * Review stage: "approved_receptionist" = reception already signed off and it
+   * now waits on the supervisor; "pending" = nobody has reviewed it yet.
+   */
+  awaitingReview: TAwaitingReview | null;
+  /** Who approved it at reception, and when (null when reception has not). */
+  receptionApprovedBy: string | null;
+  receptionApprovedAt: Date | null;
 };
 
 export type SupervisorStats = {
@@ -67,6 +76,7 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
           { action: { in: ["approved", "rejected", "approved_receptionist", "rejected_receptionist"] } }
         ]},
         orderBy: { createdAt: "desc" },
+        include: { user: { select: { name: true, email: true } } },
       },
     },
     orderBy: { updatedAt: "desc" },
@@ -92,6 +102,11 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
 
     const completedAct = t.activities.find(a => a.action === "status_changed" && a.details.includes("COMPLETED"));
     const startedAct = t.activities.find(a => a.action === "status_changed" && a.details.includes("STARTED"));
+
+    // Reception's sign-off only counts when it is the newest review: a later
+    // rejection (and redo) means it must be approved at reception again.
+    const awaitingReview = getAwaitingReview(t.status, latestAction);
+    const receptionAct = latestAction === "approved_receptionist" ? approvalActivities[0] : null;
     
     pendingAudits.push({
       id: t.id,
@@ -107,6 +122,11 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       completedAt: completedAct?.createdAt || t.updatedAt,
       startedAt: startedAct?.createdAt || null,
       photos: t.photos.map(p => ({ id: p.id, url: p.photoUrl })),
+      awaitingReview,
+      receptionApprovedBy: receptionAct
+        ? receptionAct.user.name || receptionAct.user.email.split("@")[0]
+        : null,
+      receptionApprovedAt: receptionAct?.createdAt ?? null,
     });
   }
 

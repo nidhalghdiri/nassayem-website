@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2, UserCheck, UserX } from "lucide-react";
 import type { PendingAudit } from "@/lib/reports/supervisorAudit";
 import { useRouter } from "next/navigation";
 import { formatTimeAgo } from "../timeUtils";
@@ -29,11 +29,27 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
     confirmApprove: isEn ? "Confirm Approval" : "تأكيد الاعتماد",
     cancel: isEn ? "Cancel" : "إلغاء",
     noteOptional: isEn ? "Note (Optional)" : "ملاحظة (اختياري)",
+    ratingRequired: isEn ? "Required" : "مطلوب",
+    chooseRating: isEn ? "Choose a rating before approving." : "اختر التقييم قبل الاعتماد.",
+    approvedByReception: isEn ? "Approved by reception" : "اعتمدها الاستقبال",
+    notApprovedByReception: isEn ? "Not reviewed by reception" : "لم يعتمدها الاستقبال",
+    byLabel: isEn ? "by" : "بواسطة",
+    allReviews: isEn ? "All" : "الكل",
+    onlyReception: isEn ? "Approved by reception" : "اعتمدها الاستقبال",
+    onlyPending: isEn ? "Awaiting reception" : "بانتظار الاستقبال",
   };
 
   const [selectedBuilding, setSelectedBuilding] = useState<string>("ALL");
+  const [receptionFilter, setReceptionFilter] = useState<"ALL" | "APPROVED" | "PENDING">("ALL");
   const uniqueBuildings = Array.from(new Set(audits.map(a => a.buildingName)));
-  const filteredAudits = selectedBuilding === "ALL" ? audits : audits.filter(a => a.buildingName === selectedBuilding);
+  const filteredAudits = audits.filter((a) => {
+    if (selectedBuilding !== "ALL" && a.buildingName !== selectedBuilding) return false;
+    const byReception = a.awaitingReview === "approved_receptionist";
+    if (receptionFilter === "APPROVED") return byReception;
+    if (receptionFilter === "PENDING") return !byReception;
+    return true;
+  });
+  const receptionApprovedCount = audits.filter((a) => a.awaitingReview === "approved_receptionist").length;
 
   const handleApprove = async (auditId: string, rating: number, note: string) => {
     setLoadingId(auditId);
@@ -86,18 +102,30 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
           <span className="text-xs font-medium text-slate-500">{t.pending}</span>
         </div>
         
-        {uniqueBuildings.length > 0 && (
-          <select 
-            value={selectedBuilding}
-            onChange={(e) => setSelectedBuilding(e.target.value)}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={receptionFilter}
+            onChange={(e) => setReceptionFilter(e.target.value as "ALL" | "APPROVED" | "PENDING")}
             className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-nassayem"
           >
-            <option value="ALL">{t.allBuildings}</option>
-            {uniqueBuildings.map(b => (
-              <option key={b} value={b}>{b}</option>
-            ))}
+            <option value="ALL">{t.allReviews} ({audits.length})</option>
+            <option value="APPROVED">{t.onlyReception} ({receptionApprovedCount})</option>
+            <option value="PENDING">{t.onlyPending} ({audits.length - receptionApprovedCount})</option>
           </select>
-        )}
+
+          {uniqueBuildings.length > 0 && (
+            <select 
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-nassayem"
+            >
+              <option value="ALL">{t.allBuildings}</option>
+              {uniqueBuildings.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
@@ -123,7 +151,8 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
 
 function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
   const [isApproving, setIsApproving] = useState(false);
-  const [rating, setRating] = useState(5);
+  // No default — the supervisor must choose, so the score reflects a decision.
+  const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [photoModalIndex, setPhotoModalIndex] = useState<number | null>(null);
 
@@ -159,6 +188,22 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
+        {/* Has reception signed off yet? The supervisor is the second reviewer. */}
+        {audit.awaitingReview === "approved_receptionist" ? (
+          <span
+            title={audit.receptionApprovedBy ? `${t.byLabel} ${audit.receptionApprovedBy}` : undefined}
+            className="bg-teal-50 text-teal-700 border border-teal-200 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1"
+          >
+            <UserCheck className="w-3 h-3 shrink-0" />
+            {t.approvedByReception}
+            {audit.receptionApprovedBy ? <span className="font-medium opacity-80">· {audit.receptionApprovedBy}</span> : null}
+          </span>
+        ) : (
+          <span className="bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
+            <UserX className="w-3 h-3 shrink-0" />
+            {t.notApprovedByReception}
+          </span>
+        )}
         {isNew && <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2 py-1 rounded-md">{t.new}</span>}
         <span className={`text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1 ${isLate ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
           <Clock className="w-3 h-3" />
@@ -198,13 +243,30 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-50 bg-emerald-50/30 p-4 rounded-xl mt-2">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-slate-700">{t.workQuality}</span>
-              <div className="flex gap-1" dir="ltr">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button key={star} onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
-                    <Star className={`w-6 h-6 ${star <= rating ? 'fill-orange-400 text-orange-400' : 'text-slate-300'}`} />
-                  </button>
-                ))}
+              <span className="text-sm font-bold text-slate-700">
+                {t.workQuality} <span className="text-red-500">*</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1" dir="ltr" role="radiogroup" aria-label={t.workQuality}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      role="radio"
+                      aria-checked={rating === star}
+                      aria-label={String(star)}
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none focus:ring-2 focus:ring-emerald-500/40 rounded transition-transform hover:scale-110"
+                    >
+                      <Star className={`w-6 h-6 ${rating !== null && star <= rating ? 'fill-orange-400 text-orange-400' : 'text-slate-300'}`} />
+                    </button>
+                  ))}
+                </div>
+                {rating === null && (
+                  <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-md whitespace-nowrap">
+                    {t.ratingRequired}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -224,9 +286,10 @@ function AuditCard({ audit, t, isEn, isLoading, onApprove, onReject }: any) {
             {t.cancel}
           </button>
           <button 
-            disabled={isLoading}
-            onClick={() => onApprove(rating, note)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={isLoading || rating === null}
+            title={rating === null ? t.chooseRating : undefined}
+            onClick={() => rating !== null && onApprove(rating, note)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             {t.confirmApprove}
