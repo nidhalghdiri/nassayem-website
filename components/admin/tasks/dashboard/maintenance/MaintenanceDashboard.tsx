@@ -4,9 +4,11 @@ import React, { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
-  Briefcase, CircleDot, Timer, PackageX, Star, QrCode, ListChecks, History, CheckCircle2, MonitorSmartphone,
+  Briefcase, CircleDot, Timer, PackageX, Star, QrCode, ListChecks, History, CheckCircle2, MonitorSmartphone, ClipboardList,
 } from "lucide-react";
 import EquipmentListTab from "../EquipmentListTab";
+import VisitsTab from "./VisitsTab";
+import MaintenanceRequestButton from "@/components/admin/tasks/MaintenanceRequestButton";
 import type { MaintenanceDashboardData, MaintenanceTask } from "@/lib/reports/maintenanceDashboard";
 import type { TTaskStatus } from "@/lib/tasks/statuses";
 import TaskDetailPanel from "@/components/admin/tasks/TaskDetailPanel";
@@ -25,7 +27,7 @@ type Props = {
   technicians: { id: string; name: string | null; email: string }[];
 };
 
-type Tab = "tasks" | "log" | "equipment";
+type Tab = "tasks" | "log" | "equipment" | "visits";
 
 export default function MaintenanceDashboard({ locale, currentUserId, currentUserRole, data, technicians }: Props) {
   const isEn = locale === "en";
@@ -56,6 +58,8 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
     myTasks: isOwnDashboard ? (isEn ? "My tasks" : "مهامي") : (isEn ? "Tasks" : "المهام"),
     taskLog: isEn ? "Task log" : "سجل المهام",
     equipmentList: isEn ? "Equipment list" : "قائمة الأجهزة",
+    visits: isEn ? "Visits" : "الزيارات",
+    maintRequest: isEn ? "Maintenance request" : "بلاغ صيانة",
     technician: isEn ? "Technician" : "الفني",
     open: isEn ? "Open tasks" : "مهام مفتوحة",
     notStarted: isEn ? "Not started yet" : "لم يبدأ العمل عليها",
@@ -187,6 +191,9 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
         <TabButton active={tab === "equipment"} onClick={() => setTab("equipment")} icon={<MonitorSmartphone className="w-4 h-4" />}>
           {t.equipmentList}
         </TabButton>
+        <TabButton active={tab === "visits"} onClick={() => setTab("visits")} icon={<ClipboardList className="w-4 h-4" />}>
+          {t.visits}
+        </TabButton>
         <Link
           href={`/${locale}/admin/maintenance/scan`}
           className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent whitespace-nowrap"
@@ -194,10 +201,16 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
           <QrCode className="w-4 h-4" />
           {t.visitByCode}
         </Link>
+        <MaintenanceRequestButton
+          locale={locale}
+          className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent whitespace-nowrap"
+        />
       </nav>
 
       {tab === "equipment" ? (
         <EquipmentListTab locale={locale} />
+      ) : tab === "visits" ? (
+        <VisitsTab locale={locale} technicianId={data.technician.id} />
       ) : (
         <>
           {/* ── Header ───────────────────────────────────────────────────────── */}
@@ -233,6 +246,11 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
                 <QrCode className="w-4 h-4 text-nassayem" />
                 {t.visitByCode}
               </Link>
+              {/* Technicians log their own finds; the request is assigned to them */}
+              <MaintenanceRequestButton
+                locale={locale}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-nassayem/40 bg-white text-sm font-bold text-nassayem hover:bg-nassayem/5 transition-colors"
+              />
             </div>
           </header>
 
