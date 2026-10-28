@@ -537,6 +537,9 @@ model AdminUser {
   // Receptionist building scope
   assignedBuildings AdminUserBuilding[]
 
+  // Purchase request approvals decided on the website
+  purchaseRequestDecisions PurchaseRequestDecision[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1268,4 +1271,44 @@ model MonthlyPrice {
   updatedAt DateTime @updatedAt
 
   @@unique([buildingId, unitType])
+}
+
+// ------------------------------------------------------
+// MODELS — Purchase request approvals (NetSuite)
+// ------------------------------------------------------
+
+// Website-side audit log of supervisor decisions on NetSuite purchase requests.
+// The request itself lives in NetSuite (customrecord_purchase_request); this
+// table records who decided what, from this website, and when.
+//
+// Two jobs:
+//  1. An audit trail the website owns, independent of NetSuite.
+//  2. It makes the "Approved by me" tab cheap — otherwise the only way to find
+//     a supervisor's own approvals would be to page through NetSuite and match
+//     on the supervisor ref.
+//
+// One row per successful decision. Rows are never updated: a request can only
+// be decided once at the supervisor stage (the API enforces pending_supervisor).
+model PurchaseRequestDecision {
+  id String @id @default(uuid())
+
+  // NetSuite internal id of the custom record, and its auto-number (PUR00012)
+  // kept denormalised so the log stays readable without calling NetSuite.
+  netsuiteRequestId String
+  requestNumber     String
+
+  // "approve" | "reject" — a string rather than an enum, to stay aligned with
+  // the API's own vocabulary and to leave room for later stages.
+  decision String
+  note     String? @db.Text
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // Drives the "Approved by me" tab.
+  @@index([adminUserId, decision])
+  @@index([netsuiteRequestId])
+  @@index([createdAt])
 }

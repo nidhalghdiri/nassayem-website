@@ -57,22 +57,36 @@ export function isNetsuiteChatbotConfigured(): boolean {
   return !!(process.env.NETSUITE_CHATBOT_RESTLET_URL && process.env.NETSUITE_M2M_TOKEN);
 }
 
-async function callChatbotRestlet<T>(
-  body: Record<string, unknown>,
-): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
-  if (!isNetsuiteChatbotConfigured()) {
-    return { ok: false, error: "NetSuite chatbot RESTlet not configured" };
-  }
+/**
+ * Low-level call to an externally-available NetSuite Suitelet.
+ *
+ * Shared by every outbound Suitelet integration (chatbot, purchase requests),
+ * because they all have the same hard constraints:
+ *
+ *  - GET with query params. Externally-called Suitelets reject POST (405) on
+ *    some URL domains.
+ *  - Auth is the `token` query param ONLY. An Authorization header must NOT be
+ *    sent, because NetSuite intercepts it and tries to validate it as a
+ *    NetSuite OAuth token before the Suitelet runs — failing with an HTML
+ *    error page.
+ *  - `redirect: "follow"`, because NetSuite bounces external URLs.
+ *  - A timeout, because NetSuite can be slow.
+ *
+ * `baseUrl` already carries script/deploy/compid/ns-at, so params are appended
+ * to whatever query string it has. Server-side only: it reads the M2M token.
+ *
+ * Returns the raw Response — JSON parsing is the caller's job, since some
+ * actions (file downloads) return binary.
+ */
+export async function callNetsuiteSuitelet(
+  baseUrl: string,
+  params: Record<string, unknown>,
+): Promise<{ ok: true; res: Response } | { ok: false; error: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RESTLET_TIMEOUT_MS);
   try {
-    // GET with query params — externally-called Suitelets reject POST (405)
-    // on some URL domains. Auth is the `token` query param ONLY: an
-    // Authorization header must NOT be sent, because NetSuite intercepts it
-    // and tries to validate it as a NetSuite OAuth token before the Suitelet
-    // runs — failing with an HTML error page.
-    const url = new URL(process.env.NETSUITE_CHATBOT_RESTLET_URL || "");
-    for (const [key, value] of Object.entries(body)) {
+    const url = new URL(baseUrl);
+    for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null && value !== "") {
         url.searchParams.set(key, String(value));
       }
@@ -83,16 +97,9 @@ async function callChatbotRestlet<T>(
       method: "GET",
       signal: controller.signal,
       redirect: "follow",
+      cache: "no-store",
     });
-    const text = await res.text();
-    if (!res.ok) {
-      return { ok: false, error: `NetSuite ${res.status}: ${text.slice(0, 400)}` };
-    }
-    const data = JSON.parse(text) as T & { ok?: boolean; error?: string };
-    if (data && data.ok === false) {
-      return { ok: false, error: data.error ?? "NetSuite returned ok:false" };
-    }
-    return { ok: true, data };
+    return { ok: true, res };
   } catch (err) {
     return {
       ok: false,
@@ -106,6 +113,62 @@ async function callChatbotRestlet<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Calls a Suitelet and parses a JSON `{ ok, ... }` envelope, treating
+ * `ok: false` as an error. The common case for JSON Suitelet actions.
+ */
+export async function callNetsuiteSuiteletJson<T>(
+  baseUrl: string,
+  params: Record<string, unknown>,
+): Promise<
+  | { ok: true; data: T }
+  // `body` is the parsed error envelope when NetSuite sent one. Callers need it
+  // for codes that carry extra fields (e.g. INVALID_STATUS + the current status).
+  | { ok: false; error: string; code?: string; body?: Record<string, unknown> }
+> {
+  const call = await callNetsuiteSuitelet(baseUrl, params);
+  if (!call.ok) return { ok: false, error: call.error };
+
+  const { res } = call;
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  if (!res.ok) {
+    return { ok: false, error: `NetSuite ${res.status}: ${text.slice(0, 400)}` };
+  }
+  let data: T & { ok?: boolean; error?: string; code?: string };
+  try {
+    data = JSON.parse(text) as T & { ok?: boolean; error?: string; code?: string };
+  } catch {
+    // NetSuite answers with an HTML error page when the URL or auth is wrong.
+    return { ok: false, error: `NetSuite returned non-JSON: ${text.slice(0, 200)}` };
+  }
+  if (data && data.ok === false) {
+    return {
+      ok: false,
+      error: data.error ?? "NetSuite returned ok:false",
+      code: data.code,
+      body: data as unknown as Record<string, unknown>,
+    };
+  }
+  return { ok: true, data };
+}
+
+async function callChatbotRestlet<T>(
+  body: Record<string, unknown>,
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  if (!isNetsuiteChatbotConfigured()) {
+    return { ok: false, error: "NetSuite chatbot RESTlet not configured" };
+  }
+  return callNetsuiteSuiteletJson<T>(
+    process.env.NETSUITE_CHATBOT_RESTLET_URL || "",
+    body,
+  );
 }
 
 export type NetsuiteAvailability = {

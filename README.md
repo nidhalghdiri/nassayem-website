@@ -54,7 +54,8 @@ A grounded, tool-calling assistant (web widget + WhatsApp) that answers customer
 | `EMAIL_FROM` / `RESEND_API_KEY` | Existing — reused for escalation email notifications |
 | `NEXT_PUBLIC_BASE_URL` | Existing — used to build property links the bot shares |
 | `NETSUITE_CHATBOT_RESTLET_URL` | New — external URL of the `netsuite/sl_chatbot.js` Suitelet. When set (with `NETSUITE_M2M_TOKEN`), unit availability comes from NetSuite in real time and the bot can create reservations + send SmartPay payment links. When unset, the bot falls back to website-side availability |
-| `NETSUITE_M2M_TOKEN` | Existing — also authenticates the chatbot Suitelet calls (`custscript_nass_chatbot_token`) |
+| `NETSUITE_PUR_REQ_API_URL` | New — external URL of the Purchase Request API Suitelet, used by the admin Purchase Requests page (supervisor approval step). The URL already carries `script`, `deploy`, `compid` and `ns-at`; the client appends the action parameters and the `token`. When unset, the page shows a "not configured" state instead of failing |
+| `NETSUITE_M2M_TOKEN` | Existing — also authenticates the chatbot Suitelet calls (`custscript_nass_chatbot_token`) and the Purchase Request API |
 
 ### NetSuite live availability + auto reservations
 
@@ -86,3 +87,26 @@ Test changes in `/{locale}/admin/chatbot/playground` before customers see them.
 3. Ensure `WHATSAPP_APP_SECRET` matches the App secret (App settings → Basic) — inbound requests are signature-checked.
 
 Inbound customer messages open WhatsApp's 24-hour customer-service window, so the bot replies with free-form messages (no templates needed).
+
+---
+
+## Purchase Requests (supervisor approval)
+
+Employees submit purchase requests from a NetSuite Suitelet. The approval chain is **Supervisor → Accounts → General Manager**. Supervisors have no NetSuite access, so the **supervisor step happens on this website**, at `/{locale}/admin/purchase-requests`; Accounts and the GM approve inside NetSuite.
+
+The website never writes to NetSuite directly — every read and write goes through the already-deployed Purchase Request API Suitelet (`NETSUITE_PUR_REQ_API_URL`, authenticated by `NETSUITE_M2M_TOKEN` as a `token` query parameter).
+
+- **Access**: `SUPERVISOR` and `MANAGER` only, for **all buildings** — the same way `getBuildingScopeFilter` treats both roles. Enforced server-side in the page, the Server Action and the photo proxy (`lib/purchaseRequestAccess.ts`), not just in the sidebar.
+- **Tabs**: Pending (default) / Approved by me / Rejected / All. "Approved by me" is answered from the website's own `PurchaseRequestDecision` log rather than paging NetSuite.
+- **Decisions**: approve (optional note) moves the request to `pending_accounts`; reject (reason required) sets `rejected` with `rejectedStage = "supervisor"`. Only valid while the request is `pending_supervisor` — if someone else acted first, NetSuite answers `INVALID_STATUS` and the UI says so and reloads.
+- **Photo**: private in the NetSuite File Cabinet, so it is proxied through `/api/admin/purchase-requests/[id]/photo` behind the same role check. The browser never sees the Suitelet URL or token.
+- **Audit log**: `PurchaseRequestDecision` records every successful decision (request id + number, decision, note, `AdminUser`, timestamp). NetSuite is written first (it is the system of record); a failure to write the local row is logged, never surfaced as a failed approval.
+
+### Architecture
+
+- `lib/netsuite.ts` — `callNetsuiteSuitelet` / `callNetsuiteSuiteletJson`: the shared transport for every outbound Suitelet (GET only, `token` in the query, **never** an `Authorization` header, 20 s timeout, `redirect: "follow"`). The chatbot RESTlet helper delegates to it.
+- `lib/netsuitePurchaseRequests.ts` — typed `listPurchaseRequests`, `getPurchaseRequest`, `fetchPurchaseRequestPhoto`, `decidePurchaseRequest`. Server-only: it reads the M2M token.
+- `app/actions/purchaseRequests.ts` — the only place that calls `decide`. The NetSuite `decide` action is a **GET that changes data**, so it must only ever run from an explicit button click — never a page render, link or prefetch.
+- `components/admin/purchase-requests/` — list, filters and detail drawer (header data, attachment, item lines, approval timeline, approve/reject dialogs). Arabic (RTL) and English.
+
+WhatsApp notifications to supervisors about new requests are a later phase (pending template approval); `app/actions/purchaseRequests.ts` marks the hook point.

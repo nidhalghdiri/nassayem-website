@@ -28,7 +28,7 @@ type NavItem = {
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions, WhatsApp Log, and the per-role
 //                Tasks dashboards: Supervisor / Receptionist / Worker / Maintenance)
-// SUPERVISOR   : Tasks, Tasks List, Laundry
+// SUPERVISOR   : Purchase Requests, Tasks, Tasks List, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
 // MAINTENANCE  : Dashboard, Tasks, Tasks List
@@ -36,8 +36,8 @@ type NavItem = {
 // The equipment list is a tab on the Manager / Supervisor / Maintenance Tasks
 // dashboards (the /admin/maintenance pages still work for direct links).
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "messaging", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
-  SUPERVISOR:   ["tasks", "tasksList", "laundry"],
+  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "purchaseRequests", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "messaging", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  SUPERVISOR:   ["purchaseRequests", "tasks", "tasksList", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
   MAINTENANCE:  ["dashboard", "tasks", "tasksList"],
@@ -107,6 +107,14 @@ export default function AdminSidebar({ locale, userEmail, userRole = "MANAGER" }
       href: `/${locale}/admin/netsuite-payments`,
       exact: false,
       icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+    },
+    {
+      key: "purchaseRequests",
+      nameEn: "Purchase Requests",
+      nameAr: "طلبات الشراء",
+      href: `/${locale}/admin/purchase-requests`,
+      exact: false,
+      icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
     },
     {
       key: "tasks",

@@ -179,3 +179,17 @@ curl -G "$SUITELET_EXTERNAL_URL" \
   --data-urlencode "netsuiteBuildingId=77" --data-urlencode "checkIn=2026-08-10" \
   --data-urlencode "checkOut=2026-08-13" --data-urlencode "token=$TOKEN"
 ```
+
+---
+
+## Purchase Request API Suitelet
+
+Built and deployed separately (not in this folder). It serves the website's supervisor approval step for `customrecord_purchase_request`.
+
+- Website env var: `NETSUITE_PUR_REQ_API_URL` — the deployment's **external URL**, which already carries `script`, `deploy`, `compid` and `ns-at`. The website appends the action parameters plus `token` (`NETSUITE_M2M_TOKEN`).
+- Actions: `list`, `get`, `photo`, `decide`. GET only; `{ ok: true, ... }` or `{ ok: false, code, error }` with codes `UNAUTHORIZED`, `NOT_FOUND`, `INVALID_STATUS`, `INVALID_PARAMS`, `FORBIDDEN_LOCATION`, `SERVER_ERROR`.
+- Status codes (never NetSuite internal list ids): `pending_supervisor`, `pending_accounts`, `pending_gm`, `approved`, `rejected`.
+- `decide` only works while the request is `pending_supervisor`, and is the supervisor stage only — Accounts and the GM approve in NetSuite.
+- `locationIds` on `decide` is optional building scoping. Supervisors currently see all buildings, so the website omits it; see `getPurchaseRequestLocationScope` in `lib/purchaseRequestAccess.ts` to switch it on.
+
+Until `NETSUITE_PUR_REQ_API_URL` is set, `/{locale}/admin/purchase-requests` shows a "not configured" state, so deploys are safe in any order.
