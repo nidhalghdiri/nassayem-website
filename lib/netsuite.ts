@@ -24,15 +24,20 @@ export type NetsuitePaymentSyncPayload = {
 };
 
 /**
- * Verifies that an inbound request from NetSuite carries the shared secret.
- * Throws if NETSUITE_INBOUND_SECRET is not configured (fail closed).
+ * Compares a provided secret against an expected one in constant time, and
+ * fails closed when the expected value is not configured.
+ *
+ * `envName` is only used for the diagnostic log line — each inbound endpoint
+ * has its own secret, so one compromised or rotated secret cannot be replayed
+ * against a different endpoint.
  */
-export function verifyNetsuiteInboundSecret(
+function verifyInboundSecret(
   providedSecret: string | null | undefined,
+  expected: string | undefined,
+  envName: string,
 ): boolean {
-  const expected = process.env.NETSUITE_INBOUND_SECRET;
   if (!expected) {
-    console.error("[netsuite] NETSUITE_INBOUND_SECRET is not configured.");
+    console.error(`[netsuite] ${envName} is not configured.`);
     return false;
   }
   if (!providedSecret) return false;
@@ -43,6 +48,43 @@ export function verifyNetsuiteInboundSecret(
     mismatch |= providedSecret.charCodeAt(i) ^ expected.charCodeAt(i);
   }
   return mismatch === 0;
+}
+
+/**
+ * Verifies that an inbound request from NetSuite carries the shared secret.
+ * Fails closed if NETSUITE_INBOUND_SECRET is not configured.
+ *
+ * Used by the payment-link endpoint. Purchase request notifications have their
+ * own secret — see verifyPurchaseRequestNotifySecret.
+ */
+export function verifyNetsuiteInboundSecret(
+  providedSecret: string | null | undefined,
+): boolean {
+  return verifyInboundSecret(
+    providedSecret,
+    process.env.NETSUITE_INBOUND_SECRET,
+    "NETSUITE_INBOUND_SECRET",
+  );
+}
+
+/**
+ * Verifies the inbound secret for purchase request WhatsApp notifications,
+ * which has its own env var (NETSUITE_PUR_REQ_NOTIFY_SECRET) set on the
+ * NetSuite deployment customdeploy_ns_ue_pur_req.
+ *
+ * Deliberately separate from NETSUITE_INBOUND_SECRET: these endpoints are
+ * reached by different NetSuite scripts, so a secret can be rotated or leaked
+ * without exposing the other, and this one cannot create payment links.
+ * Fails closed when unset.
+ */
+export function verifyPurchaseRequestNotifySecret(
+  providedSecret: string | null | undefined,
+): boolean {
+  return verifyInboundSecret(
+    providedSecret,
+    process.env.NETSUITE_PUR_REQ_NOTIFY_SECRET,
+    "NETSUITE_PUR_REQ_NOTIFY_SECRET",
+  );
 }
 
 // ── Chatbot RESTlet (real-time availability + reservation creation) ──────────

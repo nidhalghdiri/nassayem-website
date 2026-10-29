@@ -56,6 +56,7 @@ A grounded, tool-calling assistant (web widget + WhatsApp) that answers customer
 | `NETSUITE_CHATBOT_RESTLET_URL` | New — external URL of the `netsuite/sl_chatbot.js` Suitelet. When set (with `NETSUITE_M2M_TOKEN`), unit availability comes from NetSuite in real time and the bot can create reservations + send SmartPay payment links. When unset, the bot falls back to website-side availability |
 | `NETSUITE_PUR_REQ_API_URL` | New — external URL of the Purchase Request API Suitelet, used by the admin Purchase Requests page (supervisor approval step). The URL already carries `script`, `deploy`, `compid` and `ns-at`; the client appends the action parameters and the `token`. When unset, the page shows a "not configured" state instead of failing |
 | `NETSUITE_M2M_TOKEN` | Existing — also authenticates the chatbot Suitelet calls (`custscript_nass_chatbot_token`) and the Purchase Request API |
+| `NETSUITE_PUR_REQ_NOTIFY_SECRET` | New — shared secret for `POST /api/netsuite/purchase-request-notify` (purchase request WhatsApp notifications), sent by NetSuite in the `x-netsuite-secret` header. Its own secret, separate from `NETSUITE_INBOUND_SECRET`, so one leaking cannot be replayed against the payment-link endpoint. Set the same value in the NetSuite deployment parameter on `customdeploy_ns_ue_pur_req`. Unset → the endpoint fails closed with 401 |
 
 ### NetSuite live availability + auto reservations
 
@@ -100,6 +101,7 @@ The website never writes to NetSuite directly — every read and write goes thro
 - **Tabs**: Pending (default) / Approved by me / Rejected / All. "Approved by me" is answered from the website's own `PurchaseRequestDecision` log rather than paging NetSuite.
 - **Decisions**: approve (optional note) moves the request to `pending_accounts`; reject (reason required) sets `rejected` with `rejectedStage = "supervisor"`. Only valid while the request is `pending_supervisor` — if someone else acted first, NetSuite answers `INVALID_STATUS` and the UI says so and reloads.
 - **Photo**: private in the NetSuite File Cabinet, so it is proxied through `/api/admin/purchase-requests/[id]/photo` behind the same role check. The browser never sees the Suitelet URL or token.
+- **Notifications**: NetSuite fires a user event on every status change (the supervisor decisions here included, since they are saved through the NetSuite API) and POSTs one event to `/api/netsuite/purchase-request-notify`, which sends the matching Arabic WhatsApp template. Nothing is sent from the supervisor decision action, or people would be messaged twice. The endpoint is authenticated by **its own** secret, `NETSUITE_PUR_REQ_NOTIFY_SECRET` (set on the NetSuite deployment `customdeploy_ns_ue_pur_req`) — deliberately not the payment-link endpoint's `NETSUITE_INBOUND_SECRET`, so neither secret can be replayed against the other endpoint.
 - **Audit log**: `PurchaseRequestDecision` records every successful decision (request id + number, decision, note, `AdminUser`, timestamp). NetSuite is written first (it is the system of record); a failure to write the local row is logged, never surfaced as a failed approval.
 
 ### Architecture

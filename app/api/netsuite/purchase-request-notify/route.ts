@@ -9,7 +9,9 @@
  * decision action, or everyone would be messaged twice.
  *
  * We:
- *   1. Verify the shared secret (x-netsuite-secret header).
+ *   1. Verify the shared secret (x-netsuite-secret header, checked against
+ *      NETSUITE_PUR_REQ_NOTIFY_SECRET — its own secret, not the payment-link
+ *      endpoint's).
  *   2. Validate the template name and its body-parameter count.
  *   3. Resolve recipients (NetSuite-supplied, plus website supervisors when
  *      the request is waiting for the supervisor), de-duplicated by phone.
@@ -24,7 +26,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
-import { verifyNetsuiteInboundSecret } from "@/lib/netsuite";
+import { verifyPurchaseRequestNotifySecret } from "@/lib/netsuite";
 import {
   PURCHASE_REQUEST_TEMPLATES,
   isPurchaseRequestTemplate,
@@ -88,8 +90,12 @@ export async function POST(req: NextRequest) {
     log("▶ POST received", req.headers.get("origin") ?? "(no origin)");
 
     // 1. Auth ──────────────────────────────────────────────────────────────
+    // Purchase request notifications have their own secret, separate from the
+    // payment-link endpoint's NETSUITE_INBOUND_SECRET: different NetSuite
+    // scripts call them, so one secret leaking or being rotated cannot affect
+    // the other, and this one cannot be replayed to create payment links.
     const providedSecret = req.headers.get("x-netsuite-secret");
-    const expectedSecret = process.env.NETSUITE_INBOUND_SECRET;
+    const expectedSecret = process.env.NETSUITE_PUR_REQ_NOTIFY_SECRET;
     log("auth check:", {
       secretConfigured: !!expectedSecret,
       headerProvided: !!providedSecret,
@@ -98,7 +104,7 @@ export async function POST(req: NextRequest) {
         !!providedSecret &&
         expectedSecret.length === providedSecret.length,
     });
-    if (!verifyNetsuiteInboundSecret(providedSecret)) {
+    if (!verifyPurchaseRequestNotifySecret(providedSecret)) {
       log("✖ 401 Unauthorized — secret missing/mismatch. Nothing sent.");
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
