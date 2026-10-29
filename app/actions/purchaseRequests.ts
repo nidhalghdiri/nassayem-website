@@ -154,9 +154,11 @@ export async function decidePurchaseRequestAction(input: {
     );
   }
 
-  // Hook point: WhatsApp notifications (requester notified of the outcome) go
-  // here, once the template is approved. Deliberately after the audit write and
-  // wrapped on its own, so a notification failure can never fail a decision.
+  // No notification is sent from here, deliberately. NetSuite owns purchase
+  // request notifications: a user event fires on every status change — this
+  // decision included, because it is saved through the NetSuite API — and
+  // POSTs to /api/netsuite/purchase-request-notify, which sends the WhatsApp
+  // template. Sending here as well would message everyone twice.
 
   revalidatePath("/[locale]/admin/purchase-requests", "page");
   return { ok: true, status: result.data.status };

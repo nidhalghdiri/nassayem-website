@@ -107,6 +107,26 @@
 //
 //   When the order reaches READY, the supervisors receive this message with
 //   {{4}} = "Ready for collection" / "جاهز للاستلام".
+//
+// ── Purchase request templates (AR only, NetSuite-triggered) ─────────────────
+//
+//   ns_purchase_request_to_approve  (AR)
+//   Body params: {{1}} approver name, {{2}} request no., {{3}} building,
+//                {{4}} requested by, {{5}} priority, {{6}} estimated total,
+//                {{7}} reason
+//
+//   ns_purchase_request_rejected  (AR)
+//   Body params: {{1}} receptionist name, {{2}} request no., {{3}} building,
+//                {{4}} rejected by, {{5}} reason
+//
+//   ns_purchase_request_approved  (AR)
+//   Body params: {{1}} receptionist name, {{2}} request no., {{3}} building,
+//                {{4}} estimated total, {{5}} approval date
+//
+//   No URL button on any of the three — see sendPurchaseRequestTemplate.
+//   NetSuite decides who receives which template and supplies {{2}} onwards;
+//   {{1}} is filled per recipient. See notifyPurchaseRequest at the bottom of
+//   this file and /api/netsuite/purchase-request-notify.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import prisma from "@/lib/prisma";
@@ -707,4 +727,145 @@ export async function sendCustomerSurveyTemplate(
     "ar",
     [flatName], // Assuming {{1}} is the customer's name. Remove or change if your template has different variables!
   );
+}
+
+// ── Purchase request notifications (NetSuite-triggered) ──────────────────────
+// NetSuite owns these notifications: a user event fires on every purchase
+// request status change — including the supervisor decisions made on this
+// website, which are saved through the NetSuite API — and POSTs a single event
+// to /api/netsuite/purchase-request-notify. This website only sends what that
+// event asks for. Nothing here is called from the supervisor decision action;
+// doing so would message everyone twice.
+
+/** The three Meta-approved templates, with their total body-variable count. */
+export const PURCHASE_REQUEST_TEMPLATES = {
+  ns_purchase_request_to_approve: 7,
+  ns_purchase_request_rejected: 5,
+  ns_purchase_request_approved: 5,
+} as const;
+
+export type PurchaseRequestTemplate = keyof typeof PURCHASE_REQUEST_TEMPLATES;
+
+export function isPurchaseRequestTemplate(
+  value: string,
+): value is PurchaseRequestTemplate {
+  return Object.prototype.hasOwnProperty.call(PURCHASE_REQUEST_TEMPLATES, value);
+}
+
+/**
+ * One template send for a purchase request.
+ *
+ * Body parameters only — none of the three templates was approved with a URL
+ * button, and Meta rejects a button component the template does not declare.
+ * If a button is added in Meta later, push a `{ type: "button", sub_type:
+ * "url", index: "0", parameters: [...] }` component here and start honouring
+ * the event's `buttonSuffix` (the endpoint already accepts it).
+ *
+ * Reuses the shared postWhatsAppPayload + logSend, so the send is logged to
+ * WhatsAppMessageLog and shows on /admin/whatsapp-log like every other
+ * template. Note waMessageId is not captured on this path, because
+ * postWhatsAppPayload does not surface the Graph response body.
+ *
+ * Unlike sendTemplate this returns a result, because the endpoint has to
+ * report { sent, failed } back to NetSuite.
+ */
+async function sendPurchaseRequestTemplate(
+  to: string,
+  templateName: PurchaseRequestTemplate,
+  languageCode: string,
+  bodyParams: string[],
+): Promise<{ ok: boolean }> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return { ok: false };
+
+  const logBase = {
+    to: cleanTo,
+    kind: "template",
+    templateName,
+    language: languageCode,
+    bodyParams,
+  } as const;
+
+  const result = await postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: cleanTo,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      components: [
+        {
+          type: "body",
+          parameters: bodyParams.map((text) => ({ type: "text", text })),
+        },
+      ],
+    },
+  });
+
+  // A missing token/phone-number-id is a configuration gap, not a send
+  // failure — logged as SKIPPED so it is distinguishable in the log.
+  const isConfigGap =
+    typeof result.error === "string" && result.error.includes("env var is missing");
+
+  await logSend({
+    ...logBase,
+    status: result.ok ? "SENT" : isConfigGap ? "SKIPPED" : "FAILED",
+    error: result.ok ? undefined : result.error,
+  });
+
+  return { ok: result.ok };
+}
+
+export type PurchaseRequestRecipient = { name: string; phone: string };
+
+/**
+ * Sends one purchase request template to every recipient, in parallel.
+ *
+ * `params` are the body variables from {{2}} onwards, already cleaned by
+ * NetSuite; each recipient's own name is prepended as {{1}}.
+ *
+ * Duplicate phone numbers are collapsed on the digits-only form, so
+ * "+968 9859 0405" and "96898590405" count as one recipient — during testing
+ * every NetSuite recipient is the same number. The first occurrence wins, so
+ * an explicitly named recipient keeps their name over a later duplicate.
+ *
+ * Sends are awaited: on serverless, a floating promise can be frozen before
+ * the request completes.
+ */
+export async function notifyPurchaseRequest({
+  template,
+  language = "ar",
+  recipients,
+  params,
+}: {
+  template: PurchaseRequestTemplate;
+  language?: string;
+  recipients: PurchaseRequestRecipient[];
+  params: string[];
+}): Promise<{ sent: number; failed: number; recipients: number }> {
+  const unique = new Map<string, PurchaseRequestRecipient>();
+  for (const r of recipients) {
+    const digits = (r?.phone ?? "").replace(/\D/g, "");
+    if (!digits) continue;
+    if (!unique.has(digits)) unique.set(digits, { name: r.name, phone: digits });
+  }
+
+  const targets = [...unique.values()];
+  if (targets.length === 0) return { sent: 0, failed: 0, recipients: 0 };
+
+  const results = await Promise.all(
+    targets.map((r) =>
+      sendPurchaseRequestTemplate(r.phone, template, language, [r.name, ...params]).catch(
+        // sendPurchaseRequestTemplate already handles its own errors; this is
+        // belt-and-braces so one rejection cannot sink the whole batch.
+        (e) => {
+          console.error("[WhatsApp] purchase request send threw:", e);
+          return { ok: false };
+        },
+      ),
+    ),
+  );
+
+  const sent = results.filter((r) => r.ok).length;
+  return { sent, failed: results.length - sent, recipients: targets.length };
 }
