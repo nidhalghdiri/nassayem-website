@@ -9,9 +9,11 @@
  * decision action, or everyone would be messaged twice.
  *
  * We:
- *   1. Verify the shared secret (x-netsuite-secret header, checked against
- *      NETSUITE_PUR_REQ_NOTIFY_SECRET — its own secret, not the payment-link
- *      endpoint's).
+ *   1. Verify the shared secret (Authorization: Bearer, x-nassayem-secret or
+ *      x-netsuite-secret header, checked against NETSUITE_PUR_REQ_NOTIFY_SECRET
+ *      — its own secret, not the payment-link endpoint's). NetSuite's
+ *      server-side N/https drops x-netsuite-* headers, so the user event sends
+ *      the other two.
  *   2. Validate the template name and its body-parameter count.
  *   3. Resolve recipients (NetSuite-supplied, plus website supervisors when
  *      the request is waiting for the supervisor), de-duplicated by phone.
@@ -94,7 +96,14 @@ export async function POST(req: NextRequest) {
     // payment-link endpoint's NETSUITE_INBOUND_SECRET: different NetSuite
     // scripts call them, so one secret leaking or being rotated cannot affect
     // the other, and this one cannot be replayed to create payment links.
-    const providedSecret = req.headers.get("x-netsuite-secret");
+    // NetSuite's server-side N/https silently drops x-netsuite-* headers (seen
+    // via debug-secret: the header never reached Vercel), so the user event
+    // sends Authorization: Bearer and x-nassayem-secret instead.
+    const bearer = req.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const providedSecret =
+      bearer ??
+      req.headers.get("x-nassayem-secret") ??
+      req.headers.get("x-netsuite-secret");
     const expectedSecret = process.env.NETSUITE_PUR_REQ_NOTIFY_SECRET;
     // Never log either secret. These shape hints are enough to tell a missing
     // header from a stale value from a mangled one, which is what a 401 from
