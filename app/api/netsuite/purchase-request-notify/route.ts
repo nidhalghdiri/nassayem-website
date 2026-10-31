@@ -96,13 +96,24 @@ export async function POST(req: NextRequest) {
     // the other, and this one cannot be replayed to create payment links.
     const providedSecret = req.headers.get("x-netsuite-secret");
     const expectedSecret = process.env.NETSUITE_PUR_REQ_NOTIFY_SECRET;
+    // Never log either secret. These shape hints are enough to tell a missing
+    // header from a stale value from a mangled one, which is what a 401 from
+    // NetSuite actually needs to be diagnosed.
+    const fingerprint = (s: string | null | undefined) =>
+      s ? crypto.createHash("sha256").update(s).digest("hex").slice(0, 8) : null;
     log("auth check:", {
       secretConfigured: !!expectedSecret,
       headerProvided: !!providedSecret,
+      expectedLen: expectedSecret?.length ?? 0,
+      providedLen: providedSecret?.length ?? 0,
       lengthsMatch:
         !!expectedSecret &&
         !!providedSecret &&
         expectedSecret.length === providedSecret.length,
+      // Same value → same fingerprint. Different → the values genuinely differ,
+      // without revealing either one.
+      expectedFp: fingerprint(expectedSecret),
+      providedFp: fingerprint(providedSecret),
     });
     if (!verifyPurchaseRequestNotifySecret(providedSecret)) {
       log("✖ 401 Unauthorized — secret missing/mismatch. Nothing sent.");
