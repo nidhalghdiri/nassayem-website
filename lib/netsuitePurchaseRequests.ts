@@ -57,6 +57,28 @@ export type PurchaseRequestPriority = "normal" | "urgent";
 
 export type PurchaseRequestRejectStage = "supervisor" | "accounts" | "gm";
 
+/** An approval stage. Which stages a request goes through depends on its total. */
+export type PurchaseRequestApprovalStage = PurchaseRequestRejectStage;
+
+/** OMR limits, mirroring ns_lib_pur_req.js (SMALL_LIMIT / MEDIUM_LIMIT). */
+export const PURCHASE_REQUEST_SMALL_LIMIT = 10;
+export const PURCHASE_REQUEST_MEDIUM_LIMIT = 30;
+
+/**
+ * Approval stages for an estimated total: under 10 OMR the supervisor's
+ * approval is final; 10–30 OMR (inclusive) ends with Accounts; above 30 OMR
+ * ends with the General Manager. NetSuite decides — this is only the fallback
+ * when the API response has no `flow`.
+ */
+export function purchaseRequestFlowForTotal(
+  total: number,
+): PurchaseRequestApprovalStage[] {
+  const amount = Math.round((Number(total) || 0) * 100) / 100;
+  if (amount < PURCHASE_REQUEST_SMALL_LIMIT) return ["supervisor"];
+  if (amount <= PURCHASE_REQUEST_MEDIUM_LIMIT) return ["supervisor", "accounts"];
+  return ["supervisor", "accounts", "gm"];
+}
+
 // ── Error codes ─────────────────────────────────────────────────────────────
 // The API's own codes, plus two the client adds so callers can branch on every
 // failure with one switch:
@@ -114,6 +136,8 @@ export type PurchaseRequestRow = {
   priority: PurchaseRequestPriority;
   tenantCharge: boolean;
   estimatedTotal: number;
+  /** Approval stages this request goes through, in order (set by its total). */
+  flow: PurchaseRequestApprovalStage[];
   currency: string;
   hasPhoto: boolean;
   itemCount: number;
@@ -213,6 +237,16 @@ function normalizeStage(raw: unknown): PurchaseRequestStage {
   return stage;
 }
 
+function normalizeFlow(raw: unknown, total: number): PurchaseRequestApprovalStage[] {
+  const flow = Array.isArray(raw)
+    ? raw.filter(
+        (s): s is PurchaseRequestApprovalStage =>
+          s === "supervisor" || s === "accounts" || s === "gm",
+      )
+    : [];
+  return flow.length ? flow : purchaseRequestFlowForTotal(total);
+}
+
 function normalizeRow(raw: Record<string, unknown>): PurchaseRequestRow {
   const rawStatus = String(raw.status ?? "");
   const rawStage = String(raw.rejectedStage ?? "");
@@ -232,6 +266,7 @@ function normalizeRow(raw: Record<string, unknown>): PurchaseRequestRow {
     priority: String(raw.priority ?? "").toLowerCase() === "urgent" ? "urgent" : "normal",
     tenantCharge: raw.tenantCharge === true || raw.tenantCharge === "T",
     estimatedTotal: num(raw.estimatedTotal),
+    flow: normalizeFlow(raw.flow, num(raw.estimatedTotal)),
     currency: String(raw.currency || "OMR"),
     hasPhoto: raw.hasPhoto === true,
     itemCount: num(raw.itemCount),
@@ -413,7 +448,9 @@ export type PurchaseRequestDecided = {
 
 /**
  * Records the supervisor's decision in NetSuite. Approving moves the request to
- * pending_accounts; rejecting sets rejected with rejectedStage="supervisor".
+ * pending_accounts, or to approved when it is under 10 OMR (the supervisor's
+ * approval is final); rejecting sets rejected with rejectedStage="supervisor".
+ * NetSuite returns the resulting status.
  *
  * Only valid while the request is pending_supervisor — otherwise the API
  * answers INVALID_STATUS with the current status, which the caller surfaces as

@@ -299,24 +299,29 @@ export default function PurchaseRequestDetailModal({
               {/* Approval timeline */}
               <Section title={isEn ? "Approval timeline" : "مسار الاعتماد"}>
                 <ol className="space-y-3">
+                  {/* Only the stages this request's total requires */}
                   <TimelineStep
                     isEn={isEn}
                     label={isEn ? "Supervisor" : "المشرف"}
                     stage={detail.supervisor}
                     pending={detail.status === "pending_supervisor"}
                   />
-                  <TimelineStep
-                    isEn={isEn}
-                    label={isEn ? "Accounts" : "الحسابات"}
-                    stage={detail.accounts}
-                    pending={detail.status === "pending_accounts"}
-                  />
-                  <TimelineStep
-                    isEn={isEn}
-                    label={isEn ? "General Manager" : "المدير العام"}
-                    stage={detail.gm}
-                    pending={detail.status === "pending_gm"}
-                  />
+                  {(detail.flow.includes("accounts") || detail.accounts) && (
+                    <TimelineStep
+                      isEn={isEn}
+                      label={isEn ? "Accounts" : "الحسابات"}
+                      stage={detail.accounts}
+                      pending={detail.status === "pending_accounts"}
+                    />
+                  )}
+                  {(detail.flow.includes("gm") || detail.gm) && (
+                    <TimelineStep
+                      isEn={isEn}
+                      label={isEn ? "General Manager" : "المدير العام"}
+                      stage={detail.gm}
+                      pending={detail.status === "pending_gm"}
+                    />
+                  )}
                 </ol>
 
                 {detail.status === "rejected" && (
@@ -380,6 +385,7 @@ export default function PurchaseRequestDetailModal({
           mode={dialog}
           isEn={isEn}
           number={detail.number}
+          isFinal={detail.flow.length === 1}
           note={note}
           setNote={setNote}
           error={error}
@@ -397,6 +403,7 @@ function DecisionDialog({
   mode,
   isEn,
   number,
+  isFinal,
   note,
   setNote,
   error,
@@ -407,6 +414,8 @@ function DecisionDialog({
   mode: "approve" | "reject";
   isEn: boolean;
   number: string;
+  /** The supervisor's approval is the last one (request under 10 OMR). */
+  isFinal: boolean;
   note: string;
   setNote: (v: string) => void;
   error: string | null;
@@ -440,9 +449,13 @@ function DecisionDialog({
         </h3>
         <p className="text-sm text-gray-500 mt-1">
           {isApprove
-            ? isEn
-              ? "The request moves to Accounts for the next approval."
-              : "سينتقل الطلب إلى الحسابات للاعتماد التالي."
+            ? isFinal
+              ? isEn
+                ? "This is the final approval: the request will be approved."
+                : "هذا هو الاعتماد النهائي: سيتم اعتماد الطلب."
+              : isEn
+                ? "The request moves to Accounts for the next approval."
+                : "سينتقل الطلب إلى الحسابات للاعتماد التالي."
             : isEn
               ? "The request is rejected and the chain stops here."
               : "سيتم رفض الطلب وتتوقف سلسلة الاعتماد هنا."}
@@ -467,9 +480,13 @@ function DecisionDialog({
             className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-nassayem/30"
             placeholder={
               isApprove
-                ? isEn
-                  ? "Anything accounts should know…"
-                  : "أي شيء يجب أن تعرفه الحسابات…"
+                ? isFinal
+                  ? isEn
+                    ? "Optional note…"
+                    : "ملاحظة اختيارية…"
+                  : isEn
+                    ? "Anything accounts should know…"
+                    : "أي شيء يجب أن تعرفه الحسابات…"
                 : isEn
                   ? "Why is this request rejected?"
                   : "ما سبب رفض هذا الطلب؟"
