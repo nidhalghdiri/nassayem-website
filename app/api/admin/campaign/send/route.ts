@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { sendCustomerSurveyTemplate } from "@/lib/whatsapp";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const adminUser = await getCurrentAdminUser();
-    if (!adminUser || adminUser.role !== "MANAGER") {
+    if (!adminUser || !hasManagerAccess(adminUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

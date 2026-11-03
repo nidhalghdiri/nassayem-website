@@ -28,6 +28,8 @@ type NavItem = {
 // ── Which nav items each role can see ──────────────────────────────────────────
 // MANAGER      : everything (incl. Promotions, WhatsApp Log, and the per-role
 //                Tasks dashboards: Supervisor / Receptionist / Worker / Maintenance)
+// ACCOUNTANT   : same as MANAGER (for now)
+// ADMIN        : same as MANAGER (for now)
 // SUPERVISOR   : Purchase Requests, Tasks, Tasks List, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
@@ -35,8 +37,12 @@ type NavItem = {
 // LAUNDRY      : Dashboard, Laundry
 // The equipment list is a tab on the Manager / Supervisor / Maintenance Tasks
 // dashboards (the /admin/maintenance pages still work for direct links).
+const MANAGER_NAV = ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "purchaseRequests", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "messaging", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"];
+
 const ROLE_NAV_ACCESS: Record<string, string[]> = {
-  MANAGER:      ["dashboard", "buildings", "units", "bookings", "promotions", "pricing", "netsuitePayments", "purchaseRequests", "tasks", "tasksSupervisor", "tasksReceptionist", "tasksWorker", "tasksMaintenance", "tasksList", "laundry", "messaging", "chatbot", "whatsappLog", "customer-rating", "blog", "recommendations", "users", "settings"],
+  MANAGER:      MANAGER_NAV,
+  ACCOUNTANT:   MANAGER_NAV,
+  ADMIN:        MANAGER_NAV,
   SUPERVISOR:   ["purchaseRequests", "tasks", "tasksList", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],

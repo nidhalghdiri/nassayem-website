@@ -5,6 +5,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
 import type { TaskStatus } from "@prisma/client";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -86,7 +87,7 @@ export default async function AdminDashboard({ params }: PageProps) {
 
   const adminUser = await getCurrentAdminUser();
   const role = adminUser?.role ?? "MANAGER";
-  const isManager = role === "MANAGER";
+  const isManager = hasManagerAccess(role);
   const isSupervisor = role === "SUPERVISOR";
 
   // Supervisors have no main dashboard — their home is the Tasks dashboard.

@@ -8,7 +8,7 @@ import { buildWhatsAppLogWhere } from "@/lib/adminWhatsAppLogFilters";
 
 // The log spans every building and carries customer phone numbers and
 // escalation detail, so it stays manager-only (mirrors the sidebar nav).
-const ALLOWED_ROLES = ["MANAGER"] as const;
+const ALLOWED_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN"] as const;
 
 type PageProps = {
   params: Promise<{ locale: string }>;

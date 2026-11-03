@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import CustomerRatingModule from "@/components/admin/campaign/CustomerRatingModule";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -12,7 +13,7 @@ export default async function AdminCustomerRatingPage({ params }: PageProps) {
   const isEn = locale === "en";
 
   const currentAdmin = await getCurrentAdminUser();
-  if (!currentAdmin || currentAdmin.role !== "MANAGER") {
+  if (!currentAdmin || !hasManagerAccess(currentAdmin.role)) {
     redirect(`/${locale}/admin`);
   }
 

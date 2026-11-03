@@ -17,6 +17,7 @@ import MaintenanceLog from "./MaintenanceLog";
 import PauseForPartsModal from "./PauseForPartsModal";
 import RescheduleModal from "./RescheduleModal";
 import { formatDuration } from "../../timeUtils";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type Props = {
   locale: string;
@@ -47,7 +48,7 @@ export default function MaintenanceDashboard({ locale, currentUserId, currentUse
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
   const isOwnDashboard = data.technician.id === currentUserId;
-  const canPickTechnician = currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR";
+  const canPickTechnician = hasManagerAccess(currentUserRole) || currentUserRole === "SUPERVISOR";
 
   const t = {
     roleTitle: isEn ? "Maintenance Technician" : "فني صيانة",

@@ -18,6 +18,7 @@ import { getWorkerDashboardData } from "@/lib/reports/workerDashboard";
 import { getBranchMaintenanceData } from "@/lib/reports/branchMaintenance";
 import { getDashboardTabs, type TDashboardTab } from "@/lib/tasks/permissions";
 import type { TaskStatus } from "@prisma/client";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 // Each dashboard has its own route (/admin/tasks, /admin/tasks/supervisor,
 // /admin/tasks/receptionist, /admin/tasks/worker, /admin/tasks/maintenance)
@@ -61,7 +62,7 @@ export default async function DashboardView({
   let visibilityFilter: object = {};
   if (adminUser.role === "RECEPTIONIST") {
     visibilityFilter = { buildingId: { in: assignedBuildingIds ?? [] } };
-  } else if (adminUser.role !== "MANAGER" && adminUser.role !== "SUPERVISOR") {
+  } else if (!hasManagerAccess(adminUser.role) && adminUser.role !== "SUPERVISOR") {
     visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
   }
 
@@ -202,7 +203,7 @@ export default async function DashboardView({
     );
   } else if (activeTab === "maintenance") {
     // Managers can view any technician's dashboard (?tech=); technicians see their own.
-    const isManagerView = adminUser.role === "MANAGER";
+    const isManagerView = hasManagerAccess(adminUser.role);
     const [technicians] = await Promise.all([
       isManagerView
         ? prisma.adminUser.findMany({
@@ -227,7 +228,7 @@ export default async function DashboardView({
       />
     );
   } else {
-    const targetWorkerId = (adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR") && selectedWorkerId
+    const targetWorkerId = (hasManagerAccess(adminUser.role) || adminUser.role === "SUPERVISOR") && selectedWorkerId
       ? selectedWorkerId
       : adminUser.id;
 

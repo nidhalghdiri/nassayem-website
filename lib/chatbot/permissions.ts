@@ -4,14 +4,14 @@
 // Mirrors lib/laundry/permissions.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 
 /** Can this role open /admin/chatbot (conversations, leads, analytics, playground)? */
 export function canViewChatbot(role: TStaffRole): boolean {
-  return role === "MANAGER" || role === "SUPERVISOR";
+  return hasManagerAccess(role) || role === "SUPERVISOR";
 }
 
 /** Can this role edit the bot's configuration (system prompt, rules, toggles)? Managers only. */
 export function canManageChatbotConfig(role: TStaffRole): boolean {
-  return role === "MANAGER";
+  return hasManagerAccess(role);
 }

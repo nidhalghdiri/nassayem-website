@@ -3,6 +3,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import LaundryItemsManager from "@/components/admin/laundry/LaundryItemsManager";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -14,7 +15,7 @@ export default async function LaundryItemsPage({ params }: PageProps) {
 
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) redirect(`/${locale}/admin/login`);
-  if (adminUser.role !== "MANAGER") redirect(`/${locale}/admin/laundry`);
+  if (!hasManagerAccess(adminUser.role)) redirect(`/${locale}/admin/laundry`);
 
   const items = await prisma.laundryItemType.findMany({
     orderBy: { displayOrder: "asc" },

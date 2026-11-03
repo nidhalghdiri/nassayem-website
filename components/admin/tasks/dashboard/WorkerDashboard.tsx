@@ -10,7 +10,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { canOpenCreateTask } from "@/lib/tasks/permissions";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 
 export default function WorkerDashboard({
   locale,
@@ -44,7 +44,7 @@ export default function WorkerDashboard({
     router.push(pathname + "?" + params.toString());
   };
 
-  const showFilter = currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR";
+  const showFilter = hasManagerAccess(currentUserRole) || currentUserRole === "SUPERVISOR";
   // Housekeeping (and any self-only role) can log a task for themselves; the
   // create form assigns it to them automatically.
   const canCreate = canOpenCreateTask(currentUserRole as TStaffRole);

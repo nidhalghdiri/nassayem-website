@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export async function createEmployeeNote(formData: FormData) {
   const adminUser = await getCurrentAdminUser();
-  if (!adminUser || !["MANAGER", "SUPERVISOR"].includes(adminUser.role)) {
+  if (!adminUser || !["MANAGER", "ACCOUNTANT", "ADMIN", "SUPERVISOR"].includes(adminUser.role)) {
     return { error: "Unauthorized" };
   }
 

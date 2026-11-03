@@ -2,9 +2,10 @@
 
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { getTechnicianVisits, type TechnicianVisitsData } from "@/lib/reports/technicianVisits";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 /** Roles that may open the "الزيارات" tab on the Maintenance dashboard. */
-const VISITS_ROLES = ["MANAGER", "SUPERVISOR", "MAINTENANCE"];
+const VISITS_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN", "SUPERVISOR", "MAINTENANCE"];
 
 /**
  * Barcode visits logged by one technician, for the Maintenance dashboard's
@@ -24,7 +25,7 @@ export async function getTechnicianVisitsData(
 
     // A technician is confined to their own visits; only MANAGER/SUPERVISOR
     // may pass someone else's id.
-    const canViewOthers = user.role === "MANAGER" || user.role === "SUPERVISOR";
+    const canViewOthers = hasManagerAccess(user.role) || user.role === "SUPERVISOR";
     if (!canViewOthers && technicianId !== user.id) {
       return { ok: false, error: "FORBIDDEN" };
     }

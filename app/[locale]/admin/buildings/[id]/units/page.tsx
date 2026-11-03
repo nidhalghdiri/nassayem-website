@@ -3,6 +3,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import BuildingUnitsManager from "@/components/admin/buildings/BuildingUnitsManager";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -15,7 +16,7 @@ export default async function BuildingUnitsPage({ params }: PageProps) {
   const admin = await getCurrentAdminUser();
   if (!admin) redirect(`/${locale}/admin/login`);
   // Only Managers and Supervisors should probably manage units, but keeping it simple for now based on building edit permissions
-  if (admin.role !== "MANAGER" && admin.role !== "SUPERVISOR") {
+  if (!hasManagerAccess(admin.role) && admin.role !== "SUPERVISOR") {
     redirect(`/${locale}/admin/buildings`);
   }
 

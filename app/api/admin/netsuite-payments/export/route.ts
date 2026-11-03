@@ -5,6 +5,7 @@ import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { buildNetsuiteWhere } from "@/lib/adminPaymentFilters";
 import { extractSmartpayFields } from "@/lib/smartpayFields";
 import { buildExcel, excelHeaders, type ExcelColumn } from "@/lib/excel";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
   if (!adminUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (adminUser.role !== "MANAGER" && adminUser.role !== "RECEPTIONIST") {
+  if (!hasManagerAccess(adminUser.role) && adminUser.role !== "RECEPTIONIST") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

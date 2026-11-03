@@ -1,7 +1,7 @@
 /**
  * Access rules for the Purchase Requests module.
  *
- * SUPERVISOR and MANAGER may see and decide on requests for ALL buildings —
+ * SUPERVISOR and the manager-level roles (MANAGER, ACCOUNTANT, ADMIN) may see and decide on requests for ALL buildings —
  * the same way getBuildingScopeFilter treats them (it returns null, i.e. no
  * restriction, for both roles). Every other role is forbidden.
  *
@@ -12,7 +12,7 @@
 import type { AdminUser } from "@prisma/client";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 
-export const PURCHASE_REQUEST_ROLES = ["SUPERVISOR", "MANAGER"] as const;
+export const PURCHASE_REQUEST_ROLES = ["SUPERVISOR", "MANAGER", "ACCOUNTANT", "ADMIN"] as const;
 
 export function canAccessPurchaseRequests(role: string | null | undefined): boolean {
   return (PURCHASE_REQUEST_ROLES as readonly string[]).includes(role ?? "");

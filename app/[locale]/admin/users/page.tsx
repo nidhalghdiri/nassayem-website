@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import UserManagement from "@/components/admin/UserManagement";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -13,7 +14,7 @@ export default async function AdminUsersPage({ params }: PageProps) {
 
   // MANAGER only
   const currentAdmin = await getCurrentAdminUser();
-  if (!currentAdmin || currentAdmin.role !== "MANAGER") {
+  if (!currentAdmin || !hasManagerAccess(currentAdmin.role)) {
     redirect(`/${locale}/admin`);
   }
 

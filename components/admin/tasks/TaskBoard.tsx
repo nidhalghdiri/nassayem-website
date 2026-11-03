@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import TaskKanbanView from "./TaskKanbanView";
 import TaskListView from "./TaskListView";
 import TaskDetailPanel from "./TaskDetailPanel";
-import { TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, type TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, TASK_TYPE_CONFIG, TASK_PRIORITY_CONFIG, type TStaffRole } from "@/lib/tasks/constants";
 import { canCreateTasks, canOpenCreateTask } from "@/lib/tasks/permissions";
 import { TASK_SIZES, TASK_SIZE_LABELS } from "@/lib/maintenance/taskSize";
 import type { SerializedTask, Building, StaffUser } from "./types";
@@ -154,7 +154,7 @@ const BoardFilters = memo(({
           <option value="UNSET">{isEn ? "Unspecified" : "غير محدد"}</option>
         </select>
 
-        {(currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR") && staffUsers?.length > 0 && (
+        {(hasManagerAccess(currentUserRole) || currentUserRole === "SUPERVISOR") && staffUsers?.length > 0 && (
           <select
             value={currentAssignedTo}
             onChange={(e) => updateFilter("assignedToId", e.target.value)}

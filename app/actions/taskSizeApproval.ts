@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { sizeNeedsApproval } from "@/lib/maintenance/taskSize";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 
 export type SizeApprovalError = "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "NOT_APPLICABLE" | "SERVER";
 
 /** Only the general supervisor / manager may approve a task's size. */
 function canApproveSize(role: TStaffRole): boolean {
-  return role === "MANAGER";
+  return hasManagerAccess(role);
 }
 
 /**
@@ -83,7 +83,7 @@ export async function getSizeReviewList(): Promise<
     const user = await getCurrentAdminUser();
     if (!user) return { ok: false, error: "UNAUTHORIZED" };
     const role = user.role as TStaffRole;
-    if (role !== "MANAGER" && role !== "SUPERVISOR") return { ok: false, error: "FORBIDDEN" };
+    if (!hasManagerAccess(role) && role !== "SUPERVISOR") return { ok: false, error: "FORBIDDEN" };
 
     // A supervisor linked to specific buildings only sees those.
     let scopeBuildingIds: string[] | null = null;

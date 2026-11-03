@@ -5,6 +5,7 @@ import {
   verifyAdminSessionToken,
   ADMIN_COOKIE_NAME,
 } from "@/lib/authSession";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 /**
  * Resolves the currently authenticated session → AdminUser record from PostgreSQL.
@@ -36,7 +37,7 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
  */
 export async function requireManager(): Promise<AdminUser> {
   const user = await getCurrentAdminUser();
-  if (!user || user.role !== "MANAGER") {
+  if (!user || !hasManagerAccess(user.role)) {
     throw new Error("Forbidden: manager role required");
   }
   return user;
@@ -58,7 +59,7 @@ export async function requireManager(): Promise<AdminUser> {
 export async function getBuildingScopeFilter(
   user: AdminUser,
 ): Promise<{ buildingId: { in: string[] } } | null> {
-  if (user.role === "MANAGER" || user.role === "SUPERVISOR") return null;
+  if (hasManagerAccess(user.role) || user.role === "SUPERVISOR") return null;
   if (user.role === "RECEPTIONIST") {
     const assigned = await prisma.adminUserBuilding.findMany({
       where: { adminUserId: user.id },

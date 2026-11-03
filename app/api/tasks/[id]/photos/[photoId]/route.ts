@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { deleteFromR2 } from "@/lib/r2";
 import { supabaseAdmin } from "@/lib/supabase";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type RouteContext = { params: Promise<{ id: string; photoId: string }> };
 
@@ -24,7 +25,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
   // Permission: uploader, Manager, or Supervisor
   const isUploader = photo.userId === adminUser.id;
-  const isManager = adminUser.role === "MANAGER";
+  const isManager = hasManagerAccess(adminUser.role);
   const isSupervisor = adminUser.role === "SUPERVISOR";
 
   if (!isUploader && !isManager && !isSupervisor) {

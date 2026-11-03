@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { buildWhatsAppLogWhere } from "@/lib/adminWhatsAppLogFilters";
 import { buildExcel, excelHeaders, type ExcelColumn } from "@/lib/excel";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
   // Manager-only, mirroring the page guard: the log spans every building and
   // carries customer phone numbers.
-  if (adminUser.role !== "MANAGER") {
+  if (!hasManagerAccess(adminUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

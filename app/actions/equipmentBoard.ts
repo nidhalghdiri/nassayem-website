@@ -4,7 +4,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { loadEquipmentBoardData, type EquipmentBoardData } from "@/lib/maintenance/equipmentBoardData";
 
 /** Roles that see the "Equipment list" tab on their Tasks dashboard. */
-const EQUIPMENT_LIST_ROLES = ["MANAGER", "SUPERVISOR", "MAINTENANCE"];
+const EQUIPMENT_LIST_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN", "SUPERVISOR", "MAINTENANCE"];
 
 /** Loads the equipment list for the dashboards' "Equipment list" tab (loaded when the tab opens). */
 export async function getEquipmentBoardData(): Promise<

@@ -7,11 +7,24 @@ export type TTaskType = "CLEANING" | "INSPECTION" | "MAINTENANCE" | "WORK_ORDER"
 export type TTaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type TStaffRole =
   | "MANAGER"
+  | "ACCOUNTANT"
+  | "ADMIN"
   | "SUPERVISOR"
   | "RECEPTIONIST"
   | "HOUSEKEEPING"
   | "MAINTENANCE"
   | "LAUNDRY";
+
+/**
+ * Roles that carry the full manager permission set. ACCOUNTANT and ADMIN start
+ * as exact copies of MANAGER; give them their own checks when they diverge.
+ */
+export const MANAGER_LEVEL_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN"] as const;
+
+/** Does this role have manager-level access? Use for every "manager only" check. */
+export function hasManagerAccess(role: string | null | undefined): boolean {
+  return (MANAGER_LEVEL_ROLES as readonly string[]).includes(role ?? "");
+}
 
 export const TASK_TYPE_CONFIG: Record<
   TTaskType,
@@ -104,6 +117,16 @@ export const STAFF_ROLE_CONFIG: Record<
     labelEn: "Manager",
     labelAr: "مدير",
     badge: "bg-purple-100 text-purple-700",
+  },
+  ACCOUNTANT: {
+    labelEn: "Accountant",
+    labelAr: "محاسب",
+    badge: "bg-amber-100 text-amber-700",
+  },
+  ADMIN: {
+    labelEn: "Admin",
+    labelAr: "مسؤول النظام",
+    badge: "bg-rose-100 text-rose-700",
   },
   SUPERVISOR: {
     labelEn: "Supervisor",

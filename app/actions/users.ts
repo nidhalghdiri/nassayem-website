@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/authSession";
 import { supabaseAdmin } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import type { StaffRole } from "@prisma/client";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 function revalidateUsers() {
   revalidatePath("/en/admin/users");
@@ -18,7 +19,7 @@ export async function createAdminUser(
   formData: FormData,
 ): Promise<{ error: string | null; success: boolean }> {
   const currentUser = await getCurrentAdminUser();
-  if (!currentUser || currentUser.role !== "MANAGER") {
+  if (!currentUser || !hasManagerAccess(currentUser.role)) {
     return { error: "Only Managers can create users.", success: false };
   }
 
@@ -103,7 +104,7 @@ export async function updateAdminUser(
   formData: FormData,
 ): Promise<{ error: string | null; success: boolean }> {
   const currentUser = await getCurrentAdminUser();
-  if (!currentUser || currentUser.role !== "MANAGER") {
+  if (!currentUser || !hasManagerAccess(currentUser.role)) {
     return { error: "Only Managers can edit users.", success: false };
   }
 
@@ -119,7 +120,7 @@ export async function updateAdminUser(
     (formData.get("preferredLanguage") as string) === "ar" ? "ar" : "en";
 
   // Prevent manager from changing their own role
-  if (adminUserId === currentUser.id && role !== "MANAGER") {
+  if (adminUserId === currentUser.id && !hasManagerAccess(role)) {
     return { error: "You cannot change your own role.", success: false };
   }
 
@@ -185,7 +186,7 @@ export async function updateAdminUser(
 // MANAGER only. Prevents self-deletion.
 export async function deleteAdminUser(formData: FormData) {
   const currentUser = await getCurrentAdminUser();
-  if (!currentUser || currentUser.role !== "MANAGER") return;
+  if (!currentUser || !hasManagerAccess(currentUser.role)) return;
 
   const adminUserId = formData.get("adminUserId") as string;
   const supabaseId = formData.get("supabaseId") as string;

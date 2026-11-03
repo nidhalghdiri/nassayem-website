@@ -2,6 +2,7 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 import TaskBoard from "@/components/admin/tasks/TaskBoard";
 import type { TaskType, TaskPriority, TaskStatus } from "@prisma/client";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -44,7 +45,7 @@ export default async function AdminTasksListPage({ params, searchParams }: PageP
   const statusGroup = (sp.statusGroup as string) || "ACTIVE"; // "ACTIVE" | "COMPLETED" | "ALL"
   const taskSize = sp.taskSize as string | undefined; // SMALL | MEDIUM | LARGE | UNSET
 
-  const canSeeAll = adminUser.role === "MANAGER" || adminUser.role === "SUPERVISOR";
+  const canSeeAll = hasManagerAccess(adminUser.role) || adminUser.role === "SUPERVISOR";
 
   let visibilityFilter: object = {};
   if (canSeeAll) {

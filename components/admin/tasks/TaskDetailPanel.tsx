@@ -3,11 +3,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import imageCompression from "browser-image-compression";
-import {
-  TASK_TYPE_CONFIG,
+import { hasManagerAccess, TASK_TYPE_CONFIG,
   TASK_PRIORITY_CONFIG,
-  STAFF_ROLE_CONFIG,
-} from "@/lib/tasks/constants";
+  STAFF_ROLE_CONFIG, } from "@/lib/tasks/constants";
 import {
   STATUS_CONFIG,
   STATUS_TRANSITIONS,
@@ -542,7 +540,7 @@ export default function TaskDetailPanel({
 
   // Can delete photos: uploader, manager, supervisor
   const canDeletePhotos =
-    currentUserRole === "MANAGER" || currentUserRole === "SUPERVISOR";
+    hasManagerAccess(currentUserRole) || currentUserRole === "SUPERVISOR";
 
   // Determine if task has an active rejection
   const approvalActivities = (task?.activities || []).filter((a: any) => 

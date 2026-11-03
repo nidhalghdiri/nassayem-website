@@ -17,6 +17,7 @@ import {
   sendWhatsAppContact,
 } from "@/lib/whatsapp";
 import type { ChatConversationStatus, ChatLeadStatus } from "@prisma/client";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ export async function setConversationAiPaused(
 /** Permanently delete a conversation (transcript, tool traces, leads, holds). */
 export async function deleteChatbotConversation(conversationId: string) {
   const user = await getCurrentAdminUser();
-  if (!user || user.role !== "MANAGER") {
+  if (!user || !hasManagerAccess(user.role)) {
     throw new Error("Forbidden: manager role required");
   }
   await prisma.chatbotConversation.delete({ where: { id: conversationId } });

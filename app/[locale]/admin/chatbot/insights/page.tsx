@@ -3,6 +3,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import AuditRunner from "@/components/admin/chatbot/AuditRunner";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function ChatbotInsightsPage({ params }: PageProps) {
 
   const adminUser = await getCurrentAdminUser();
   if (!adminUser) redirect(`/${locale}/admin/login`);
-  if (adminUser.role !== "MANAGER") redirect(`/${locale}/admin/chatbot`);
+  if (!hasManagerAccess(adminUser.role)) redirect(`/${locale}/admin/chatbot`);
 
   const [audits, totalConversations] = await Promise.all([
     prisma.chatbotConversationAudit.findMany({

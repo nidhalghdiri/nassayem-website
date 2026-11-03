@@ -5,13 +5,13 @@
 // (lib/adminAuth.getBuildingScopeFilter), mirroring the Tasks board.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 import type { TLaundryStatus } from "./constants";
 import { getForwardTransition, isTerminalLaundryStatus } from "./workflow";
 
 /** Can this role create a laundry request? Receptionists request; managers may too. */
 export function canCreateLaundryOrder(role: TStaffRole): boolean {
-  return role === "RECEPTIONIST" || role === "MANAGER";
+  return role === "RECEPTIONIST" || hasManagerAccess(role);
 }
 
 /**
@@ -20,7 +20,7 @@ export function canCreateLaundryOrder(role: TStaffRole): boolean {
  * Receptionists are scoped to their assigned buildings in the data layer.
  */
 export function canSeeAllLaundry(role: TStaffRole): boolean {
-  return role === "MANAGER" || role === "SUPERVISOR" || role === "LAUNDRY";
+  return hasManagerAccess(role) || role === "SUPERVISOR" || role === "LAUNDRY";
 }
 
 /**
@@ -34,7 +34,7 @@ export function canAdvanceLaundry(
 ): boolean {
   const transition = getForwardTransition(status);
   if (!transition) return false; // terminal — no forward step
-  return role === "MANAGER" || role === transition.actorRole;
+  return hasManagerAccess(role) || role === transition.actorRole;
 }
 
 /**
@@ -49,7 +49,7 @@ export function canCancelLaundry(
   isCreator: boolean,
 ): boolean {
   if (isTerminalLaundryStatus(status)) return false;
-  if (role === "MANAGER") return true;
+  if (hasManagerAccess(role)) return true;
   if (isCreator && status === "REQUESTED") return true;
   if (role === "SUPERVISOR" && status === "REQUESTED") return true;
   return false;
@@ -57,5 +57,5 @@ export function canCancelLaundry(
 
 /** Can this role manage the laundry item-type catalog? Managers only. */
 export function canManageLaundryItems(role: TStaffRole): boolean {
-  return role === "MANAGER";
+  return hasManagerAccess(role);
 }

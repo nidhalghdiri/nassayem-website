@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 import InspectionSettings from "@/components/admin/settings/InspectionSettings";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -12,7 +13,7 @@ export default async function SettingsPage({ params }: PageProps) {
   const adminUser = await getCurrentAdminUser();
 
   if (!adminUser) redirect(`/${locale}/admin/login`);
-  if (adminUser.role !== "MANAGER") redirect(`/${locale}/admin`);
+  if (!hasManagerAccess(adminUser.role)) redirect(`/${locale}/admin`);
 
   const isEn = locale === "en";
 

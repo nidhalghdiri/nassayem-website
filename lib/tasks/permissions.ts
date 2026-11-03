@@ -3,12 +3,14 @@
 // Safe to import in both Server and Client Components.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { TStaffRole } from "./constants";
+import { hasManagerAccess, type TStaffRole } from "./constants";
 
 // ─── Who each role can assign tasks to ──────────────────────────────────────
-// MANAGER and RECEPTIONIST include their own role so they can self-assign.
+// Manager-level roles and RECEPTIONIST include their own role so they can self-assign.
 export const ASSIGNABLE_ROLES: Record<TStaffRole, TStaffRole[]> = {
   MANAGER:      ["MANAGER", "SUPERVISOR", "RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
+  ACCOUNTANT:   ["ACCOUNTANT", "SUPERVISOR", "RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
+  ADMIN:        ["ADMIN", "SUPERVISOR", "RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
   SUPERVISOR:   ["RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
   RECEPTIONIST: ["RECEPTIONIST", "HOUSEKEEPING", "MAINTENANCE"],
   HOUSEKEEPING: ["MAINTENANCE"], // can submit maintenance requests directly (no approval)
@@ -20,7 +22,7 @@ export const ASSIGNABLE_ROLES: Record<TStaffRole, TStaffRole[]> = {
 
 /** Can this role create regular tasks and assign them to others? */
 export function canCreateTasks(role: TStaffRole): boolean {
-  return ["MANAGER", "SUPERVISOR", "RECEPTIONIST"].includes(role);
+  return hasManagerAccess(role) || role === "SUPERVISOR" || role === "RECEPTIONIST";
 }
 
 /**
@@ -71,12 +73,12 @@ export function isSelfOnlyRequester(role: TStaffRole): boolean {
 
 /** Can this role spawn sub-tasks from an Inspection task? */
 export function canSpawnSubtasks(role: TStaffRole): boolean {
-  return ["MANAGER", "SUPERVISOR", "RECEPTIONIST"].includes(role);
+  return hasManagerAccess(role) || role === "SUPERVISOR" || role === "RECEPTIONIST";
 }
 
 /** Can this role see all tasks in the system (not just their own)? */
 export function canSeeAllTasks(role: TStaffRole): boolean {
-  return role === "MANAGER" || role === "SUPERVISOR";
+  return hasManagerAccess(role) || role === "SUPERVISOR";
 }
 
 /**
@@ -85,7 +87,7 @@ export function canSeeAllTasks(role: TStaffRole): boolean {
  * tasks; managers and supervisors may reschedule any task.
  */
 export function canRescheduleTask(actorRole: TStaffRole, isAssignedToActor: boolean): boolean {
-  if (actorRole === "MANAGER" || actorRole === "SUPERVISOR") return true;
+  if (hasManagerAccess(actorRole) || actorRole === "SUPERVISOR") return true;
   return actorRole === "MAINTENANCE" && isAssignedToActor;
 }
 
@@ -95,7 +97,9 @@ export type TDashboardTab = "manager" | "supervisor" | "receptionist" | "worker"
 /** Dashboard tabs each role may open on /admin/tasks; the first is the default. */
 export function getDashboardTabs(role: string): TDashboardTab[] {
   switch (role) {
-    case "MANAGER":      return ["manager", "supervisor", "receptionist", "worker", "maintenance"];
+    case "MANAGER":
+    case "ACCOUNTANT":
+    case "ADMIN":        return ["manager", "supervisor", "receptionist", "worker", "maintenance"];
     case "SUPERVISOR":   return ["supervisor"];
     case "RECEPTIONIST": return ["receptionist"];
     case "MAINTENANCE":  return ["maintenance"];
@@ -113,5 +117,5 @@ export function canUpdateTaskStatus(
   isAssignedToActor: boolean,
 ): boolean {
   if (isAssignedToActor) return true;
-  return actorRole === "MANAGER" || actorRole === "SUPERVISOR";
+  return hasManagerAccess(actorRole) || actorRole === "SUPERVISOR";
 }

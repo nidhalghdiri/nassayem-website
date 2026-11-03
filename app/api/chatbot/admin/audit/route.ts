@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { auditConversation, findAuditCandidates } from "@/lib/chatbot/audit";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ const CONCURRENCY = 2;
 
 export async function GET() {
   const adminUser = await getCurrentAdminUser();
-  if (!adminUser || adminUser.role !== "MANAGER") {
+  if (!adminUser || !hasManagerAccess(adminUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const [total, audited, candidates] = await Promise.all([
@@ -37,7 +38,7 @@ export async function GET() {
 
 export async function POST() {
   const adminUser = await getCurrentAdminUser();
-  if (!adminUser || adminUser.role !== "MANAGER") {
+  if (!adminUser || !hasManagerAccess(adminUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

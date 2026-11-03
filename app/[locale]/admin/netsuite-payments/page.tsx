@@ -5,9 +5,10 @@ import NetsuitePaymentsList from "@/components/admin/NetsuitePaymentsList";
 import ListFilterBar from "@/components/admin/ListFilterBar";
 import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { buildNetsuiteWhere } from "@/lib/adminPaymentFilters";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 // Roles allowed to view the NetSuite Payments module (mirrors the sidebar nav).
-const ALLOWED_ROLES = ["MANAGER", "RECEPTIONIST"] as const;
+const ALLOWED_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN", "RECEPTIONIST"] as const;
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -53,7 +54,7 @@ export default async function NetsuitePaymentsAdminPage({
   if (!adminUser || !ALLOWED_ROLES.includes(adminUser.role as never)) {
     redirect(`/${locale}/admin`);
   }
-  const isManager = adminUser.role === "MANAGER";
+  const isManager = hasManagerAccess(adminUser.role);
 
   // Receptionists are scoped to their assigned buildings; managers see all.
   const scope = await getBuildingScopeFilter(adminUser);

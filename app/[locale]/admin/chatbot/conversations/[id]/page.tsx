@@ -5,6 +5,7 @@ import { canViewChatbot } from "@/lib/chatbot/permissions";
 import { resolveMediaUrlForDisplay } from "@/lib/chatbot/media";
 import type { TranscriptMessage } from "@/components/admin/chatbot/LiveTranscript";
 import ConversationWorkspace from "@/components/admin/chatbot/ConversationWorkspace";
+import { hasManagerAccess } from "@/lib/tasks/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function ConversationTranscriptPage({ params }: PageProps) 
       // Remount per conversation so transcript state never leaks between chats.
       key={conversation.id}
       locale={locale}
-      canDelete={adminUser.role === "MANAGER"}
+      canDelete={hasManagerAccess(adminUser.role)}
       initialMessages={initialMessages}
       conversation={{
         id: conversation.id,
