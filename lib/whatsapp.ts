@@ -737,6 +737,15 @@ export async function sendCustomerSurveyTemplate(
 // event asks for. Nothing here is called from the supervisor decision action;
 // doing so would message everyone twice.
 
+/**
+ * Templates approved with a dynamic URL button (index 0). Its {{1}} is the
+ * recipient's link suffix for https://www.nassayem.com/pr/{{1}} — see
+ * app/[locale]/pr/[slug]/route.ts.
+ */
+const PURCHASE_REQUEST_BUTTON_TEMPLATES: ReadonlySet<string> = new Set([
+  "ns_purchase_request_to_approve",
+]);
+
 /** The three Meta-approved templates, with their total body-variable count. */
 export const PURCHASE_REQUEST_TEMPLATES = {
   ns_purchase_request_to_approve: 7,
@@ -755,11 +764,10 @@ export function isPurchaseRequestTemplate(
 /**
  * One template send for a purchase request.
  *
- * Body parameters only — none of the three templates was approved with a URL
- * button, and Meta rejects a button component the template does not declare.
- * If a button is added in Meta later, push a `{ type: "button", sub_type:
- * "url", index: "0", parameters: [...] }` component here and start honouring
- * the event's `buttonSuffix` (the endpoint already accepts it).
+ * Body parameters, plus the URL button for the templates in
+ * PURCHASE_REQUEST_BUTTON_TEMPLATES. Only those get a button component: Meta
+ * rejects one the template does not declare. A button template without a
+ * suffix is not sent, since Meta would reject the missing parameter.
  *
  * Reuses the shared postWhatsAppPayload + logSend, so the send is logged to
  * WhatsAppMessageLog and shows on /admin/whatsapp-log like every other
@@ -774,9 +782,16 @@ async function sendPurchaseRequestTemplate(
   templateName: PurchaseRequestTemplate,
   languageCode: string,
   bodyParams: string[],
+  buttonSuffix?: string,
 ): Promise<{ ok: boolean }> {
   const cleanTo = to.replace(/\D/g, "");
   if (!cleanTo) return { ok: false };
+
+  const hasButton = PURCHASE_REQUEST_BUTTON_TEMPLATES.has(templateName);
+  if (hasButton && !buttonSuffix) {
+    console.error(`[WhatsApp] ${templateName} to ${cleanTo}: no button suffix, not sent`);
+    return { ok: false };
+  }
 
   const logBase = {
     to: cleanTo,
@@ -798,6 +813,16 @@ async function sendPurchaseRequestTemplate(
           type: "body",
           parameters: bodyParams.map((text) => ({ type: "text", text })),
         },
+        ...(hasButton
+          ? [
+              {
+                type: "button",
+                sub_type: "url",
+                index: "0",
+                parameters: [{ type: "text", text: buttonSuffix }],
+              },
+            ]
+          : []),
       ],
     },
   });
@@ -816,7 +841,12 @@ async function sendPurchaseRequestTemplate(
   return { ok: result.ok };
 }
 
-export type PurchaseRequestRecipient = { name: string; phone: string };
+export type PurchaseRequestRecipient = {
+  name: string;
+  phone: string;
+  /** This recipient's URL-button suffix (button templates only). */
+  buttonSuffix?: string;
+};
 
 /**
  * Sends one purchase request template to every recipient, in parallel.
@@ -847,7 +877,9 @@ export async function notifyPurchaseRequest({
   for (const r of recipients) {
     const digits = (r?.phone ?? "").replace(/\D/g, "");
     if (!digits) continue;
-    if (!unique.has(digits)) unique.set(digits, { name: r.name, phone: digits });
+    if (!unique.has(digits)) {
+      unique.set(digits, { name: r.name, phone: digits, buttonSuffix: r.buttonSuffix });
+    }
   }
 
   const targets = [...unique.values()];
@@ -855,7 +887,13 @@ export async function notifyPurchaseRequest({
 
   const results = await Promise.all(
     targets.map((r) =>
-      sendPurchaseRequestTemplate(r.phone, template, language, [r.name, ...params]).catch(
+      sendPurchaseRequestTemplate(
+        r.phone,
+        template,
+        language,
+        [r.name, ...params],
+        r.buttonSuffix,
+      ).catch(
         // sendPurchaseRequestTemplate already handles its own errors; this is
         // belt-and-braces so one rejection cannot sink the whole batch.
         (e) => {

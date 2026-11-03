@@ -56,17 +56,22 @@ type NotifyBody = {
   requestId?: string;
   requestNumber?: string;
   includeSupervisors?: boolean;
-  recipients?: { name?: string; phone?: string }[];
+  /** buttonSuffix: this recipient's link suffix, e.g. "ns-<rectype>-<id>" for NetSuite users. */
+  recipients?: { name?: string; phone?: string; buttonSuffix?: string }[];
   /** Body variables from {{2}} onwards, already cleaned by NetSuite. */
   params?: string[];
   /**
-   * Dynamic URL-button suffix. Accepted but NOT used: none of the three
-   * templates was approved with a URL button, and Meta rejects parameters for
-   * a component the template does not declare. Kept in the contract so the
-   * NetSuite side needs no change if a button is added in Meta later.
+   * Default URL-button suffix (the request id), used for supervisors and for
+   * any recipient without its own. Only sent for templates with a button.
    */
   buttonSuffix?: string;
 };
+
+/** A button suffix /pr/[slug] understands: "<id>" or "ns-<rectype>-<id>". */
+function cleanButtonSuffix(value: unknown): string | undefined {
+  const text = String(value ?? "").trim();
+  return /^(ns-\d+-)?\d+$/.test(text) ? text : undefined;
+}
 
 /** Fallback for a supervisor with no name set, since {{1}} may never be empty. */
 const SUPERVISOR_FALLBACK_NAME = "المشرف";
@@ -152,6 +157,7 @@ export async function POST(req: NextRequest) {
       includeSupervisors = false,
       recipients: rawRecipients,
       params: rawParams,
+      buttonSuffix: rawButtonSuffix,
     } = body ?? {};
 
     if (!template || typeof template !== "string") {
@@ -196,10 +202,15 @@ export async function POST(req: NextRequest) {
     // NetSuite-side people first (accountants, GM, or the receptionist), so a
     // recipient NetSuite named explicitly wins the de-duplication over the
     // same number picked up from the supervisor list.
+    // Button links: supervisors open the request on this website (the
+    // request id); NetSuite users get their own suffix from NetSuite.
+    const defaultSuffix =
+      cleanButtonSuffix(rawButtonSuffix) ?? cleanButtonSuffix(requestId);
     const netsuiteRecipients: PurchaseRequestRecipient[] = (rawRecipients ?? [])
       .map((r) => ({
         name: String(r?.name ?? "").trim(),
         phone: String(r?.phone ?? "").trim(),
+        buttonSuffix: cleanButtonSuffix(r?.buttonSuffix) ?? defaultSuffix,
       }))
       .filter((r) => r.phone.replace(/\D/g, "") !== "");
 
@@ -217,6 +228,7 @@ export async function POST(req: NextRequest) {
         .map((s) => ({
           name: s.name?.trim() || SUPERVISOR_FALLBACK_NAME,
           phone: (s.whatsappNumber ?? "").trim(),
+          buttonSuffix: defaultSuffix,
         }))
         .filter((s) => s.phone.replace(/\D/g, "") !== "");
       log(

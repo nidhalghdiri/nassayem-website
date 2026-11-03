@@ -224,3 +224,16 @@ export async function verifyAdminSessionToken(
     return null;
   }
 }
+
+/**
+ * The page to return to after logging in (?next=), kept only when it is an
+ * admin page on this site — anything else (another host, "//…", the login page
+ * itself) falls back to the dashboard, so the parameter cannot redirect away.
+ */
+export function safeAdminNext(next: string | null | undefined, locale: string): string {
+  const fallback = `/${locale}/admin`;
+  const value = String(next ?? "");
+  if (!/^\/(en|ar)\/admin(\/|\?|$)/.test(value)) return fallback;
+  if (/^\/(en|ar)\/admin\/login/.test(value)) return fallback;
+  return value;
+}

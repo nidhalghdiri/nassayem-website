@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyAdminSessionToken, ADMIN_COOKIE_NAME } from "@/lib/authSession";
+import {
+  verifyAdminSessionToken,
+  ADMIN_COOKIE_NAME,
+  safeAdminNext,
+} from "@/lib/authSession";
 
 const locales = ["en", "ar"];
 const defaultLocale = "en";
@@ -82,13 +86,16 @@ export async function middleware(request: NextRequest) {
     const adminSession = await verifyAdminSessionToken(sessionCookie?.value);
 
     if (!isLoginPage && !adminSession) {
-      request.nextUrl.pathname = `/${locale}/admin/login`;
-      return NextResponse.redirect(request.nextUrl);
+      // Come back to this page after logging in (e.g. a WhatsApp link)
+      const next = pathname + request.nextUrl.search;
+      const login = new URL(`/${locale}/admin/login`, request.url);
+      login.searchParams.set("next", next);
+      return NextResponse.redirect(login);
     }
 
     if (isLoginPage && adminSession) {
-      request.nextUrl.pathname = `/${locale}/admin`;
-      return NextResponse.redirect(request.nextUrl);
+      const next = safeAdminNext(request.nextUrl.searchParams.get("next"), locale);
+      return NextResponse.redirect(new URL(next, request.url));
     }
   }
 

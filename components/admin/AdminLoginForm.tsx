@@ -5,11 +5,13 @@ import { loginAdmin } from "@/app/actions/auth";
 
 type Props = {
   locale: string;
+  /** Admin page to return to after login (?next=). */
+  next?: string;
 };
 
 const initialState = { error: null };
 
-export default function AdminLoginForm({ locale }: Props) {
+export default function AdminLoginForm({ locale, next }: Props) {
   const isEn = locale === "en";
   const [state, formAction, isPending] = useActionState(
     loginAdmin,
@@ -35,6 +37,8 @@ export default function AdminLoginForm({ locale }: Props) {
           <form action={formAction} className="space-y-5">
             {/* Hidden locale so the server action knows where to redirect */}
             <input type="hidden" name="locale" value={locale} />
+            {/* Page to return to after login; checked again on the server */}
+            {next && <input type="hidden" name="next" value={next} />}
 
             {/* Email */}
             <div>

@@ -7,6 +7,7 @@ import {
   verifyPassword,
   createAdminSessionToken,
   ADMIN_COOKIE_NAME,
+  safeAdminNext,
 } from "@/lib/authSession";
 
 // ── Login ────────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export async function loginAdmin(
     path: "/",
   });
 
-  redirect(`/${locale}/admin`);
+  redirect(safeAdminNext(formData.get("next") as string | null, locale));
 }
 
 // ── Logout ───────────────────────────────────────────────────────────────────
