@@ -1,19 +1,19 @@
 "use server";
 
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { getTechnicianVisits, type TechnicianVisitsData } from "@/lib/reports/technicianVisits";
+import { getTechnicianVisits, type TechnicianVisitsData, type VisitFilters } from "@/lib/reports/technicianVisits";
 import { hasManagerAccess } from "@/lib/tasks/constants";
 
-/** Roles that may open the "الزيارات" tab on the Maintenance dashboard. */
+/** Roles that may open the "الزيارات" tab on the Maintenance / Manager dashboards. */
 const VISITS_ROLES = ["MANAGER", "ACCOUNTANT", "ADMIN", "SUPERVISOR", "MAINTENANCE"];
 
 /**
- * Barcode visits logged by one technician, for the Maintenance dashboard's
- * "Visits" tab. Technicians may only read their own; managers and supervisors
- * can read any technician's (the dashboard's technician picker).
+ * Barcode visits for the dashboards' "Visits" tab. Technicians may only read
+ * their own; managers and supervisors can read any technician's, or every
+ * technician's at once (no technicianId — the Manager dashboard).
  */
 export async function getTechnicianVisitsData(
-  technicianId: string
+  filters: VisitFilters
 ): Promise<
   | { ok: true; data: TechnicianVisitsData }
   | { ok: false; error: "UNAUTHORIZED" | "FORBIDDEN" | "SERVER" }
@@ -24,13 +24,13 @@ export async function getTechnicianVisitsData(
     if (!VISITS_ROLES.includes(user.role)) return { ok: false, error: "FORBIDDEN" };
 
     // A technician is confined to their own visits; only MANAGER/SUPERVISOR
-    // may pass someone else's id.
+    // may pass someone else's id or ask for everyone's.
     const canViewOthers = hasManagerAccess(user.role) || user.role === "SUPERVISOR";
-    if (!canViewOthers && technicianId !== user.id) {
+    if (!canViewOthers && filters.technicianId !== user.id) {
       return { ok: false, error: "FORBIDDEN" };
     }
 
-    return { ok: true, data: await getTechnicianVisits(technicianId) };
+    return { ok: true, data: await getTechnicianVisits(filters) };
   } catch (err) {
     console.error("getTechnicianVisitsData failed:", err);
     return { ok: false, error: "SERVER" };

@@ -2,24 +2,23 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ListChecks, QrCode, Hammer, MonitorSmartphone } from "lucide-react";
+import { ListChecks, QrCode, Hammer, MonitorSmartphone, ClipboardList } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Manager / Supervisor dashboards — Tasks · Equipment maintenance · Other
-// maintenance · Equipment list. The open tab is kept in the URL (?view=) so a refresh or a
+// maintenance · Equipment list (· Visits, Manager only). The open tab is kept in the URL (?view=) so a refresh or a
 // shared link opens the same tab; switching does not reload the page.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type DashboardSection = "tasks" | "equipment" | "other" | "devices";
+export type DashboardSection = "tasks" | "equipment" | "other" | "devices" | "visits";
 
-const SECTIONS: DashboardSection[] = ["tasks", "equipment", "other", "devices"];
+const SECTIONS: DashboardSection[] = ["tasks", "equipment", "other", "devices", "visits"];
 
-export function useDashboardSection(): [DashboardSection, (next: DashboardSection) => void] {
+export function useDashboardSection(withVisits = false): [DashboardSection, (next: DashboardSection) => void] {
   const searchParams = useSearchParams();
-  const fromUrl = searchParams.get("view");
-  const [section, setSection] = useState<DashboardSection>(
-    SECTIONS.includes(fromUrl as DashboardSection) ? (fromUrl as DashboardSection) : "tasks",
-  );
+  const fromUrl = searchParams.get("view") as DashboardSection;
+  const allowed = SECTIONS.includes(fromUrl) && (withVisits || fromUrl !== "visits");
+  const [section, setSection] = useState<DashboardSection>(allowed ? fromUrl : "tasks");
 
   function change(next: DashboardSection) {
     setSection(next);
@@ -37,16 +36,20 @@ export default function DashboardSectionTabs({
   isEn,
   section,
   onChange,
+  withVisits = false,
 }: {
   isEn: boolean;
   section: DashboardSection;
   onChange: (next: DashboardSection) => void;
+  /** Show the barcode "Visits" tab (Manager dashboard). */
+  withVisits?: boolean;
 }) {
   const tabs = [
     { key: "tasks" as const, icon: ListChecks, label: isEn ? "Tasks" : "المهام" },
     { key: "equipment" as const, icon: QrCode, label: isEn ? "Equipment maintenance" : "صيانة الأجهزة" },
     { key: "other" as const, icon: Hammer, label: isEn ? "Other maintenance" : "الصيانة الأخرى" },
     { key: "devices" as const, icon: MonitorSmartphone, label: isEn ? "Equipment list" : "قائمة الأجهزة" },
+    ...(withVisits ? [{ key: "visits" as const, icon: ClipboardList, label: isEn ? "Visits" : "الزيارات" }] : []),
   ];
 
   return (

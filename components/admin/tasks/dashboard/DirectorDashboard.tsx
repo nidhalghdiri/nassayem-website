@@ -10,6 +10,7 @@ import MaintenanceTasksReport from "./supervisor/MaintenanceTasksReport";
 import OtherMaintenanceSummary from "./supervisor/OtherMaintenanceSummary";
 import EquipmentMaintenanceSummary from "./supervisor/EquipmentMaintenanceSummary";
 import DashboardSectionTabs, { useDashboardSection } from "./DashboardSectionTabs";
+import VisitsTab from "./maintenance/VisitsTab";
 import EquipmentListTab from "./EquipmentListTab";
 import TaskProgressReport from "./TaskProgressReport";
 import SizeReviewSection from "./SizeReviewSection";
@@ -76,7 +77,7 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
   // Task details panel (opened from the maintenance report) + report reload after changes
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [reportKey, setReportKey] = useState(0);
-  const [section, setSection] = useDashboardSection();
+  const [section, setSection] = useDashboardSection(true);
 
   const closeTaskPanel = useCallback(() => {
     setOpenTaskId(null);
@@ -178,7 +179,7 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
           </div>
         </div>
 
-        <DashboardSectionTabs isEn={isEn} section={section} onChange={setSection} />
+        <DashboardSectionTabs isEn={isEn} section={section} onChange={setSection} withVisits />
 
         {section === "equipment" && (
           <>
@@ -188,6 +189,8 @@ export default function DirectorDashboard({ locale, currentUserId, currentUserRo
         )}
 
         {section === "devices" && <EquipmentListTab locale={locale} />}
+
+        {section === "visits" && <VisitsTab locale={locale} />}
 
         {section === "other" && (
           <>

@@ -5,45 +5,67 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { enUS, ar } from "date-fns/locale";
 import {
-  AlertTriangle, CheckCircle2, Loader2, PackageX, QrCode, RefreshCw, Search, XCircle,
+  AlertTriangle, CheckCircle2, ClipboardList, Loader2, MonitorSmartphone, PackageX, Percent, QrCode,
+  RefreshCw, Repeat, Search, User, XCircle,
 } from "lucide-react";
 import { getTechnicianVisitsData } from "@/app/actions/technicianVisits";
 import type { TechnicianVisit, TechnicianVisitsData } from "@/lib/reports/technicianVisits";
 
 type Props = {
   locale: string;
-  /** Whose visits to show — the dashboard's selected technician. */
-  technicianId: string;
+  /**
+   * Whose visits to show — the Maintenance dashboard's selected technician.
+   * Omitted on the Manager dashboard: every technician, with a technician filter.
+   */
+  technicianId?: string;
 };
 
 type StatusFilter = "ALL" | "RESOLVED" | "NEEDS_PARTS" | "UNRESOLVED";
 
 /**
- * "الزيارات" tab on the Maintenance dashboard — the barcode visits this
- * technician logged from /admin/maintenance/scan, newest first. Loaded when
- * the tab opens, and reloaded when the technician changes.
+ * "الزيارات" tab — the barcode visits logged from /admin/maintenance/scan,
+ * newest first, with KPI cards. Date / building / unit / technician filters
+ * are applied on the server (so the KPIs follow them); status and search
+ * narrow the loaded list in place.
  */
 export default function VisitsTab({ locale, technicianId }: Props) {
   const isEn = locale === "en";
   const dateLocale = isEn ? enUS : ar;
+  const allTechnicians = !technicianId;
 
   const [data, setData] = useState<TechnicianVisitsData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [buildingId, setBuildingId] = useState("");
+  const [unitNumber, setUnitNumber] = useState("");
+  const [techFilter, setTechFilter] = useState("");
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
     const id = ++requestId.current;
     setFailed(false);
-    const res = await getTechnicianVisitsData(technicianId);
+    setLoading(true);
+    const res = await getTechnicianVisitsData({
+      technicianId: technicianId || techFilter || undefined,
+      from: from || undefined,
+      to: to || undefined,
+      buildingId: buildingId || undefined,
+      unitNumber: unitNumber || undefined,
+    });
     if (id !== requestId.current) return;
     if (res.ok) setData(res.data);
     else setFailed(true);
-  }, [technicianId]);
+    setLoading(false);
+  }, [technicianId, techFilter, from, to, buildingId, unitNumber]);
 
-  // Re-runs when the manager switches technician.
-  useEffect(() => { setData(null); load(); }, [load]);
+  // Re-runs when the technician or any server-side filter changes.
+  useEffect(() => { load(); }, [load]);
+  // A different technician on the Maintenance dashboard starts from a clean slate.
+  useEffect(() => { setData(null); }, [technicianId]);
 
   const t = {
     title: isEn ? "Barcode visits" : "الزيارات بالباركود",
@@ -56,12 +78,26 @@ export default function VisitsTab({ locale, technicianId }: Props) {
     needsParts: isEn ? "Needs parts" : "بحاجة لقطع",
     unresolved: isEn ? "Unresolved" : "لم يُحل",
     total: isEn ? "Total visits" : "إجمالي الزيارات",
+    resolutionRate: isEn ? "Resolution rate" : "نسبة الإصلاح",
+    resolvedOf: isEn ? "resolved" : "تم إصلاحها",
+    devicesVisited: isEn ? "Devices visited" : "أجهزة تمت زيارتها",
+    repeatDevices: isEn ? "Repeat-fault devices" : "أجهزة تكرر عطلها",
+    repeatHint: isEn ? "visited more than once" : "زيارة أكثر من مرة",
+    byTechnicians: isEn ? "technicians" : "فنيين",
+    ofVisits: isEn ? "of visits" : "من الزيارات",
+    from: isEn ? "Visit date from" : "تاريخ الزيارة من",
+    to: isEn ? "To" : "إلى",
+    building: isEn ? "Building" : "المبنى",
+    allBuildings: isEn ? "All buildings" : "كل المباني",
+    allUnits: isEn ? "All units" : "كل الوحدات",
+    technician: isEn ? "Technician" : "الفني",
+    allTechnicians: isEn ? "All technicians" : "كل الفنيين",
+    clear: isEn ? "Clear filters" : "مسح الفلاتر",
     empty: isEn ? "No visits recorded yet." : "لم يتم تسجيل أي زيارات بعد.",
-    emptyFiltered: isEn ? "No visits match this filter." : "لا توجد زيارات مطابقة لهذا الفلتر.",
+    emptyFiltered: isEn ? "No visits match these filters." : "لا توجد زيارات مطابقة لهذه الفلاتر.",
     scanNow: isEn ? "Visit by code" : "زيارة بالكود",
     issue: isEn ? "Issue" : "العطل",
     action: isEn ? "Action taken" : "الإجراء المتخذ",
-    device: isEn ? "Device" : "الجهاز",
     unit: isEn ? "Unit" : "الوحدة",
     failed: isEn ? "Could not load the visits." : "تعذّر تحميل الزيارات.",
     retry: isEn ? "Try again" : "إعادة المحاولة",
@@ -85,10 +121,23 @@ export default function VisitsTab({ locale, technicianId }: Props) {
       const buildingName = isEn ? v.equipment.buildingNameEn : v.equipment.buildingNameAr;
       return [
         v.equipment.qrCode, v.equipment.unitNumber, v.equipment.brandModel,
-        typeName, buildingName, v.issueDescription, v.actionTaken,
+        typeName, buildingName, v.issueDescription, v.actionTaken, v.technicianName,
       ].some((f) => f && f.toLowerCase().includes(q));
     });
   }, [data, query, statusFilter, isEn]);
+
+  // Units follow the chosen building.
+  const unitOptions = useMemo(
+    () => (data?.options.units ?? []).filter((u) => !buildingId || u.buildingId === buildingId),
+    [data, buildingId],
+  );
+  const uniqueUnits = useMemo(() => [...new Set(unitOptions.map((u) => u.unitNumber))], [unitOptions]);
+
+  const hasServerFilters = !!(from || to || buildingId || unitNumber || techFilter);
+  const clearFilters = () => {
+    setFrom(""); setTo(""); setBuildingId(""); setUnitNumber(""); setTechFilter("");
+    setStatusFilter("ALL"); setQuery("");
+  };
 
   if (failed && !data) {
     return (
@@ -111,19 +160,43 @@ export default function VisitsTab({ locale, technicianId }: Props) {
     );
   }
 
-  const chips: { key: StatusFilter; label: string; count: number }[] = [
-    { key: "ALL", label: t.all, count: data.stats.total },
-    { key: "RESOLVED", label: t.resolved, count: data.stats.resolved },
-    { key: "NEEDS_PARTS", label: t.needsParts, count: data.stats.needsParts },
-    { key: "UNRESOLVED", label: t.unresolved, count: data.stats.unresolved },
+  const { stats } = data;
+  const pct = (n: number) => (stats.total > 0 ? Math.round((n / stats.total) * 100) : 0);
+
+  const kpis: { label: string; value: React.ReactNode; hint?: string; icon: React.ReactNode; tone: string }[] = [
+    {
+      label: t.total, value: stats.total, icon: <ClipboardList className="w-4 h-4" />, tone: "text-slate-800 bg-slate-100",
+      hint: allTechnicians ? `${stats.techniciansActive} ${t.byTechnicians}` : undefined,
+    },
+    {
+      label: t.resolutionRate, value: `${stats.resolutionRate}%`, icon: <Percent className="w-4 h-4" />, tone: "text-emerald-700 bg-emerald-50",
+      hint: `${stats.resolved} ${t.resolvedOf}`,
+    },
+    { label: t.needsParts, value: stats.needsParts, icon: <PackageX className="w-4 h-4" />, tone: "text-orange-700 bg-orange-50", hint: `${pct(stats.needsParts)}% ${t.ofVisits}` },
+    { label: t.unresolved, value: stats.unresolved, icon: <XCircle className="w-4 h-4" />, tone: "text-red-700 bg-red-50", hint: `${pct(stats.unresolved)}% ${t.ofVisits}` },
+    { label: t.devicesVisited, value: stats.devicesVisited, icon: <MonitorSmartphone className="w-4 h-4" />, tone: "text-sky-700 bg-sky-50" },
+    { label: t.repeatDevices, value: stats.repeatDevices, icon: <Repeat className="w-4 h-4" />, tone: "text-purple-700 bg-purple-50", hint: t.repeatHint },
   ];
+
+  const chips: { key: StatusFilter; label: string; count: number }[] = [
+    { key: "ALL", label: t.all, count: stats.total },
+    { key: "RESOLVED", label: t.resolved, count: stats.resolved },
+    { key: "NEEDS_PARTS", label: t.needsParts, count: stats.needsParts },
+    { key: "UNRESOLVED", label: t.unresolved, count: stats.unresolved },
+  ];
+
+  const selectCls = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-nassayem/30 focus:border-nassayem";
+  const labelCls = "block text-[11px] font-bold text-slate-500 mb-1";
 
   return (
     <div className="space-y-5">
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold text-slate-900">{t.title}</h2>
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            {t.title}
+            {loading && <Loader2 className="w-4 h-4 animate-spin text-nassayem" />}
+          </h2>
           <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
         </div>
         <Link
@@ -135,8 +208,66 @@ export default function VisitsTab({ locale, technicianId }: Props) {
         </Link>
       </header>
 
+      {/* ── KPI cards (follow the date / building / unit / technician filters) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {kpis.map((k) => (
+          <div key={k.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div className="flex items-center gap-2">
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${k.tone}`}>{k.icon}</span>
+              <p className="text-xs font-bold text-slate-500 leading-tight">{k.label}</p>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{k.value}</p>
+            {k.hint && <p className="text-[11px] text-slate-400 mt-0.5">{k.hint}</p>}
+          </div>
+        ))}
+      </div>
+
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+        <div className={`grid grid-cols-2 gap-3 ${allTechnicians ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
+          <div>
+            <label className={labelCls}>{t.from}</label>
+            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={selectCls} dir="ltr" />
+          </div>
+          <div>
+            <label className={labelCls}>{t.to}</label>
+            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={selectCls} dir="ltr" />
+          </div>
+          <div>
+            <label className={labelCls}>{t.building}</label>
+            <select
+              value={buildingId}
+              onChange={(e) => { setBuildingId(e.target.value); setUnitNumber(""); }}
+              className={selectCls}
+            >
+              <option value="">{t.allBuildings}</option>
+              {data.options.buildings.map((b) => (
+                <option key={b.id} value={b.id}>{isEn ? b.nameEn : b.nameAr || b.nameEn}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>{t.unit}</label>
+            <select value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className={selectCls}>
+              <option value="">{t.allUnits}</option>
+              {uniqueUnits.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          {allTechnicians && (
+            <div className="col-span-2 md:col-span-1">
+              <label className={labelCls}>{t.technician}</label>
+              <select value={techFilter} onChange={(e) => setTechFilter(e.target.value)} className={selectCls}>
+                <option value="">{t.allTechnicians}</option>
+                {data.options.technicians.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 start-3" />
           <input
@@ -165,6 +296,11 @@ export default function VisitsTab({ locale, technicianId }: Props) {
               </span>
             </button>
           ))}
+          {(hasServerFilters || query || statusFilter !== "ALL") && (
+            <button type="button" onClick={clearFilters} className="ms-auto px-3 py-1.5 text-xs font-bold text-nassayem hover:underline whitespace-nowrap">
+              {t.clear}
+            </button>
+          )}
         </div>
       </div>
 
@@ -173,12 +309,12 @@ export default function VisitsTab({ locale, technicianId }: Props) {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-12 flex flex-col items-center gap-2 text-center">
           <QrCode className="w-8 h-8 text-slate-300" />
           <p className="text-sm text-slate-500">
-            {data.stats.total === 0 ? t.empty : t.emptyFiltered}
+            {stats.total === 0 && !hasServerFilters ? t.empty : t.emptyFiltered}
           </p>
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className={`space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
             {filtered.map((v) => {
               const meta = statusMeta[v.status];
               const typeName = (isEn ? v.equipment.typeNameEn : v.equipment.typeNameAr) ?? v.equipment.typeNameAr;
@@ -198,6 +334,12 @@ export default function VisitsTab({ locale, technicianId }: Props) {
                         <span className="font-mono font-bold text-slate-600">{v.equipment.qrCode}</span>
                         {v.equipment.unitNumber ? <span>{t.unit}: {v.equipment.unitNumber}</span> : null}
                         <span>{buildingName}</span>
+                        {allTechnicians && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {v.technicianName}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -228,7 +370,7 @@ export default function VisitsTab({ locale, technicianId }: Props) {
             })}
           </div>
           <p className="text-xs text-slate-400 text-center">
-            {t.showing} {filtered.length} {t.of} {data.stats.total}
+            {t.showing} {filtered.length} {t.of} {stats.total}
           </p>
         </>
       )}
