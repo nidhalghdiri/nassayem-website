@@ -151,6 +151,9 @@ export const TERMINAL_STATUSES: TTaskStatus[] = [
 // (COMPLETED) never enter that flow.
 export const AUDITED_STATUSES: TTaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED"];
 
+/** Every finished status the supervisor gives final approval on (all task types). */
+export const SUPERVISOR_REVIEW_STATUSES: TTaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED", "COMPLETED", "NO_ISSUES"];
+
 /** Where a finished task is in the review flow. */
 export type TAwaitingReview = "pending" | "approved_receptionist";
 

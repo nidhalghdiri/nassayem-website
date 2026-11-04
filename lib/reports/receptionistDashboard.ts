@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import type { TaskStatus } from "@prisma/client";
+import { SUPERVISOR_REVIEW_STATUSES } from "@/lib/tasks/statuses";
 import { getEmployeeRanking, LeaderboardEmployee } from "./employeeRanking";
 
 export type ReceptionistStats = {
@@ -62,7 +63,7 @@ export type ReceptionistDashboardData = {
   timeline: TimelineEvent[];
 };
 
-const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED", "COMPLETED", "NO_ISSUES"];
+const TERMINAL_STATUSES = SUPERVISOR_REVIEW_STATUSES as TaskStatus[];
 const ACTIVE_STATUSES: TaskStatus[] = ["ASSIGNED", "CLEANING_STARTED", "INSPECTING", "WORK_STARTED", "IN_PROGRESS"];
 // Anything not finished and not cancelled — what the receptionist still has open.
 const OPEN_STATUSES: TaskStatus[] = [...ACTIVE_STATUSES, "ON_HOLD", "ISSUES_FOUND"];

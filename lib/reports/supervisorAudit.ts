@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { getAwaitingReview, type TAwaitingReview } from "@/lib/tasks/statuses";
+import { SUPERVISOR_REVIEW_STATUSES, type TAwaitingReview } from "@/lib/tasks/statuses";
 import type { TaskStatus } from "@prisma/client";
 
 export type PendingAudit = {
@@ -56,13 +56,11 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
   const buildingFilter = scopedBuildingIds ? { buildingId: { in: scopedBuildingIds } } : {};
   const buildingWhere = scopedBuildingIds ? { id: { in: scopedBuildingIds } } : {};
 
-  const TERMINAL_STATUSES: TaskStatus[] = ["CLEANING_COMPLETED", "WORK_COMPLETED"];
-
-  // 1. Get all completed tasks (cleaning & maintenance) that need audit
+  // 1. Get all finished tasks (every type, same set reception reviews) that need audit
   const rawPendingTasks = await prisma.task.findMany({
     where: {
       ...buildingFilter,
-      status: { in: TERMINAL_STATUSES },
+      status: { in: SUPERVISOR_REVIEW_STATUSES as TaskStatus[] },
     },
     include: {
       building: { select: { nameEn: true, nameAr: true } },
@@ -95,7 +93,7 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
       continue; 
     }
     
-    // If latest action is "rejected", but it's currently in TERMINAL_STATUSES, 
+    // If latest action is "rejected", but it's currently finished, 
     // it means it was completed AGAIN after rejection. So it needs audit again.
     // If latest action is "approved_receptionist", it also needs supervisor audit.
     // If no approval activities, it obviously needs audit.
@@ -105,7 +103,7 @@ export async function getSupervisorAuditData(supervisorId: string, role: string)
 
     // Reception's sign-off only counts when it is the newest review: a later
     // rejection (and redo) means it must be approved at reception again.
-    const awaitingReview = getAwaitingReview(t.status, latestAction);
+    const awaitingReview: TAwaitingReview = latestAction === "approved_receptionist" ? "approved_receptionist" : "pending";
     const receptionAct = latestAction === "approved_receptionist" ? approvalActivities[0] : null;
     
     pendingAudits.push({
