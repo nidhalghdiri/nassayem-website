@@ -5,6 +5,7 @@ import { Image as ImageIcon, CheckCircle2, Clock, Loader2, ListTodo, CalendarClo
 import { useRouter } from "next/navigation";
 import type { DashboardTask, ReceptionistStats } from "@/lib/reports/receptionistDashboard";
 import { formatTimeAgo } from "../../timeUtils";
+import RejectTaskModal from "../RejectTaskModal";
 import ImageViewerModal from "../ImageViewerModal";
 
 export type ReceptionistCardKind = "active" | "due" | "pendingSupervisor" | "pendingReview";
@@ -196,6 +197,7 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
   const [isApproving, setIsApproving] = useState(false);
   const [note, setNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
   const [photoModalIndex, setPhotoModalIndex] = useState<number | null>(null);
 
   const t = {
@@ -245,28 +247,6 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
     setIsApproving(false);
   };
 
-  const handleReject = async () => {
-    const rNote = prompt(isEn ? "Enter rejection reason:" : "أدخل سبب الرفض:");
-    if (!rNote) return;
-    
-    setIsLoading(true);
-    try {
-      await fetch(`/api/tasks/${task.id}/activity`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "rejected_receptionist",
-          details: "Receptionist rejected the task.",
-          notes: rNote,
-          newStatus: task.taskType === "CLEANING" ? "CLEANING_STARTED" : "WORK_STARTED"
-        })
-      });
-      router.refresh();
-    } catch (e) {
-      console.error(e);
-    }
-    setIsLoading(false);
-  };
 
   return (
     <div className="border border-slate-100 rounded-2xl p-4 hover:border-nassayem/30 transition-colors">
@@ -351,7 +331,7 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
         <div className="flex flex-col md:flex-row items-center justify-end gap-2">
           <button 
             disabled={isLoading}
-            onClick={handleReject}
+            onClick={() => setIsRejecting(true)}
             className="flex-1 md:flex-none border border-red-200 text-red-600 hover:bg-red-50 py-2.5 px-4 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -366,6 +346,20 @@ function ReviewCard({ task, isEn, router }: { task: DashboardTask, isEn: boolean
             {t.approveBtn}
           </button>
         </div>
+      )}
+
+      {isRejecting && (
+        <RejectTaskModal
+          taskId={task.id}
+          action="rejected_receptionist"
+          details="Receptionist rejected the task."
+          isEn={isEn}
+          onClose={() => setIsRejecting(false)}
+          onDone={() => {
+            setIsRejecting(false);
+            router.refresh();
+          }}
+        />
       )}
 
       {photoModalIndex !== null && (

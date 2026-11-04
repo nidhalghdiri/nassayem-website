@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, XCircle, Clock, Star, Image as ImageIcon, Loader2, UserCheck, UserX } from "lucide-react";
 import type { PendingAudit } from "@/lib/reports/supervisorAudit";
+import RejectTaskModal from "./RejectTaskModal";
 import { useRouter } from "next/navigation";
 import { formatTimeAgo } from "../timeUtils";
 import ImageViewerModal from "./ImageViewerModal";
@@ -11,6 +12,7 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
   const isEn = locale === "en";
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const t = {
     title: isEn ? "Audit List" : "قائمة التدقيق",
@@ -71,28 +73,6 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
     setLoadingId(null);
   };
 
-  const handleReject = async (auditId: string, taskType: string) => {
-    const note = prompt(isEn ? "Enter rejection reason:" : "أدخل سبب الرفض:");
-    if (!note) return;
-    
-    setLoadingId(auditId);
-    try {
-      await fetch(`/api/tasks/${auditId}/activity`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "rejected",
-          details: "Supervisor rejected the task.",
-          notes: note,
-          newStatus: taskType === "CLEANING" ? "CLEANING_STARTED" : "WORK_STARTED" // send it back to workers
-        })
-      });
-      router.refresh();
-    } catch (e) {
-      console.error(e);
-    }
-    setLoadingId(null);
-  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -141,10 +121,24 @@ export default function AuditList({ audits, locale }: { audits: PendingAudit[]; 
             isEn={isEn} 
             isLoading={loadingId === audit.id}
             onApprove={(rating: number, note: string) => handleApprove(audit.id, rating, note)}
-            onReject={() => handleReject(audit.id, audit.taskType)}
+            onReject={() => setRejectingId(audit.id)}
           />
         ))}
       </div>
+
+      {rejectingId && (
+        <RejectTaskModal
+          taskId={rejectingId}
+          action="rejected"
+          details="Supervisor rejected the task."
+          isEn={isEn}
+          onClose={() => setRejectingId(null)}
+          onDone={() => {
+            setRejectingId(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

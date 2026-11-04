@@ -4,6 +4,14 @@ import { getCurrentAdminUser } from "@/lib/adminAuth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+// Readable Oman-time stamp for the activity log, e.g. "13 Oct 2026, 09:00"
+function formatOman(date: Date): string {
+  return date.toLocaleString("en-GB", {
+    timeZone: "Asia/Muscat", day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
 // ── GET /api/tasks/:id/activity ───────────────────────────────────────────────
 export async function GET(_req: Request, { params }: RouteContext) {
   const adminUser = await getCurrentAdminUser();
@@ -33,16 +41,38 @@ export async function POST(request: Request, { params }: RouteContext) {
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
-  let body: { action: string; details: string; notes?: string; rating?: number; newStatus?: string };
+  let body: { action: string; details: string; notes?: string; rating?: number; newStatus?: string; newDueDate?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { action, details, notes, rating, newStatus } = body;
+  const { action, details, notes, rating, newDueDate } = body;
+  let { newStatus } = body;
   if (!action || !details) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // A rejection sends the same task back to "Not started" (ASSIGNED) for the
+  // worker to redo, rescheduled to the reviewer's new due date.
+  const isRejection = action === "rejected" || action === "rejected_receptionist";
+  let rescheduleTo: Date | null = null;
+  if (isRejection) {
+    if (!notes || !String(notes).trim()) {
+      return NextResponse.json({ error: "A rejection reason is required." }, { status: 400 });
+    }
+    rescheduleTo = newDueDate ? new Date(newDueDate) : null;
+    if (!rescheduleTo || Number.isNaN(rescheduleTo.getTime())) {
+      return NextResponse.json({ error: "A new due date is required to reject a task." }, { status: 400 });
+    }
+    if (rescheduleTo.getTime() <= Date.now()) {
+      return NextResponse.json({ error: "The new due date must be in the future." }, { status: 422 });
+    }
+    if (rescheduleTo.getTime() > Date.now() + 90 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ error: "The new due date is too far ahead (90 days max)." }, { status: 422 });
+    }
+    newStatus = "ASSIGNED";
   }
 
   // A supervisor's approval must carry a deliberate 1-5 quality rating: it feeds
@@ -90,19 +120,35 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
   }
 
-  // If newStatus is provided (e.g., rejecting sends it back to WORK_STARTED)
+  // If newStatus is provided (e.g., rejecting sends it back to ASSIGNED)
   if (newStatus && newStatus !== task.status) {
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: newStatus as any },
+      data: {
+        status: newStatus as any,
+        // The redo gets its own finish stamp and duration; the original start is kept.
+        ...(isRejection ? { completedAt: null, actualHours: null } : {}),
+      },
     });
-    
+
     await prisma.taskActivity.create({
       data: {
         taskId,
         userId: adminUser.id,
         action: "status_changed",
         details: `Status changed from ${task.status} to ${newStatus}`,
+      },
+    });
+  }
+
+  if (rescheduleTo && rescheduleTo.getTime() !== task.dueDate.getTime()) {
+    await prisma.task.update({ where: { id: taskId }, data: { dueDate: rescheduleTo } });
+    await prisma.taskActivity.create({
+      data: {
+        taskId,
+        userId: adminUser.id,
+        action: "due_date_changed",
+        details: `Due date changed from ${formatOman(task.dueDate)} to ${formatOman(rescheduleTo)}`,
       },
     });
   }
