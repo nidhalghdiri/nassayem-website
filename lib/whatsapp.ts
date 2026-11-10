@@ -907,3 +907,75 @@ export async function notifyPurchaseRequest({
   const sent = results.filter((r) => r.ok).length;
   return { sent, failed: results.length - sent, recipients: targets.length };
 }
+
+// ── Stay feedback (NetSuite-triggered, after checkout) ───────────────────────
+
+/**
+ * Template ns_stay_feedback (AR) — "thank you for your stay" with two buttons:
+ *   0: URL   "قيّم إقامتك"   https://www.nassayem.com/rate/{{1}}
+ *   1: phone "تواصل معنا"    (static call-centre number, no parameter)
+ * Body variables: {{1}} guest first name, {{2}} building name.
+ * Only the URL button carries a parameter — the guest's rating token.
+ */
+export const STAY_FEEDBACK_TEMPLATE = "ns_stay_feedback";
+
+export async function notifyStayFeedback({
+  to,
+  name,
+  building,
+  token,
+  language = "ar",
+}: {
+  to: string;
+  name: string;
+  building: string;
+  token: string;
+  language?: string;
+}): Promise<{ ok: boolean; status: "SENT" | "FAILED" | "SKIPPED" }> {
+  const cleanTo = to.replace(/\D/g, "");
+  if (!cleanTo) return { ok: false, status: "SKIPPED" };
+
+  // Body variables may not contain newlines/tabs or be empty (Meta rejects them).
+  const clean = (v: string, fallback: string) =>
+    v.replace(/\s+/g, " ").trim().slice(0, 100) || fallback;
+  const bodyParams = [clean(name, "عميلنا العزيز"), clean(building, "نسائم صلالة")];
+
+  const result = await postWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: cleanTo,
+    type: "template",
+    template: {
+      name: STAY_FEEDBACK_TEMPLATE,
+      language: { code: language },
+      components: [
+        {
+          type: "body",
+          parameters: bodyParams.map((text) => ({ type: "text", text })),
+        },
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [{ type: "text", text: token }],
+        },
+      ],
+    },
+  });
+
+  const isConfigGap =
+    typeof result.error === "string" && result.error.includes("env var is missing");
+  const status = result.ok ? "SENT" : isConfigGap ? "SKIPPED" : "FAILED";
+
+  // The token is deliberately not logged: it is the guest's private link.
+  await logSend({
+    to: cleanTo,
+    kind: "template",
+    templateName: STAY_FEEDBACK_TEMPLATE,
+    language,
+    bodyParams,
+    status,
+    error: result.ok ? undefined : result.error,
+  });
+
+  return { ok: result.ok, status };
+}

@@ -1333,3 +1333,57 @@ model PurchaseRequestOwner {
   // Drives the maintenance user's "my requests" list.
   @@index([adminUserId, createdAt])
 }
+
+// ------------------------------------------------------
+// MODELS — Stay ratings (post-checkout WhatsApp feedback)
+// ------------------------------------------------------
+// One row per NetSuite reservation, created when NetSuite reports a checkout.
+// `token` is the opaque suffix of the WhatsApp button link /rate/{token}; the
+// guest's name, building, units and reservation number come from this row, so
+// none of them travel in the URL.
+
+enum StayRatingStatus {
+  SENT       // link created (and WhatsApp send attempted), not rated yet
+  SUBMITTED  // guest submitted the form
+}
+
+enum StayRatingSyncStatus {
+  PENDING    // submitted, not yet written to the NetSuite reservation
+  SYNCED
+  FAILED     // retried by /api/cron/stay-rating-sync
+}
+
+model StayRating {
+  id                    String  @id @default(uuid())
+  token                 String  @unique
+  netsuiteReservationId String  @unique
+  reservationNumber     String?
+  customerName          String
+  phone                 String
+  building              String?
+  unitNumbers           String?
+  checkoutDate          DateTime?
+  language              String  @default("ar")
+
+  waSendStatus          String? // "SENT" | "FAILED" | "SKIPPED"
+
+  status                StayRatingStatus @default(SENT)
+  cleanliness           Int?
+  reception             Int?
+  facilities            Int?
+  value                 Int?
+  wouldRecommend        Boolean?
+  comment               String? @db.Text
+  submittedAt           DateTime?
+
+  nsSyncStatus          StayRatingSyncStatus?
+  nsSyncError           String? @db.Text
+  nsSyncedAt            DateTime?
+  nsSyncAttempts        Int     @default(0)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([nsSyncStatus])
+}

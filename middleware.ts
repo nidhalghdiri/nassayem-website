@@ -22,8 +22,11 @@ export async function middleware(request: NextRequest) {
     // The guest-guide QR on the bilingual reservation paper has no locale, so
     // open it in the guest's phone language instead of always English.
     const prefersArabic =
-      pathname === "/guest-guide" &&
-      /^\s*ar\b/i.test(request.headers.get("accept-language") ?? "");
+      (pathname === "/guest-guide" &&
+        /^\s*ar\b/i.test(request.headers.get("accept-language") ?? "")) ||
+      // The stay-feedback WhatsApp button links to /rate/{token}; the template
+      // is Arabic, so the guest lands on the Arabic form.
+      pathname.startsWith("/rate/");
     request.nextUrl.pathname = `/${prefersArabic ? "ar" : defaultLocale}${pathname}`;
     return NextResponse.redirect(request.nextUrl);
   }

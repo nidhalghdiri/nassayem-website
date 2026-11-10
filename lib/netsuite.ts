@@ -325,3 +325,67 @@ export async function notifyNetsuitePaymentSucceeded(
     };
   }
 }
+
+// ── Stay feedback (post-checkout WhatsApp) ───────────────────────────────────
+
+/**
+ * Verifies the inbound secret for the checkout feedback event
+ * (env: NETSUITE_CHECKOUT_NOTIFY_SECRET), set on the ns_ue_reservation user
+ * event deployment. Its own secret, like the other inbound endpoints. Fails
+ * closed when unset.
+ */
+export function verifyCheckoutNotifySecret(
+  providedSecret: string | null | undefined,
+): boolean {
+  return verifyInboundSecret(
+    providedSecret,
+    process.env.NETSUITE_CHECKOUT_NOTIFY_SECRET,
+    "NETSUITE_CHECKOUT_NOTIFY_SECRET",
+  );
+}
+
+export type StayRatingForNetsuite = {
+  netsuiteReservationId: string;
+  cleanliness: number;
+  reception: number;
+  facilities: number;
+  value: number;
+  wouldRecommend: boolean;
+  comment?: string | null;
+  submittedAt: Date;
+};
+
+export function isStayRatingSuiteletConfigured(): boolean {
+  return !!(process.env.NETSUITE_STAY_RATING_SUITELET_URL && process.env.NETSUITE_M2M_TOKEN);
+}
+
+// Suitelets are called with GET (see callNetsuiteSuitelet), so the comment
+// travels in the query string — keep it short enough for the URL limit.
+const NS_COMMENT_MAX = 500;
+
+/**
+ * Writes a submitted rating onto the NetSuite reservation's custbody_ns_fb_*
+ * fields. Server-side only. Env: NETSUITE_STAY_RATING_SUITELET_URL.
+ */
+export async function pushStayRatingToNetsuite(
+  rating: StayRatingForNetsuite,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isStayRatingSuiteletConfigured()) {
+    return { ok: false, error: "NetSuite stay-rating Suitelet not configured" };
+  }
+  const result = await callNetsuiteSuiteletJson<{ ok: true }>(
+    process.env.NETSUITE_STAY_RATING_SUITELET_URL || "",
+    {
+      action: "saveStayRating",
+      reservationId: rating.netsuiteReservationId,
+      cleanliness: rating.cleanliness,
+      reception: rating.reception,
+      facilities: rating.facilities,
+      value: rating.value,
+      recommend: rating.wouldRecommend ? "T" : "F",
+      comment: (rating.comment ?? "").slice(0, NS_COMMENT_MAX),
+      submittedAt: rating.submittedAt.toISOString(),
+    },
+  );
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
