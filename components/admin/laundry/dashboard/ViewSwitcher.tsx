@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-export default function ViewSwitcher({ locale, active }: { locale: string; active: "dashboard" | "orders" }) {
+export default function ViewSwitcher({ locale, active, label }: { locale: string; active: "dashboard" | "orders"; label?: { en: string; ar: string } }) {
   const isEn = locale === "en";
   const base = `/${locale}/admin/laundry`;
   const tabs = [
-    { key: "dashboard", href: base, en: "Dashboard", ar: "لوحة المدير" },
+    { key: "dashboard", href: base, en: label?.en ?? "Dashboard", ar: label?.ar ?? "لوحة المدير" },
     { key: "orders", href: `${base}?view=orders`, en: "Orders", ar: "الطلبات" },
   ] as const;
   return (

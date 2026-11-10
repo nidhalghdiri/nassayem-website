@@ -5,6 +5,12 @@ import { canSeeAllLaundry } from "@/lib/laundry/permissions";
 import { serializeLaundryOrder } from "@/lib/laundry/serialize";
 import LaundryBoard from "@/components/admin/laundry/LaundryBoard";
 import ManagerDashboard from "@/components/admin/laundry/dashboard/ManagerDashboard";
+import ReceptionistDashboard from "@/components/admin/laundry/dashboard/ReceptionistDashboard";
+import { getReceptionistDashboardData } from "@/lib/laundry/receptionistDashboard";
+import LaundryDashboard from "@/components/admin/laundry/dashboard/LaundryDashboard";
+import { getLaundryDashboardData } from "@/lib/laundry/laundryDashboard";
+import SupervisorDashboard from "@/components/admin/laundry/dashboard/SupervisorDashboard";
+import { getSupervisorDashboardData } from "@/lib/laundry/supervisorDashboard";
 import ViewSwitcher from "@/components/admin/laundry/dashboard/ViewSwitcher";
 import { getManagerDashboardData, resolvePeriod } from "@/lib/laundry/dashboard";
 import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
@@ -47,6 +53,42 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
       <>
         <ViewSwitcher locale={locale} active="dashboard" />
         <ManagerDashboard data={data} locale={locale} />
+      </>
+    );
+  }
+
+  // Receptionists land on their own-building dashboard.
+  const isReceptionist = role === "RECEPTIONIST";
+  if (isReceptionist && sp.view !== "orders") {
+    const data = await getReceptionistDashboardData(adminUser.id);
+    return (
+      <>
+        <ViewSwitcher locale={locale} active="dashboard" label={{ en: "My Laundry", ar: "مغسلتي" }} />
+        <ReceptionistDashboard data={data} locale={locale} />
+      </>
+    );
+  }
+
+  // The laundry operator lands on their work-queue dashboard.
+  const isLaundry = role === "LAUNDRY";
+  if (isLaundry && sp.view !== "orders") {
+    const data = await getLaundryDashboardData();
+    return (
+      <>
+        <ViewSwitcher locale={locale} active="dashboard" label={{ en: "Dashboard", ar: "لوحة المغسلة" }} />
+        <LaundryDashboard data={data} locale={locale} />
+      </>
+    );
+  }
+
+  // Supervisors land on their task-list dashboard.
+  const isSupervisor = role === "SUPERVISOR";
+  if (isSupervisor && sp.view !== "orders") {
+    const data = await getSupervisorDashboardData(adminUser.id);
+    return (
+      <>
+        <ViewSwitcher locale={locale} active="dashboard" label={{ en: "Dashboard", ar: "لوحة المشرف" }} />
+        <SupervisorDashboard data={data} locale={locale} />
       </>
     );
   }
@@ -99,7 +141,9 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
 
   return (
     <>
-      {isManager && <ViewSwitcher locale={locale} active="orders" />}
+      {(isManager || isReceptionist || isLaundry || isSupervisor) && (
+        <ViewSwitcher locale={locale} active="orders" label={isReceptionist ? { en: "My Laundry", ar: "مغسلتي" } : isLaundry ? { en: "Dashboard", ar: "لوحة المغسلة" } : isSupervisor ? { en: "Dashboard", ar: "لوحة المشرف" } : undefined} />
+      )}
       <LaundryBoard
         orders={serialized}
         buildings={buildings}
