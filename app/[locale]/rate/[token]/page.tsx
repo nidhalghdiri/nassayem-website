@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
-import { isValidRatingToken } from "@/lib/stayRating";
+import { isValidRatingToken, normalizeRatingToken } from "@/lib/stayRating";
 import StayRatingForm from "@/components/rate/StayRatingForm";
 
 // The link is private to the guest: keep it out of search results and make
@@ -17,7 +17,8 @@ type PageProps = {
 };
 
 export default async function RateStayPage({ params }: PageProps) {
-  const { locale, token } = await params;
+  const { locale, token: rawToken } = await params;
+  const token = normalizeRatingToken(rawToken);
   const isEn = locale === "en";
 
   if (!isValidRatingToken(token)) return notFound();
