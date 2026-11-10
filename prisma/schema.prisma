@@ -541,6 +541,7 @@ model AdminUser {
 
   // Purchase request approvals decided on the website
   purchaseRequestDecisions PurchaseRequestDecision[]
+  purchaseRequestsCreated  PurchaseRequestOwner[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1313,4 +1314,22 @@ model PurchaseRequestDecision {
   @@index([adminUserId, decision])
   @@index([netsuiteRequestId])
   @@index([createdAt])
+}
+
+// Who raised a purchase request from the website. The request itself lives in
+// NetSuite; this is what lets a maintenance user see only their own requests,
+// and stops anyone approving a request they created themselves.
+model PurchaseRequestOwner {
+  id String @id @default(uuid())
+
+  netsuiteRequestId String @unique
+  requestNumber     String
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // Drives the maintenance user's "my requests" list.
+  @@index([adminUserId, createdAt])
 }

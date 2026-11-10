@@ -187,9 +187,11 @@ curl -G "$SUITELET_EXTERNAL_URL" \
 Built and deployed separately (not in this folder). It serves the website's supervisor approval step for `customrecord_purchase_request`.
 
 - Website env var: `NETSUITE_PUR_REQ_API_URL` — the deployment's **external URL**, which already carries `script`, `deploy`, `compid` and `ns-at`. The website appends the action parameters plus `token` (`NETSUITE_M2M_TOKEN`).
-- Actions: `list`, `get`, `photo`, `decide`. GET only; `{ ok: true, ... }` or `{ ok: false, code, error }` with codes `UNAUTHORIZED`, `NOT_FOUND`, `INVALID_STATUS`, `INVALID_PARAMS`, `FORBIDDEN_LOCATION`, `SERVER_ERROR`.
+- Actions: `list`, `get`, `photo`, `decide`, `create`. GET only; `{ ok: true, ... }` or `{ ok: false, code, error }` with codes `UNAUTHORIZED`, `NOT_FOUND`, `INVALID_STATUS`, `INVALID_PARAMS`, `FORBIDDEN_LOCATION`, `SERVER_ERROR`.
 - Status codes (never NetSuite internal list ids): `pending_supervisor`, `pending_accounts`, `pending_gm`, `approved`, `rejected`.
 - `decide` only works while the request is `pending_supervisor`, and is the supervisor stage only — Accounts and the GM approve in NetSuite.
+- `create` (the website's "New request" form for supervisors and maintenance): params `locationId` (NetSuite location id), `reason`, `priority` (`normal`|`urgent`), `tenantCharge` (`T`|`F`), `items` (JSON string: `[{description, quantity, price}]`, max 30), `requesterName`, `requesterRef` (website `AdminUser.id`). Creates the request at `pending_supervisor` (so the existing user event notifies as for any new request) and answers `{ ok: true, request: { id, number, status } }`. No photo (GET only). **This action must be added to the Suitelet before the form works** — until then submitting returns "NetSuite could not be reached" / `INVALID_PARAMS`.
+- Who raised a request on the website is recorded in the website database (`PurchaseRequestOwner`), not in NetSuite: that is what limits a maintenance user to their own requests, and stops anyone approving a request they raised.
 - `locationIds` on `decide` is optional building scoping. Supervisors currently see all buildings, so the website omits it; see `getPurchaseRequestLocationScope` in `lib/purchaseRequestAccess.ts` to switch it on.
 
 Until `NETSUITE_PUR_REQ_API_URL` is set, `/{locale}/admin/purchase-requests` shows a "not configured" state, so deploys are safe in any order.

@@ -2,7 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { buildingLabel } from "@/lib/buildingLabel";
-import { getPurchaseRequestUser } from "@/lib/purchaseRequestAccess";
+import {
+  canCreatePurchaseRequests,
+  canDecidePurchaseRequests,
+  canViewPurchaseRequest,
+  getPurchaseRequestUser,
+  ownRequestsOnly,
+} from "@/lib/purchaseRequestAccess";
 import {
   getPurchaseRequest,
   isPurchaseRequestApiConfigured,
@@ -15,6 +21,7 @@ import {
 import PurchaseRequestFilters from "@/components/admin/purchase-requests/PurchaseRequestFilters";
 import PurchaseRequestList from "@/components/admin/purchase-requests/PurchaseRequestList";
 import PurchaseRequestDetailModal from "@/components/admin/purchase-requests/PurchaseRequestDetailModal";
+import NewPurchaseRequestModal from "@/components/admin/purchase-requests/NewPurchaseRequestModal";
 
 /**
  * Supervisor approval of NetSuite purchase requests.
@@ -65,6 +72,7 @@ type PageProps = {
     to?: string;
     id?: string;
     page?: string;
+    new?: string;
   }>;
 };
 
@@ -144,8 +152,8 @@ export default async function PurchaseRequestsAdminPage({
   const sp = await searchParams;
   const isEn = locale === "en";
 
-  // Server-side role guard: SUPERVISOR and MANAGER only. The sidebar merely
-  // hides the link, so this is what actually protects the page.
+  // Server-side role guard. The sidebar merely hides the link, so this is what
+  // actually protects the page.
   const adminUser = await getPurchaseRequestUser();
   if (!adminUser) {
     redirect(`/${locale}/admin`);
@@ -158,6 +166,9 @@ export default async function PurchaseRequestsAdminPage({
   const to = cleanDate(sp.to);
   const selectedId = sp.id?.trim() || "";
   const pageIndex = Math.max(0, parseInt(sp.page ?? "0", 10) || 0);
+  const ownOnly = ownRequestsOnly(adminUser.role);
+  const canCreate = canCreatePurchaseRequests(adminUser.role);
+  const showNewForm = canCreate && sp.new === "1";
 
   // Buildings that are mapped to NetSuite — Building.netsuiteId holds the same
   // location internal ids as custrecord_pur_req_location. Unmapped buildings
@@ -173,6 +184,23 @@ export default async function PurchaseRequestsAdminPage({
     label: buildingLabel(b, isEn),
   }));
 
+  // Buildings offered on the "new request" form: a user linked to specific
+  // buildings raises requests for those only (createPurchaseRequestAction
+  // enforces the same on the server).
+  let createBuildingOptions = buildingOptions;
+  if (canCreate) {
+    const assigned = await prisma.adminUserBuilding.findMany({
+      where: { adminUserId: adminUser.id },
+      select: { buildingId: true },
+    });
+    if (assigned.length > 0) {
+      const ids = new Set(assigned.map((a) => a.buildingId));
+      createBuildingOptions = buildings
+        .filter((b) => ids.has(b.id))
+        .map((b) => ({ value: b.netsuiteId as string, label: buildingLabel(b, isEn) }));
+    }
+  }
+
   // The filter value IS the NetSuite location id, so it can be passed straight
   // through — but only if it's a building we actually know, so a hand-edited
   // URL can't probe arbitrary locations.
@@ -183,65 +211,107 @@ export default async function PurchaseRequestsAdminPage({
 
   if (!isPurchaseRequestApiConfigured()) {
     return (
-      <PageShell isEn={isEn} locale={locale} tab={tab} counts={null}>
+      <PageShell isEn={isEn} locale={locale} tab={tab} counts={null} ownOnly={ownOnly} canCreate={canCreate}>
         <NotConfiguredState isEn={isEn} />
       </PageShell>
     );
   }
 
-  // "Approved by me" reads the website audit log rather than paging NetSuite
-  // and matching on the supervisor ref — this is what the log is for.
-  const myApprovedIds =
-    tab === "approved-by-me"
-      ? new Set(
-          (
-            await prisma.purchaseRequestDecision.findMany({
-              where: { adminUserId: adminUser.id, decision: "approve" },
-              select: { netsuiteRequestId: true },
-              orderBy: { createdAt: "desc" },
-            })
-          ).map((d) => d.netsuiteRequestId),
-        )
-      : null;
+  let rows: PurchaseRequestRow[] = [];
+  let total = 0;
 
-  const listResult = await listPurchaseRequests({
-    status: statusForTab(tab),
-    locationIds,
-    dateFrom: from,
-    dateTo: to,
-    page: tab === "approved-by-me" ? 0 : pageIndex,
-    // The "Approved by me" tab filters after fetching, so it needs a wider
-    // window than one page to stay accurate.
-    pageSize: tab === "approved-by-me" ? 100 : PAGE_SIZE,
-  });
+  if (ownOnly) {
+    // Maintenance sees only what they raised: the ownership table decides which
+    // NetSuite requests to load, so nothing else is ever fetched for them.
+    const [owned, ownedCount] = await Promise.all([
+      prisma.purchaseRequestOwner.findMany({
+        where: { adminUserId: adminUser.id },
+        select: { netsuiteRequestId: true },
+        orderBy: { createdAt: "desc" },
+        skip: pageIndex * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      prisma.purchaseRequestOwner.count({ where: { adminUserId: adminUser.id } }),
+    ]);
+    const loaded = await Promise.all(owned.map((o) => getPurchaseRequest(o.netsuiteRequestId)));
+    const failedAuth = loaded.find((r) => !r.ok && r.code !== "NOT_FOUND");
+    if (failedAuth && !failedAuth.ok) {
+      return (
+        <PageShell isEn={isEn} locale={locale} tab={tab} counts={null} ownOnly={ownOnly} canCreate={canCreate}>
+          <ApiErrorState failure={failedAuth} isEn={isEn} />
+        </PageShell>
+      );
+    }
+    rows = loaded.flatMap((r) => (r.ok ? [r.data] : []));
+    total = ownedCount;
+  } else {
+    // "Approved by me" reads the website audit log rather than paging NetSuite
+    // and matching on the supervisor ref — this is what the log is for.
+    const myApprovedIds =
+      tab === "approved-by-me"
+        ? new Set(
+            (
+              await prisma.purchaseRequestDecision.findMany({
+                where: { adminUserId: adminUser.id, decision: "approve" },
+                select: { netsuiteRequestId: true },
+                orderBy: { createdAt: "desc" },
+              })
+            ).map((d) => d.netsuiteRequestId),
+          )
+        : null;
 
-  if (!listResult.ok) {
-    return (
-      <PageShell isEn={isEn} locale={locale} tab={tab} counts={null}>
-        <ApiErrorState failure={listResult} isEn={isEn} />
-      </PageShell>
-    );
-  }
+    const listResult = await listPurchaseRequests({
+      status: statusForTab(tab),
+      locationIds,
+      dateFrom: from,
+      dateTo: to,
+      page: tab === "approved-by-me" ? 0 : pageIndex,
+      // The "Approved by me" tab filters after fetching, so it needs a wider
+      // window than one page to stay accurate.
+      pageSize: tab === "approved-by-me" ? 100 : PAGE_SIZE,
+    });
 
-  let rows: PurchaseRequestRow[] = listResult.data.requests;
-  let total = listResult.data.total;
-  if (myApprovedIds) {
-    rows = rows.filter((r) => myApprovedIds.has(r.id));
-    total = rows.length;
+    if (!listResult.ok) {
+      return (
+        <PageShell isEn={isEn} locale={locale} tab={tab} counts={null} ownOnly={ownOnly} canCreate={canCreate}>
+          <ApiErrorState failure={listResult} isEn={isEn} />
+        </PageShell>
+      );
+    }
+
+    rows = listResult.data.requests;
+    total = listResult.data.total;
+    if (myApprovedIds) {
+      rows = rows.filter((r) => myApprovedIds.has(r.id));
+      total = rows.length;
+    }
   }
 
   // Detail view: fetched server-side so the item lines never need a client
-  // round trip, and so the role guard above covers them too.
+  // round trip, and so the role guard above covers them too. Maintenance may
+  // only open requests they raised — checked before anything is fetched.
   let detail: PurchaseRequestDetail | null = null;
   let detailFailure: PurchaseRequestFailure | null = null;
+  let detailIsMine = false;
   if (selectedId) {
-    const detailResult = await getPurchaseRequest(selectedId);
-    if (detailResult.ok) detail = detailResult.data;
-    else detailFailure = detailResult;
+    if (!(await canViewPurchaseRequest(adminUser, selectedId))) {
+      detailFailure = { ok: false, code: "NOT_FOUND", error: "Request not found" };
+    } else {
+      const detailResult = await getPurchaseRequest(selectedId);
+      if (detailResult.ok) {
+        detail = detailResult.data;
+        detailIsMine =
+          (await prisma.purchaseRequestOwner.findUnique({
+            where: { netsuiteRequestId: selectedId },
+            select: { adminUserId: true },
+          }))?.adminUserId === adminUser.id;
+      } else {
+        detailFailure = detailResult;
+      }
+    }
   }
 
-  const pendingCount =
-    tab === "pending" ? total : null;
+  const pendingCount = !ownOnly && tab === "pending" ? total : null;
 
   return (
     <PageShell
@@ -249,13 +319,17 @@ export default async function PurchaseRequestsAdminPage({
       locale={locale}
       tab={tab}
       counts={pendingCount}
+      ownOnly={ownOnly}
+      canCreate={canCreate}
       filters={
-        <PurchaseRequestFilters
-          isEn={isEn}
-          locale={locale}
-          buildingOptions={buildingOptions}
-          current={{ tab, buildingId, from: from ?? "", to: to ?? "" }}
-        />
+        ownOnly ? undefined : (
+          <PurchaseRequestFilters
+            isEn={isEn}
+            locale={locale}
+            buildingOptions={buildingOptions}
+            current={{ tab, buildingId, from: from ?? "", to: to ?? "" }}
+          />
+        )
       }
     >
       <PurchaseRequestList
@@ -279,8 +353,22 @@ export default async function PurchaseRequestsAdminPage({
           failure={detailFailure}
           isEn={isEn}
           locale={locale}
-          /* Only pending_supervisor is actionable on the website. */
-          canDecide={detail?.status === "pending_supervisor"}
+          /* Only pending_supervisor is actionable on the website, never by
+             maintenance, and never on a request you raised yourself. */
+          canDecide={
+            canDecidePurchaseRequests(adminUser.role) &&
+            !detailIsMine &&
+            detail?.status === "pending_supervisor"
+          }
+          closeHref={buildListHref(locale, { tab, buildingId, from, to, page: pageIndex })}
+        />
+      )}
+
+      {showNewForm && (
+        <NewPurchaseRequestModal
+          isEn={isEn}
+          locale={locale}
+          buildingOptions={createBuildingOptions}
           closeHref={buildListHref(locale, { tab, buildingId, from, to, page: pageIndex })}
         />
       )}
@@ -316,6 +404,8 @@ function PageShell({
   tab,
   counts,
   filters,
+  ownOnly,
+  canCreate,
   children,
 }: {
   isEn: boolean;
@@ -323,16 +413,26 @@ function PageShell({
   tab: TabKey;
   counts: number | null;
   filters?: React.ReactNode;
+  /** Maintenance: own requests only, so no status tabs. */
+  ownOnly: boolean;
+  canCreate: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          {isEn ? "Purchase Requests" : "طلبات الشراء"}
+          {ownOnly
+            ? isEn ? "My Purchase Requests" : "طلبات الشراء الخاصة بي"
+            : isEn ? "Purchase Requests" : "طلبات الشراء"}
         </h1>
         <p className="text-gray-500 mt-1 text-sm">
-          {counts !== null && tab === "pending"
+          {ownOnly
+            ? isEn
+              ? "The purchase requests you have raised and where they are in approval"
+              : "طلبات الشراء التي قدمتها وحالة اعتمادها"
+            : counts !== null && tab === "pending"
             ? isEn
               ? `${counts} request${counts === 1 ? "" : "s"} waiting for your approval`
               : `${counts} طلب بانتظار اعتمادك`
@@ -341,7 +441,17 @@ function PageShell({
               : "اعتماد المشرف لطلبات الشراء من NetSuite"}
         </p>
       </div>
+      {canCreate && (
+        <Link
+          href={`/${locale}/admin/purchase-requests?new=1`}
+          className="px-4 py-2.5 rounded-xl bg-nassayem text-white text-sm font-semibold hover:bg-nassayem-dark transition-colors"
+        >
+          + {isEn ? "New request" : "طلب جديد"}
+        </Link>
+      )}
+      </div>
 
+      {!ownOnly && (
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {TABS.map((t) => {
           const isActive = t.key === tab;
@@ -360,6 +470,7 @@ function PageShell({
           );
         })}
       </div>
+      )}
 
       {filters}
       {children}

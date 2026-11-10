@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPurchaseRequestUser } from "@/lib/purchaseRequestAccess";
+import { canViewPurchaseRequest, getPurchaseRequestUser } from "@/lib/purchaseRequestAccess";
 import { fetchPurchaseRequestPhoto } from "@/lib/netsuitePurchaseRequests";
 
 /**
@@ -24,6 +24,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  if (!(await canViewPurchaseRequest(user, id))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const result = await fetchPurchaseRequestPhoto(id);

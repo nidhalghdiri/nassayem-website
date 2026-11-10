@@ -33,7 +33,7 @@ type NavItem = {
 // SUPERVISOR   : Purchase Requests, Tasks, Tasks List, Laundry
 // RECEPTIONIST : Dashboard, Bookings (own buildings), NetSuite Payments, Tasks, Tasks List, Laundry
 // HOUSEKEEPING : Dashboard, Tasks, Tasks List
-// MAINTENANCE  : Dashboard, Tasks, Tasks List
+// MAINTENANCE  : Dashboard, Tasks, Tasks List, Purchase Requests (own only)
 // LAUNDRY      : Dashboard, Laundry
 // The equipment list is a tab on the Manager / Supervisor / Maintenance Tasks
 // dashboards (the /admin/maintenance pages still work for direct links).
@@ -46,7 +46,7 @@ const ROLE_NAV_ACCESS: Record<string, string[]> = {
   SUPERVISOR:   ["purchaseRequests", "tasks", "tasksList", "laundry"],
   RECEPTIONIST: ["dashboard", "bookings", "netsuitePayments", "tasks", "tasksList", "laundry"],
   HOUSEKEEPING: ["dashboard", "tasks", "tasksList"],
-  MAINTENANCE:  ["dashboard", "tasks", "tasksList"],
+  MAINTENANCE:  ["dashboard", "tasks", "tasksList", "purchaseRequests"],
   LAUNDRY:      ["dashboard", "laundry"],
 };
 

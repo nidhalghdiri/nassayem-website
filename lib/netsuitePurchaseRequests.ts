@@ -21,6 +21,10 @@ import {
   callNetsuiteSuitelet,
   callNetsuiteSuiteletJson,
 } from "@/lib/netsuite";
+import {
+  PURCHASE_REQUEST_MAX_ITEMS,
+  PURCHASE_REQUEST_NOTE_MAX,
+} from "@/lib/purchaseRequestLimits";
 
 // ── Status codes ────────────────────────────────────────────────────────────
 // The API always speaks these codes, never NetSuite internal list IDs.
@@ -422,7 +426,7 @@ export async function fetchPurchaseRequestPhoto(
 
 // ── action=decide ───────────────────────────────────────────────────────────
 
-export const PURCHASE_REQUEST_NOTE_MAX = 1000;
+export { PURCHASE_REQUEST_NOTE_MAX };
 
 export type DecidePurchaseRequestParams = {
   id: string;
@@ -508,6 +512,74 @@ export async function decidePurchaseRequest(
         : params.decision === "approve"
           ? "pending_accounts"
           : "rejected",
+    },
+  };
+}
+
+// ── action=create ───────────────────────────────────────────────────────────
+
+export { PURCHASE_REQUEST_MAX_ITEMS };
+
+export type CreatePurchaseRequestParams = {
+  /** NetSuite location internal id — Building.netsuiteId. */
+  locationId: string;
+  reason: string;
+  priority: PurchaseRequestPriority;
+  tenantCharge: boolean;
+  items: { description: string; quantity: number; price: number }[];
+  /** The website user raising the request. */
+  requesterName: string;
+  /** The website user's AdminUser.id. */
+  requesterRef: string;
+};
+
+export type PurchaseRequestCreated = {
+  id: string;
+  number: string;
+  status: PurchaseRequestStatus;
+};
+
+/**
+ * Raises a purchase request in NetSuite on behalf of a website user. It starts
+ * at pending_supervisor, like one submitted from the NetSuite Suitelet form.
+ *
+ * Requires the Suitelet's `create` action (see netsuite/README.md). Items are
+ * sent as one JSON string because the transport is GET-only; there is no photo
+ * upload for the same reason.
+ *
+ * This is a GET that changes data. Call it ONLY from a Server Action behind an
+ * explicit button click — never from a page render, a link or a prefetch.
+ */
+export async function createPurchaseRequest(
+  params: CreatePurchaseRequestParams,
+): Promise<PurchaseRequestResult<PurchaseRequestCreated>> {
+  if (!isPurchaseRequestApiConfigured()) return notConfigured();
+
+  const result = await callNetsuiteSuiteletJson<Record<string, unknown>>(apiUrl(), {
+    action: "create",
+    locationId: params.locationId,
+    reason: params.reason,
+    priority: params.priority,
+    tenantCharge: params.tenantCharge ? "T" : "F",
+    items: JSON.stringify(params.items),
+    requesterName: params.requesterName,
+    requesterRef: params.requesterRef,
+  });
+  if (!result.ok) return toFailure(result);
+
+  const raw = result.data.request;
+  const row = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const id = str(row.id);
+  if (!id) {
+    return { ok: false, code: "SERVER_ERROR", error: "NetSuite did not return the new request" };
+  }
+  const status = String(row.status ?? "");
+  return {
+    ok: true,
+    data: {
+      id,
+      number: String(row.number ?? ""),
+      status: isPurchaseRequestStatus(status) ? status : "pending_supervisor",
     },
   };
 }
