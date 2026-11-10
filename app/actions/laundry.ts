@@ -17,7 +17,8 @@ import {
 } from "@/lib/laundry/workflow";
 import { LAUNDRY_STATUS_CONFIG, COUNT_STAGES, type TLaundryStatus } from "@/lib/laundry/constants";
 import { notifyLaundryUpdate } from "@/lib/whatsapp";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
+import { SETTLED_EVENT } from "@/lib/laundry/dashboard";
 import type { TaskPriority } from "@prisma/client";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -406,6 +407,39 @@ export async function addLaundryNote(input: {
 
   await prisma.laundryEvent.create({
     data: { orderId, userId: adminUser.id, action: "note_added", details: trimmed },
+  });
+
+  revalidateLaundry(locale, orderId);
+  return { error: null };
+}
+
+// ── Settle a count discrepancy (MANAGER) ───────────────────────────────────────
+// Recorded as an audit event (no schema change). The manager dashboard treats an
+// order with a shortage/surplus and no such event as an "open report".
+export async function settleLaundryDiscrepancy(input: {
+  orderId: string;
+  note?: string;
+  locale: string;
+}): Promise<{ error: string | null }> {
+  const { orderId, note, locale = "en" } = input;
+  const adminUser = await getCurrentAdminUser();
+  if (!adminUser) return { error: "Unauthorized." };
+  if (!hasManagerAccess(adminUser.role)) return { error: "Only managers can settle a discrepancy." };
+
+  const order = await prisma.laundryOrder.findUnique({
+    where: { id: orderId },
+    select: { id: true, events: { where: { action: SETTLED_EVENT }, select: { id: true }, take: 1 } },
+  });
+  if (!order) return { error: "Order not found." };
+  if (order.events.length > 0) return { error: null }; // already settled
+
+  await prisma.laundryEvent.create({
+    data: {
+      orderId,
+      userId: adminUser.id,
+      action: SETTLED_EVENT,
+      details: note?.trim() ? `Discrepancy settled — ${note.trim()}.` : "Discrepancy settled.",
+    },
   });
 
   revalidateLaundry(locale, orderId);

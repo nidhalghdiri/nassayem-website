@@ -69,7 +69,9 @@ export default function LaundryBoard({
   );
 
   const clearFilters = useCallback(() => {
-    router.push(pathname, { scroll: false });
+    // Keep the managers' "orders" tab open (without it they land on the dashboard).
+    const keep = new URLSearchParams(window.location.search).get("view") === "orders" ? "?view=orders" : "";
+    router.push(`${pathname}${keep}`, { scroll: false });
   }, [router, pathname]);
 
   // Group orders by status, preserving the incoming (createdAt desc) order.

@@ -4,7 +4,10 @@ import { getCurrentAdminUser, getBuildingScopeFilter } from "@/lib/adminAuth";
 import { canSeeAllLaundry } from "@/lib/laundry/permissions";
 import { serializeLaundryOrder } from "@/lib/laundry/serialize";
 import LaundryBoard from "@/components/admin/laundry/LaundryBoard";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import ManagerDashboard from "@/components/admin/laundry/dashboard/ManagerDashboard";
+import ViewSwitcher from "@/components/admin/laundry/dashboard/ViewSwitcher";
+import { getManagerDashboardData, resolvePeriod } from "@/lib/laundry/dashboard";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 import type { LaundryStatus, TaskPriority } from "@prisma/client";
 
 type PageProps = {
@@ -32,6 +35,20 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
   // Roles that have no business here go back to the dashboard.
   if (role === "HOUSEKEEPING" || role === "MAINTENANCE") {
     redirect(`/${locale}/admin`);
+  }
+
+  // Managers land on their dashboard; the order board is one tab away.
+  const isManager = hasManagerAccess(role);
+  if (isManager && sp.view !== "orders") {
+    const str = (v?: string | string[]) => (typeof v === "string" ? v : undefined);
+    const period = resolvePeriod({ period: str(sp.period), from: str(sp.from), to: str(sp.to) });
+    const data = await getManagerDashboardData(period);
+    return (
+      <>
+        <ViewSwitcher locale={locale} active="dashboard" />
+        <ManagerDashboard data={data} locale={locale} />
+      </>
+    );
   }
 
   const status = sp.status as LaundryStatus | undefined;
@@ -81,11 +98,14 @@ export default async function AdminLaundryPage({ params, searchParams }: PagePro
   const serialized = orders.map(serializeLaundryOrder);
 
   return (
-    <LaundryBoard
-      orders={serialized}
-      buildings={buildings}
-      locale={locale}
-      currentUserRole={role}
-    />
+    <>
+      {isManager && <ViewSwitcher locale={locale} active="orders" />}
+      <LaundryBoard
+        orders={serialized}
+        buildings={buildings}
+        locale={locale}
+        currentUserRole={role}
+      />
+    </>
   );
 }
