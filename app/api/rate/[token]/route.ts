@@ -12,7 +12,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
   isValidRatingToken,
-  normalizeRatingToken,
   stayRatingSubmitSchema,
   syncStayRatingToNetsuite,
 } from "@/lib/stayRating";
@@ -24,8 +23,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
-  const { token: rawToken } = await params;
-  const token = normalizeRatingToken(rawToken);
+  const { token } = await params;
   if (!isValidRatingToken(token)) {
     return NextResponse.json({ ok: false, error: "not-found" }, { status: 404 });
   }

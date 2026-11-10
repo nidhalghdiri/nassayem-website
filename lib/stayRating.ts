@@ -18,15 +18,6 @@ export function generateRatingToken(): string {
   return crypto.randomBytes(32).toString("base64url");
 }
 
-/**
- * The token as it arrives in the URL. If the WhatsApp template's button URL was
- * registered with "{{1}}" as plain text instead of a variable, Meta sends the
- * link as /rate/{{1}}<token>; drop that prefix so those links still work.
- */
-export function normalizeRatingToken(raw: string): string {
-  return raw.replace(/^\{\{\s*1\s*\}\}/, "");
-}
-
 /** Tokens are exactly what generateRatingToken produces. */
 export function isValidRatingToken(token: string): boolean {
   return /^[A-Za-z0-9_-]{43}$/.test(token);
