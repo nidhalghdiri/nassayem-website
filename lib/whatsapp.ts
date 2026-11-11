@@ -667,6 +667,13 @@ export async function notifyTaskCompleted({
  * Fire-and-forget and self-disabling: if the WhatsApp credentials or template
  * are not configured, sendTemplate simply logs and returns.
  */
+// ── TESTING SWITCH ───────────────────────────────────────────────────────────
+// While the laundry module is being built, every laundry WhatsApp message is
+// redirected to this number instead of the real staff. The message still goes
+// out once per intended recipient, with that person's name in {{1}} so you can
+// see who it would have reached. Set to null to go live with real numbers.
+const LAUNDRY_TEST_REDIRECT_NUMBER: string | null = "96898590405";
+
 export async function notifyLaundryUpdate({
   recipients,
   orderCode,
@@ -689,6 +696,7 @@ export async function notifyLaundryUpdate({
     const isAr = user.preferredLanguage === "ar";
     const langCode = isAr ? "ar" : "en_US";
     const name = user.name ?? "Team Member";
+    const toNumber = LAUNDRY_TEST_REDIRECT_NUMBER ?? user.whatsappNumber;
     const templateName = isAr
       ? "nassayem_laundry_update_ar"
       : "nassayem_laundry_update";
@@ -697,7 +705,7 @@ export async function notifyLaundryUpdate({
     });
 
     sendTemplate(
-      user.whatsappNumber,
+      toNumber,
       templateName,
       langCode,
       [name, orderCode, buildingName, isAr ? statusLabelAr : statusLabelEn, neededStr],
