@@ -19,10 +19,19 @@ type Props = {
   tasks: SerializedTask[];
   locale: string;
   onTaskClick: (id: string) => void;
+  /** Provided only for manager-level roles; omitted → no Cancel button. */
+  onCancel?: (id: string) => void | Promise<void>;
 };
 
-const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: Props) {
+const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick, onCancel }: Props) {
   const isEn = locale === "en";
+
+  const confirmCancel = (e: React.MouseEvent, task: SerializedTask) => {
+    e.stopPropagation(); // don't open the detail panel
+    const msg = isEn ? `Cancel task "${task.title}"?` : `هل تريد إلغاء المهمة "${task.title}"؟`;
+    if (window.confirm(msg)) void onCancel?.(task.id);
+  };
+  const cancelLabel = isEn ? "Cancel" : "إلغاء";
 
   if (!tasks || tasks.length === 0) {
     return (
@@ -64,6 +73,7 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
               <th className="text-start px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {isEn ? "Due Date" : "الموعد"}
               </th>
+              {onCancel && <th className="px-6 py-4" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -169,6 +179,19 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                       {formatDate(task.dueDate)}
                     </div>
                   </td>
+                  {onCancel && (
+                    <td className="px-6 py-4">
+                      {!isTerminal && (
+                        <button
+                          type="button"
+                          onClick={(e) => confirmCancel(e, task)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                        >
+                          {cancelLabel}
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -246,6 +269,15 @@ const TaskListView = memo(function TaskListView({ tasks, locale, onTaskClick }: 
                   />
                 </div>
               </div>
+              {onCancel && !isTerminal && (
+                <button
+                  type="button"
+                  onClick={(e) => confirmCancel(e, task)}
+                  className="mt-3 w-full py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  {cancelLabel}
+                </button>
+              )}
             </div>
           );
         })}

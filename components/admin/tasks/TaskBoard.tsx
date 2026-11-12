@@ -321,6 +321,21 @@ export default function TaskBoard({
     }
   }, [isEn, router, showToast]);
 
+  const handleCancelTask = useCallback(async (taskId: string) => {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CANCELLED" }),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      showToast(isEn ? "Failed to cancel task." : "تعذّر إلغاء المهمة.", "error");
+      return;
+    }
+    setLocalTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: "CANCELLED" as TTaskStatus } : t)));
+    showToast(isEn ? "Task cancelled." : "تم إلغاء المهمة.");
+    router.refresh();
+  }, [isEn, router, showToast]);
+
   // ── Derived Filter Values ──────────────────────────────────────────────────
   const currentType = searchParams.get("type") ?? "";
   const currentPriority = searchParams.get("priority") ?? "";
@@ -447,7 +462,12 @@ export default function TaskBoard({
             onToast={showToast}
           />
         ) : (
-          <TaskListView tasks={localTasks} locale={locale} onTaskClick={handleTaskClick} />
+          <TaskListView
+            tasks={localTasks}
+            locale={locale}
+            onTaskClick={handleTaskClick}
+            onCancel={hasManagerAccess(currentUserRole) ? handleCancelTask : undefined}
+          />
         )}
       </div>
 

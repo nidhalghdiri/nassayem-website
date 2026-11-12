@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { classifyTaskSize, parseExpectedHours, sizeNeedsApproval } from "@/lib/maintenance/taskSize";
 import { canUpdateTaskStatus, canRescheduleTask, canCreateTasks } from "@/lib/tasks/permissions";
-import type { TStaffRole } from "@/lib/tasks/constants";
+import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 import { STATUS_TRANSITIONS, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import { notifyTaskCompleted } from "@/lib/whatsapp";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
@@ -113,14 +113,18 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       );
     }
 
+    // A manager may cancel a task from any open status (the list's Cancel
+    // button); everyone else follows the normal per-type transitions.
+    const isManagerCancel = newStatus === "CANCELLED" && hasManagerAccess(adminUser.role);
+
     const isAssignedToActor = task.assignedToId === adminUser.id;
-    if (!canUpdateTaskStatus(adminUser.role, task.assignedTo.role, isAssignedToActor)) {
+    if (!isManagerCancel && !canUpdateTaskStatus(adminUser.role, task.assignedTo.role, isAssignedToActor)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const validTransitions: string[] =
       (STATUS_TRANSITIONS as Record<string, Record<string, string[]>>)[task.type]?.[task.status] ?? [];
-    if (!validTransitions.includes(newStatus)) {
+    if (!isManagerCancel && !validTransitions.includes(newStatus)) {
       return NextResponse.json(
         { error: `Cannot transition from ${task.status} to ${newStatus}` },
         { status: 422 },
