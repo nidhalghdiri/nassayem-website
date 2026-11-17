@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Shared configs from the website hold class names too (e.g. role badges). */
+@source '../../lib/tasks';
+
+/* Nassayem brand — same teal as the website (tailwind.config.ts "nassayem"). */
+@theme {
+  --color-brand: #2a7475;
+  --color-brand-light: #3b9293;
+  --color-brand-dark: #1d5455;
+  --color-brand-50: #eef7f7;
+  --color-brand-100: #d5ebeb;
+
+  --color-surface: #ffffff;
+  --color-background: #f5f7f7;
+  --color-border: #e3e8e8;
+  --color-ink: #1b2626;
+  --color-muted: #66797a;
+  --color-danger: #c2410c;
+}

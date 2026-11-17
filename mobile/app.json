@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Nassayem",
+    "slug": "nassayem",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "nassayem",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.nassayem",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleLocalizations": [
+          "en",
+          "ar"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.nassayem",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "locales": {
+      "en": "./locales/en.json",
+      "ar": "./locales/ar.json"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store",
+      "expo-localization",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
