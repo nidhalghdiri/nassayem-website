@@ -82,31 +82,31 @@
 //
 //   nassayem_laundry_update  (EN)
 //   nassayem_laundry_update_ar  (AR)
-//   Body params: {{1}} name, {{2}} orderCode, {{3}} building,
-//                {{4}} status, {{5}} neededDate
+//   Body params (the approved templates have NO name): {{1}} orderCode,
+//                {{2}} building, {{3}} status, {{4}} neededDate
 //   Button (URL, index 0):
 //     Text (EN): "View Order"   URL: https://yoursite.com/en/admin/laundry/{{1}}
 //     Text (AR): "عرض الطلب"     URL: https://yoursite.com/ar/admin/laundry/{{1}}
 //   ({{1}} on the button = the orderId suffix passed by notifyLaundryUpdate.)
 //
 //   nassayem_laundry_update (EN) body:
-//     Hello {{1}} 👋
-//     Laundry order {{2}} update:
-//     🏢 Building: {{3}}
-//     🧺 Status: {{4}}
-//     📅 Needed by: {{5}}
+//     Hello 👋
+//     Laundry order {{1}} update:
+//     🏢 Building: {{2}}
+//     🧺 Status: {{3}}
+//     📅 Needed by: {{4}}
 //     Tap the button below to open the order.
 //
 //   nassayem_laundry_update_ar (AR) body:
-//     مرحباً {{1}} 👋
-//     تحديث طلب الغسيل {{2}}:
-//     🏢 المبنى: {{3}}
-//     🧺 الحالة: {{4}}
-//     📅 مطلوب بحلول: {{5}}
+//     مرحبا 👋
+//     تحديث طلب الغسيل {{1}}:
+//     🏨 المبنى: {{2}}
+//     📋 الحالة: {{3}}
+//     📅 مطلوب بحلول: {{4}}
 //     اضغط على الزر أدناه لفتح الطلب.
 //
 //   When the order reaches READY, the supervisors receive this message with
-//   {{4}} = "Ready for collection" / "جاهز للاستلام".
+//   {{3}} = "Ready for collection" / "جاهز للاستلام".
 //
 // ── Purchase request templates (AR only, NetSuite-triggered) ─────────────────
 //
@@ -661,7 +661,7 @@ export async function notifyTaskCompleted({
  * meaning (e.g. "Ready for collection", "Out for delivery").
  *
  * Template: nassayem_laundry_update (EN) / nassayem_laundry_update_ar (AR)
- * Params: [1] name, [2] orderCode, [3] building, [4] status, [5] neededDate
+ * Params: [1] orderCode, [2] building, [3] status, [4] neededDate (no name)
  * Button URL suffix: orderId  →  /{locale}/admin/laundry?orderId={{1}}
  *
  * Fire-and-forget and self-disabling: if the WhatsApp credentials or template
@@ -695,7 +695,6 @@ export async function notifyLaundryUpdate({
     if (!user.whatsappNumber) continue;
     const isAr = user.preferredLanguage === "ar";
     const langCode = isAr ? "ar" : "en_US";
-    const name = user.name ?? "Team Member";
     const toNumber = LAUNDRY_TEST_REDIRECT_NUMBER ?? user.whatsappNumber;
     const templateName = isAr
       ? "nassayem_laundry_update_ar"
@@ -708,7 +707,7 @@ export async function notifyLaundryUpdate({
       toNumber,
       templateName,
       langCode,
-      [name, orderCode, buildingName, isAr ? statusLabelAr : statusLabelEn, neededStr],
+      [orderCode, buildingName, isAr ? statusLabelAr : statusLabelEn, neededStr],
       orderId,
     ).catch(console.error);
   }
