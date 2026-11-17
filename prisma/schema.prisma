@@ -514,6 +514,11 @@ model AdminUser {
   whatsappNumber    String? // e.g. "96898590405" — no + or spaces
   preferredLanguage String    @default("en") // "en" or "ar"
 
+  // Bumped to sign this user out everywhere (lost phone, staff leaving):
+  // session tokens carry the version they were issued with ("sv").
+  sessionVersion Int @default(0)
+  mobileDevices  MobileDevice[]
+
   // Task relations
   createdTasks   Task[]         @relation("TaskCreatedBy")
   assignedTasks  Task[]         @relation("TaskAssignedTo")
@@ -545,6 +550,20 @@ model AdminUser {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// A staff phone running the mobile app — one row per Expo push token.
+model MobileDevice {
+  id            String    @id @default(uuid())
+  adminUserId   String
+  adminUser     AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  expoPushToken String    @unique
+  platform      String // "ios" | "android"
+  appVersion    String?
+  lastSeenAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  @@index([adminUserId])
 }
 
 // Receptionist ↔ Building scope (many-to-many)

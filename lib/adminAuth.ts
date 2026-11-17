@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import type { AdminUser } from "@prisma/client";
 import {
@@ -14,21 +14,41 @@ import { hasManagerAccess } from "@/lib/tasks/constants";
  */
 export async function getCurrentAdminUser(): Promise<AdminUser | null> {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(ADMIN_COOKIE_NAME);
-    if (!sessionCookie?.value) return null;
+    const token = await getSessionToken();
+    if (!token) return null;
 
-    const payload = await verifyAdminSessionToken(sessionCookie.value);
+    const payload = await verifyAdminSessionToken(token);
     if (!payload?.id) return null;
 
     const adminUser = await prisma.adminUser.findUnique({
       where: { id: payload.id },
     });
 
+    // Bumping AdminUser.sessionVersion revokes every token issued before it.
+    if (!adminUser || (payload.sv ?? 0) !== adminUser.sessionVersion) {
+      return null;
+    }
+
     return adminUser;
   } catch {
     return null;
   }
+}
+
+/**
+ * The session token for this request: the browser's cookie, or — for the
+ * staff mobile app — an `Authorization: Bearer <token>` header. Both carry the
+ * same signed token, so every route that uses getCurrentAdminUser() serves
+ * the website and the app alike.
+ */
+async function getSessionToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+  if (cookie) return cookie;
+
+  const authorization = (await headers()).get("authorization") ?? "";
+  const match = /^Bearer\s+(\S+)$/i.exec(authorization);
+  return match ? match[1] : null;
 }
 
 /**

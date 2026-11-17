@@ -10,6 +10,8 @@ export type AdminSessionPayload = {
   email: string;
   role: string;
   name: string | null;
+  /** AdminUser.sessionVersion when issued; missing on older tokens (= 0). */
+  sv?: number;
   iat: number;
   exp: number;
 };
@@ -18,11 +20,16 @@ export const ADMIN_COOKIE_NAME = "nassayem_admin_session";
 const SESSION_DURATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 function getSecretKey(): string {
-  return (
-    process.env.ADMIN_AUTH_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "nassayem-super-secure-secret-key-salt-2026-auth"
-  );
+  // No hardcoded fallback: a secret that ships in the source code would let
+  // anyone forge a session token — and those now live on staff phones too.
+  const secret =
+    process.env.ADMIN_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) {
+    throw new Error(
+      "ADMIN_AUTH_SECRET (or SUPABASE_SERVICE_ROLE_KEY) must be set to sign admin sessions",
+    );
+  }
+  return secret;
 }
 
 // ── Web Crypto Helpers ────────────────────────────────────────────────────────
@@ -156,6 +163,7 @@ export async function createAdminSessionToken(user: {
   email: string;
   role: string;
   name: string | null;
+  sessionVersion?: number;
 }): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const payload: AdminSessionPayload = {
@@ -163,6 +171,7 @@ export async function createAdminSessionToken(user: {
     email: user.email,
     role: user.role,
     name: user.name,
+    sv: user.sessionVersion ?? 0,
     iat: now,
     exp: now + SESSION_DURATION_SECONDS,
   };

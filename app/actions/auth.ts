@@ -51,6 +51,7 @@ export async function loginAdmin(
     email: adminUser.email,
     role: adminUser.role,
     name: adminUser.name,
+    sessionVersion: adminUser.sessionVersion,
   });
 
   // 4. Set secure HTTP-only cookie
