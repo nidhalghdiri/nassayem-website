@@ -264,6 +264,7 @@ export async function createPurchaseRequestAction(input: {
       items: cleanItems,
       requesterName: user.name || user.email,
       requesterRef: user.id,
+      autoApprove: user.role === "SUPERVISOR",
     });
   } catch (err) {
     console.error("[purchase-requests] create threw:", err);
@@ -293,6 +294,27 @@ export async function createPurchaseRequestAction(input: {
       `[purchase-requests] NetSuite created ${result.data.number} (${result.data.id}) but the ownership row failed:`,
       err,
     );
+  }
+
+  // A supervisor raising a request IS the supervisor step: NetSuite created it
+  // already past that stage (autoApprove), so only the audit row is left to log.
+  if (user.role === "SUPERVISOR") {
+    try {
+      await prisma.purchaseRequestDecision.create({
+        data: {
+          netsuiteRequestId: result.data.id,
+          requestNumber: result.data.number,
+          decision: "approve",
+          note: "Auto-approved: raised by a supervisor",
+          adminUserId: user.id,
+        },
+      });
+    } catch (err) {
+      console.error(
+        `[purchase-requests] ${result.data.number} was auto-approved in NetSuite but the local audit row failed:`,
+        err,
+      );
+    }
   }
 
   revalidatePath("/[locale]/admin/purchase-requests", "page");

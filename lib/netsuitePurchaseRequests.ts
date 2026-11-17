@@ -531,6 +531,11 @@ export type CreatePurchaseRequestParams = {
   requesterName: string;
   /** The website user's AdminUser.id. */
   requesterRef: string;
+  /**
+   * The requester is a supervisor, so NetSuite skips the supervisor stage and
+   * creates the request already past it (no Pending Supervisor WhatsApp).
+   */
+  autoApprove?: boolean;
 };
 
 export type PurchaseRequestCreated = {
@@ -564,6 +569,7 @@ export async function createPurchaseRequest(
     items: JSON.stringify(params.items),
     requesterName: params.requesterName,
     requesterRef: params.requesterRef,
+    autoApprove: params.autoApprove ? "T" : undefined,
   });
   if (!result.ok) return toFailure(result);
 
