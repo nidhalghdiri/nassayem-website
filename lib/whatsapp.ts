@@ -672,7 +672,7 @@ export async function notifyTaskCompleted({
 // redirected to this number instead of the real staff. The message still goes
 // out once per intended recipient, with that person's name in {{1}} so you can
 // see who it would have reached. Set to null to go live with real numbers.
-const LAUNDRY_TEST_REDIRECT_NUMBER: string | null = "96898590405";
+const LAUNDRY_TEST_REDIRECT_NUMBER: string | null = null;
 
 export async function notifyLaundryUpdate({
   recipients,
