@@ -57,12 +57,20 @@ function revalidateLaundry(locale: string, orderId?: string) {
 }
 
 // Recipients (with a WhatsApp number) for a given set of roles.
-async function recipientsForRoles(roles: TStaffRole[]) {
+async function recipientsForRoles(roles: TStaffRole[], excludeIds: string[] = []) {
   return prisma.adminUser.findMany({
-    where: { role: { in: roles }, whatsappNumber: { not: null } },
+    where: {
+      role: { in: roles },
+      whatsappNumber: { not: null },
+      ...(excludeIds.length ? { id: { notIn: excludeIds } } : {}),
+    },
     select: { name: true, whatsappNumber: true, preferredLanguage: true },
   });
 }
+
+// Managers who do not want the "Ready for collection" WhatsApp.
+// عبد السلام البسيسي (MANAGER) — excluded from the Ready message.
+const READY_EXCLUDED_USER_IDS = ["1f1b2061-34f8-4920-a65a-68b6943fa4a1"];
 
 // ── Create a laundry request (RECEPTIONIST / MANAGER) ──────────────────────────
 export async function createLaundryOrder(
@@ -328,7 +336,7 @@ async function notifyForStatus(
   } else if (status === "READY") {
     notifyLaundryUpdate({
       ...base,
-      recipients: await recipientsForRoles(["SUPERVISOR", "MANAGER"]),
+      recipients: await recipientsForRoles(["SUPERVISOR", "MANAGER"], READY_EXCLUDED_USER_IDS),
       statusLabelEn: "Ready for collection",
       statusLabelAr: "جاهز للاستلام",
     }).catch(console.error);
