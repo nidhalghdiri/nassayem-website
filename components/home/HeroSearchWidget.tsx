@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  MONTHLY_DURATION_OPTIONS,
+  addMonthsISO,
+  formatISODisplay,
+  monthsLabel,
+  rangeTouchesKhareefISO,
+} from "@/lib/monthlyDates";
 
 export default function HeroSearchWidget({ locale }: { locale: string }) {
   const router = useRouter();
@@ -11,15 +18,30 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
   const [unitType, setUnitType] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [months, setMonths] = useState(1);
+
+  const today = new Date().toISOString().split("T")[0];
+  const isMonthly = rentType === "monthly";
+
+  // Monthly stays are counted in calendar months, not days:
+  // 3 months from 17/11/2026 → check-out 17/02/2027.
+  const monthlyCheckOut = isMonthly && checkIn ? addMonthsISO(checkIn, months) : "";
+  const effectiveCheckOut = isMonthly ? monthlyCheckOut : checkOut;
+  const touchesKhareef =
+    isMonthly && !!monthlyCheckOut && rangeTouchesKhareefISO(checkIn, monthlyCheckOut);
+
+  const handleCheckInChange = (value: string) => {
+    setCheckIn(value);
+    if (checkOut && checkOut <= value) setCheckOut("");
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams({
-      type: rentType,
-      unitType,
-      checkIn,
-      checkOut,
-    });
+    const params = new URLSearchParams({ type: rentType });
+    if (unitType) params.set("unitType", unitType);
+    if (checkIn) params.set("checkIn", checkIn);
+    if (effectiveCheckOut) params.set("checkOut", effectiveCheckOut);
+    if (isMonthly) params.set("months", String(months));
     router.push(`/${locale}/properties?${params.toString()}`);
   };
 
@@ -86,22 +108,43 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
             type="date"
             className="w-full bg-[#f5fbfd] text-[#1d5455] font-medium focus:outline-none focus:ring-2 focus:ring-[#2a7475]/40 border border-[#2a7475]/20 rounded-xl px-3 py-3 min-h-[48px]"
             value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
+            min={today}
+            onChange={(e) => handleCheckInChange(e.target.value)}
           />
         </div>
 
-        {/* Check Out */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-bold text-[#1d5455] tracking-wide uppercase">
-            {isEn ? "Check Out" : "الخروج"}
-          </label>
-          <input
-            type="date"
-            className="w-full bg-[#f5fbfd] text-[#1d5455] font-medium focus:outline-none focus:ring-2 focus:ring-[#2a7475]/40 border border-[#2a7475]/20 rounded-xl px-3 py-3 min-h-[48px]"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-          />
-        </div>
+        {/* Check Out (daily) / Duration in months (monthly) */}
+        {isMonthly ? (
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-bold text-[#1d5455] tracking-wide uppercase">
+              {isEn ? "Duration" : "المدة"}
+            </label>
+            <select
+              className="w-full bg-[#f5fbfd] text-[#1d5455] font-medium focus:outline-none focus:ring-2 focus:ring-[#2a7475]/40 border border-[#2a7475]/20 rounded-xl px-3 py-3 min-h-[48px] appearance-none cursor-pointer"
+              value={months}
+              onChange={(e) => setMonths(Number(e.target.value))}
+            >
+              {MONTHLY_DURATION_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {monthsLabel(n, isEn)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-bold text-[#1d5455] tracking-wide uppercase">
+              {isEn ? "Check Out" : "الخروج"}
+            </label>
+            <input
+              type="date"
+              className="w-full bg-[#f5fbfd] text-[#1d5455] font-medium focus:outline-none focus:ring-2 focus:ring-[#2a7475]/40 border border-[#2a7475]/20 rounded-xl px-3 py-3 min-h-[48px]"
+              value={checkOut}
+              min={checkIn || today}
+              onChange={(e) => setCheckOut(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Search Button */}
         <button
@@ -123,6 +166,32 @@ export default function HeroSearchWidget({ locale }: { locale: string }) {
           </svg>
           {isEn ? "Search" : "ابحث"}
         </button>
+
+        {/* Monthly stay summary: the computed check-out date */}
+        {isMonthly && (
+          <div className="sm:col-span-2 lg:col-span-4 -mt-1 text-xs text-[#1d5455]/80">
+            {monthlyCheckOut ? (
+              <span>
+                {isEn
+                  ? `${monthsLabel(months, true)} · ${formatISODisplay(checkIn)} → ${formatISODisplay(monthlyCheckOut)}`
+                  : `${monthsLabel(months, false)} · من ${formatISODisplay(checkIn)} إلى ${formatISODisplay(monthlyCheckOut)}`}
+              </span>
+            ) : (
+              <span>
+                {isEn
+                  ? "Pick a check-in date — the check-out is set by the number of months."
+                  : "اختر تاريخ الدخول — يُحدَّد تاريخ الخروج حسب عدد الأشهر."}
+              </span>
+            )}
+            {touchesKhareef && (
+              <span className="block mt-1 text-amber-700">
+                {isEn
+                  ? "Monthly rentals pause during Khareef (July–August) — choose a period ending by 30/06."
+                  : "الإيجار الشهري متوقف خلال موسم الخريف (يوليو–أغسطس) — اختر فترة تنتهي قبل 30/06."}
+              </span>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );

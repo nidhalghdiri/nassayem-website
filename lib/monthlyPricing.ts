@@ -7,15 +7,24 @@
 //   • A stay is monthly when it is at least MONTHLY_MIN_NIGHTS nights, the
 //     unit isn't daily-only, a rate exists, and NO night falls in July/August
 //     (monthly rentals run until 30/06 and stop for Khareef).
-//   • Total = monthly rate × nights ÷ 30 (prorated by the day).
+//   • A stay of exactly N calendar months (17/11 → 17/02) also counts as
+//     monthly even when it's under 30 nights (e.g. one February).
+//   • Total = monthly rate × N for whole calendar months; otherwise
+//     monthly rate × nights ÷ 30 (prorated by the day).
 //   • Payment: the first month is paid up front, the rest at reception.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import prisma from "@/lib/prisma";
 import type { MonthlyOption, RentType, UnitType } from "@prisma/client";
+import { calendarMonthsBetween } from "@/lib/monthlyDates";
 
 export const MONTHLY_MIN_NIGHTS = 30;
 const DAYS_PER_MONTH = 30;
+
+/** Long enough to be a monthly stay: 30+ nights, or exactly N ≥ 1 calendar months. */
+export function isMonthlyLength(nights: number, start: Date, end: Date): boolean {
+  return nights >= MONTHLY_MIN_NIGHTS || calendarMonthsBetween(start, end) !== null;
+}
 
 export const MONTHLY_OPTIONS: MonthlyOption[] = ["INCLUSIVE", "EXCLUSIVE"];
 
@@ -122,10 +131,10 @@ export function quoteMonthlyStay(params: {
   preferred?: MonthlyOption | null;
 }): MonthlyQuote | null {
   const { rentType, rates, nights, start, end, preferred } = params;
-  if (rentType === "DAILY" || !rates || nights < MONTHLY_MIN_NIGHTS) return null;
+  if (rentType === "DAILY" || !rates || !isMonthlyLength(nights, start, end)) return null;
   if (stayTouchesKhareef(start, end)) return null;
 
-  const months = nights / DAYS_PER_MONTH;
+  const months = calendarMonthsBetween(start, end) ?? nights / DAYS_PER_MONTH;
   const options: MonthlyQuoteOption[] = [];
   for (const option of MONTHLY_OPTIONS) {
     const rate = rates[option];

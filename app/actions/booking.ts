@@ -12,8 +12,8 @@ import { KHAREEF_NO_PROMO_ERROR } from "@/lib/bookingErrors";
 import { assertCanManageBooking } from "@/lib/adminAuth";
 import {
   getMonthlyRates,
+  isMonthlyLength,
   isMonthlyOption,
-  MONTHLY_MIN_NIGHTS,
   quoteMonthlyStay,
 } from "@/lib/monthlyPricing";
 
@@ -151,7 +151,7 @@ export async function calculateBookingPrice(
   const monthly = quoteMonthlyStay({
     rentType: unit.rentType,
     rates:
-      unit.rentType === "DAILY" || totalNights < MONTHLY_MIN_NIGHTS
+      unit.rentType === "DAILY" || !isMonthlyLength(totalNights, requestedStart, requestedEnd)
         ? null
         : await getMonthlyRates(unit.buildingId, unit.unitType),
     nights: totalNights,
@@ -162,8 +162,8 @@ export async function calculateBookingPrice(
 
   if (unit.rentType === "MONTHLY" && !monthly) {
     throw new Error(
-      totalNights < MONTHLY_MIN_NIGHTS
-        ? "This unit requires a minimum stay of 30 nights."
+      !isMonthlyLength(totalNights, requestedStart, requestedEnd)
+        ? "This unit requires a minimum stay of one month."
         : "Monthly rentals are not available for these dates.",
     );
   }

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { Prisma, type MonthlyOption } from "@prisma/client";
+import { monthsLabel } from "@/lib/monthlyDates";
 
 // Define the type to include the relations we fetch from Prisma
 type UnitWithRelations = Prisma.UnitGetPayload<{
@@ -17,7 +18,13 @@ type CardPrice = {
   hasPromotion: boolean;
   /** Set when the stay is priced monthly — shown instead of the nightly average. */
   monthlyRate?: number;
+  /** Monthly stays: length in months and which rate (with/without utilities) was used. */
+  months?: number;
+  monthlyOption?: MonthlyOption;
 };
+
+/** Monthly rates on offer for this unit: INCLUSIVE = water & electricity included. */
+type MonthlyRates = Partial<Record<MonthlyOption, number>>;
 
 export default function PropertyCard({
   unit,
@@ -25,12 +32,14 @@ export default function PropertyCard({
   checkIn,
   checkOut,
   price,
+  monthlyRates,
 }: {
   unit: UnitWithRelations;
   locale: string;
   checkIn?: string;
   checkOut?: string;
   price?: CardPrice | null;
+  monthlyRates?: MonthlyRates | null;
 }) {
   const isEn = locale === "en";
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -50,6 +59,33 @@ export default function PropertyCard({
     : isEn
       ? "/ night"
       : "/ ليلة";
+
+  // Water & electricity: daily stays always include them; monthly rent comes
+  // "شامل" (included) and/or "غير شامل" (not included) per building + type.
+  const utilities = (() => {
+    const showMonthly = price ? price.monthlyRate !== undefined : !!monthlyRates;
+    if (!showMonthly) {
+      if (unit.rentType === "MONTHLY") return null; // monthly-only with no rate set
+      return { included: true, en: "Water & electricity included", ar: "شامل الماء والكهرباء" };
+    }
+    if (price?.monthlyOption) {
+      return price.monthlyOption === "INCLUSIVE"
+        ? { included: true, en: "Water & electricity included", ar: "شامل الماء والكهرباء" }
+        : { included: false, en: "Water & electricity not included", ar: "غير شامل الماء والكهرباء" };
+    }
+    const inc = monthlyRates?.INCLUSIVE;
+    const exc = monthlyRates?.EXCLUSIVE;
+    if (inc !== undefined && exc !== undefined) {
+      return {
+        included: true,
+        en: `With water & electricity ${inc} OMR · without ${exc} OMR / month`,
+        ar: `شامل الماء والكهرباء ${inc} ر.ع · غير شامل ${exc} ر.ع / شهر`,
+      };
+    }
+    if (inc !== undefined) return { included: true, en: "Water & electricity included", ar: "شامل الماء والكهرباء" };
+    if (exc !== undefined) return { included: false, en: "Water & electricity not included", ar: "غير شامل الماء والكهرباء" };
+    return null;
+  })();
 
   // Use uploaded images, or fallback to a placeholder if none exist
   const images =
@@ -194,6 +230,17 @@ export default function PropertyCard({
         </span>
       </div>
 
+      {utilities && (
+        <div
+          className={`mt-2 flex items-start gap-1.5 text-xs font-medium ${utilities.included ? "text-nassayem" : "text-amber-700"}`}
+        >
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>{isEn ? utilities.en : utilities.ar}</span>
+        </div>
+      )}
+
       <div className="mt-3 border-t border-gray-100 pt-3">
         {price ? (
           <div className="flex items-end justify-between">
@@ -207,9 +254,13 @@ export default function PropertyCard({
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                {isEn
-                  ? `Total ${price.grandTotal} OMR · ${price.totalNights} night${price.totalNights === 1 ? "" : "s"}`
-                  : `الإجمالي ${price.grandTotal} ر.ع · ${price.totalNights} ${price.totalNights === 1 ? "ليلة" : "ليالٍ"}`}
+                {price.monthlyRate !== undefined && price.months !== undefined && Number.isInteger(price.months)
+                  ? isEn
+                    ? `Total ${price.grandTotal} OMR · ${monthsLabel(price.months, true)}`
+                    : `الإجمالي ${price.grandTotal} ر.ع · ${monthsLabel(price.months, false)}`
+                  : isEn
+                    ? `Total ${price.grandTotal} OMR · ${price.totalNights} night${price.totalNights === 1 ? "" : "s"}`
+                    : `الإجمالي ${price.grandTotal} ر.ع · ${price.totalNights} ${price.totalNights === 1 ? "ليلة" : "ليالٍ"}`}
               </p>
             </div>
             {price.hasPromotion && (

@@ -3,7 +3,12 @@ import FilterSidebar from "@/components/properties/FilterSidebar";
 import PropertyCard from "@/components/properties/PropertyCard";
 import prisma from "@/lib/prisma";
 import { calculateBookingPrice } from "@/app/actions/booking";
-import { getAllMonthlyRates, lowestMonthlyRate } from "@/lib/monthlyPricing";
+import {
+  getAllMonthlyRates,
+  lowestMonthlyRate,
+  type MonthlyRates,
+} from "@/lib/monthlyPricing";
+import type { MonthlyOption } from "@prisma/client";
 
 // Price computed for a single unit against the selected stay. `null` when the
 // dates can't be priced for that unit (e.g. Khareef without a promo, or a
@@ -14,6 +19,8 @@ type CardPrice = {
   totalNights: number;
   hasPromotion: boolean;
   monthlyRate?: number;
+  months?: number;
+  monthlyOption?: MonthlyOption;
 };
 
 type PageProps = {
@@ -105,7 +112,29 @@ export default async function PropertiesPage({
           },
         }
       : undefined;
-  const monthlyRates = rentTypeFilter === "MONTHLY" ? await getAllMonthlyRates() : null;
+  // Monthly "water & electricity" filter: included (شامل) / excluded (غير شامل).
+  const utilitiesOption: MonthlyOption | null =
+    rentTypeFilter === "MONTHLY"
+      ? resolvedSearchParams.utilities === "included"
+        ? "INCLUSIVE"
+        : resolvedSearchParams.utilities === "excluded"
+          ? "EXCLUSIVE"
+          : null
+      : null;
+
+  // Monthly rates for every building + type — used for monthly filtering and
+  // to tell each card whether its monthly rent includes water & electricity.
+  const allMonthlyRates = await getAllMonthlyRates();
+  const monthlyRates = rentTypeFilter === "MONTHLY" ? allMonthlyRates : null;
+
+  // The monthly rates a unit offers, narrowed to the utilities filter if set.
+  const ratesForUnit = (u: { buildingId: string; unitType: string }): MonthlyRates | null => {
+    const rates = allMonthlyRates.get(`${u.buildingId}|${u.unitType}`);
+    if (!rates) return null;
+    if (!utilitiesOption) return rates;
+    const rate = rates[utilitiesOption];
+    return rate === undefined ? null : { [utilitiesOption]: rate };
+  };
 
   // Fetch properties dynamically based on filters
   const fetchedUnits = await prisma.unit.findMany({
@@ -128,7 +157,7 @@ export default async function PropertiesPage({
   // rate, within the price range.
   const units = monthlyRates
     ? fetchedUnits.filter((u) => {
-        const from = lowestMonthlyRate(monthlyRates.get(`${u.buildingId}|${u.unitType}`));
+        const from = lowestMonthlyRate(ratesForUnit(u));
         if (!from) return false;
         if (hasMin && from.rate < minPrice!) return false;
         if (hasMax && from.rate > maxPrice!) return false;
@@ -147,7 +176,7 @@ export default async function PropertiesPage({
     const priced = await Promise.all(
       units.map(async (unit) => {
         try {
-          const p = await calculateBookingPrice(unit.id, checkIn, checkOut);
+          const p = await calculateBookingPrice(unit.id, checkIn, checkOut, utilitiesOption);
           return [
             unit.id,
             {
@@ -156,6 +185,8 @@ export default async function PropertiesPage({
               totalNights: p.totalNights,
               hasPromotion: !!p.promotion,
               monthlyRate: p.monthly?.selected.monthlyRate,
+              months: p.monthly?.months,
+              monthlyOption: p.monthly?.selected.option,
             } as CardPrice,
           ] as const;
         } catch {
@@ -203,6 +234,12 @@ export default async function PropertiesPage({
                     checkIn={hasValidDates ? checkIn : undefined}
                     checkOut={hasValidDates ? checkOut : undefined}
                     price={priceMap[unit.id] ?? null}
+                    monthlyRates={
+                      unit.rentType === "MONTHLY" ||
+                      (rentTypeFilter === "MONTHLY" && unit.rentType === "BOTH")
+                        ? ratesForUnit(unit)
+                        : null
+                    }
                   />
                 ))
               ) : (
