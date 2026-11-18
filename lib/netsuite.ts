@@ -389,3 +389,37 @@ export async function pushStayRatingToNetsuite(
   );
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
+
+export type NetsuiteMovement = {
+  id: string;
+  ref: string | null;
+  /** NetSuite location id (= Building.netsuiteId). */
+  buildingId: string;
+  guestName: string | null;
+  unitCode: string | null;
+  /** Trailing status letter: A pending check-in · B checked in · D checked out. */
+  status: string;
+  /** Arrival: already checked in. Departure: already checked out. */
+  done: boolean;
+};
+
+export type NetsuiteTodayMovements = {
+  date: string;
+  arrivals: NetsuiteMovement[];
+  departures: NetsuiteMovement[];
+};
+
+/**
+ * Reservations arriving and departing on `date` (YYYY-MM-DD) in the given
+ * NetSuite locations — the staff app's front-desk numbers.
+ */
+export async function fetchNetsuiteTodayMovements(params: {
+  netsuiteBuildingIds: string[];
+  date: string;
+}): Promise<{ ok: true; data: NetsuiteTodayMovements } | { ok: false; error: string }> {
+  return callChatbotRestlet<NetsuiteTodayMovements>({
+    action: "today_movements",
+    netsuiteBuildingIds: params.netsuiteBuildingIds.join(","),
+    date: params.date,
+  });
+}

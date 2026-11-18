@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
 import { classifyTaskSize, parseExpectedHours, sizeNeedsApproval } from "@/lib/maintenance/taskSize";
@@ -6,6 +6,7 @@ import { canUpdateTaskStatus, canRescheduleTask, canCreateTasks } from "@/lib/ta
 import { hasManagerAccess, type TStaffRole } from "@/lib/tasks/constants";
 import { STATUS_TRANSITIONS, TERMINAL_STATUSES } from "@/lib/tasks/statuses";
 import { notifyTaskCompleted } from "@/lib/whatsapp";
+import { notifyAppTaskCompleted } from "@/lib/appNotifications";
 import type { TaskStatus, TaskPriority } from "@prisma/client";
 
 // Statuses that mean "task is done"
@@ -276,6 +277,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   // Notify only the task creator when a task reaches a completed status
   if (updates.status && COMPLETED_STATUSES.includes(updates.status as TaskStatus)) {
+    // Mobile app notification for the creator (inbox + push), after the response.
+    after(() =>
+      notifyAppTaskCompleted({
+        creatorId: task.createdById,
+        actorId: adminUser.id,
+        taskId: id,
+        title: task.title,
+        completedByName: adminUser.name ?? adminUser.email.split("@")[0],
+      }),
+    );
+
     const creator = await prisma.adminUser.findUnique({
       where: { id: task.createdById },
       select: { name: true, whatsappNumber: true, preferredLanguage: true },

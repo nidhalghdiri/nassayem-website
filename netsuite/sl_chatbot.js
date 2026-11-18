@@ -17,6 +17,8 @@
  *   { action: "create_reservation", netsuiteBuildingId, unitType, checkIn,
  *     checkOut, customerName, customerPhone, customerEmail?, totalAmount, notes? }
  *     → { ok, reservationId, reservationRef, unitCode }
+ *   { action: "today_movements", netsuiteBuildingIds: "12,14", date: "2026-11-18" }
+ *     → { ok, date, arrivals: [...], departures: [...] }  (staff mobile app)
  *
  * unitType arrives as the WEBSITE enum (STUDIO / ONE_BEDROOM / TWO_BEDROOM /
  * THREE_BEDROOM / VILLA) — mapped in CONFIG.UNIT_TYPE_MAP to the internal ids
@@ -477,6 +479,66 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
     }
 
     /**
+     * Arrivals (start date = date) and departures (end date = date) for the
+     * staff app's dashboard, across one or more buildings. Cancelled ("C")
+     * reservations are left out. Each reservation is listed once even though
+     * the transaction search returns one row per line.
+     *   arrival.done   = already checked in (B) or out (D)
+     *   departure.done = already checked out (D)
+     */
+    function todayMovements(body) {
+      var ids = String(body.netsuiteBuildingIds || "")
+        .split(",")
+        .map(function (id) { return id.trim(); })
+        .filter(Boolean);
+      if (!ids.length) return { ok: false, error: "netsuiteBuildingIds is required" };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date || ""))) {
+        return { ok: false, error: "date (YYYY-MM-DD) is required" };
+      }
+      var day = toNsDateString(isoToDate(body.date));
+
+      function list(dateField, doneCodes) {
+        var seen = {};
+        var rows = [];
+        search.create({
+          type: CONFIG.RESERVATION.recordType,
+          columns: ["internalid", "tranid", "status", "location", CONFIG.RESERVATION.fields.customerNameTxt, CONFIG.RESERVATION.fields.unitCode],
+          filters: [
+            ["location", "anyof", ids],
+            "and",
+            ["account", "is", CONFIG.RESERVATION.accountId],
+            "and",
+            [dateField, "on", day],
+          ],
+        }).run().each(function (r) {
+          var id = String(r.getValue({ name: "internalid" }));
+          if (seen[id]) return true;
+          seen[id] = true;
+          var code = String(r.getValue({ name: "status" }) || "").slice(-1).toUpperCase();
+          if (code === "C") return true; // cancelled
+          rows.push({
+            id: id,
+            ref: r.getValue({ name: "tranid" }) || null,
+            buildingId: String(r.getValue({ name: "location" }) || ""),
+            guestName: r.getValue({ name: CONFIG.RESERVATION.fields.customerNameTxt }) || null,
+            unitCode: r.getValue({ name: CONFIG.RESERVATION.fields.unitCode }) || null,
+            status: code,
+            done: doneCodes.indexOf(code) !== -1,
+          });
+          return rows.length < 500;
+        });
+        return rows;
+      }
+
+      return {
+        ok: true,
+        date: body.date,
+        arrivals: list("startdate", ["B", "D"]),
+        departures: list("enddate", ["D"]),
+      };
+    }
+
+    /**
      * Externally-called Suitelets can reject POST (405) depending on the URL
      * domain, so GET with query parameters is the primary transport; POST
      * with a JSON body is kept as a fallback for environments where it works.
@@ -487,6 +549,8 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
         return {
           action: p.action,
           netsuiteBuildingId: p.netsuiteBuildingId,
+          netsuiteBuildingIds: p.netsuiteBuildingIds,
+          date: p.date,
           unitType: p.unitType,
           checkIn: p.checkIn,
           checkOut: p.checkOut,
@@ -523,6 +587,9 @@ define(["N/record", "N/search", "N/runtime", "N/format", "N/log", "N/render", "N
       }
 
       try {
+        if (body.action === "today_movements") {
+          return json(response, todayMovements(body));
+        }
         if (!body.unitType || !body.checkIn || !body.checkOut) {
           return json(response, { ok: false, error: "unitType, checkIn, checkOut are required" });
         }

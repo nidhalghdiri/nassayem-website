@@ -8,7 +8,9 @@ import { canCreateTasks, canCreateMaintenanceRequest, canOpenCreateTask, isSelfO
 import { classifyTaskSize, parseExpectedHours } from "@/lib/maintenance/taskSize";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import { DEFAULT_CHECKLIST_ITEMS } from "@/lib/tasks/inspection";
+import { after } from "next/server";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
+import { notifyAppTaskAssigned } from "@/lib/appNotifications";
 import type { TStaffRole } from "@/lib/tasks/constants";
 import type { TaskType, TaskPriority, StaffRole, CleaningType } from "@prisma/client";
 
@@ -164,6 +166,18 @@ export async function createTask(
     taskId: task.id,
   }).catch(console.error);
 
+  // Mobile app notification (inbox + push), after the response is sent.
+  after(() =>
+    notifyAppTaskAssigned({
+      assigneeId: assignee.id,
+      actorId: adminUser.id,
+      taskId: task.id,
+      title: titleStr,
+      buildingName: building?.nameEn ?? "",
+      unitName: finalUnitNumber,
+    }),
+  );
+
   revalidatePath(`/${locale}/admin/tasks`);
   return { error: null, taskId: task.id };
 }
@@ -275,6 +289,23 @@ export async function createTasksBulk(
           });
         }
       }
+
+      // Mobile app notification (inbox + push), after the response is sent.
+      const appTaskId = task.id;
+      const appTitle = t.title.trim();
+      const appBuildingId = t.buildingId;
+      const appUnit = t.unitNumber ?? null;
+      after(async () => {
+        const b = await prisma.building.findUnique({ where: { id: appBuildingId }, select: { nameEn: true } });
+        await notifyAppTaskAssigned({
+          assigneeId: assignee.id,
+          actorId: adminUser.id,
+          taskId: appTaskId,
+          title: appTitle,
+          buildingName: b?.nameEn ?? "",
+          unitName: appUnit,
+        });
+      });
 
       // Send WhatsApp notification (non-blocking)
       if (assignee.whatsappNumber) {

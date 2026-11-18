@@ -16,7 +16,9 @@ import {
 } from "@/lib/maintenance/categories";
 import { findRequestPriority } from "@/lib/maintenance/requestPriority";
 import { isTaskSize, type TaskSize } from "@/lib/maintenance/taskSize";
+import { after } from "next/server";
 import { notifyTaskAssigned } from "@/lib/whatsapp";
+import { notifyAppTaskAssigned } from "@/lib/appNotifications";
 import type { TStaffRole, TTaskPriority } from "@/lib/tasks/constants";
 import type { AdminUser, TaskStatus } from "@prisma/client";
 
@@ -363,6 +365,18 @@ export async function createMaintenanceRequest(input: MaintenanceRequestInput): 
       priority: priority.key,
       taskId: task.id,
     }).catch(console.error);
+
+    // Mobile app notification (inbox + push), after the response is sent.
+    after(() =>
+      notifyAppTaskAssigned({
+        assigneeId: technician.id,
+        actorId: user.id,
+        taskId: task.id,
+        title,
+        buildingName: buildingNameEn,
+        unitName: unitNumber,
+      }),
+    );
 
     revalidatePath(`/${locale}/admin/tasks`, "layout");
     return { ok: true, taskId: task.id, requestNumber: task.requestNumber, technicianName };

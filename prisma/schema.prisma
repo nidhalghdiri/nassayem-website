@@ -231,19 +231,19 @@ model Building {
 }
 
 model BuildingUnit {
-  id         String @id @default(uuid())
+  id         String    @id @default(uuid())
   buildingId String
-  netsuiteId String? @unique
+  netsuiteId String?   @unique
   name       String // e.g. "101", "Villa 5"
   type       UnitType? // e.g. STUDIO, ONE_BEDROOM
-  
-  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  
-  tasks      Task[]
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([buildingId, name])
 }
 
@@ -516,21 +516,22 @@ model AdminUser {
 
   // Bumped to sign this user out everywhere (lost phone, staff leaving):
   // session tokens carry the version they were issued with ("sv").
-  sessionVersion Int @default(0)
-  mobileDevices  MobileDevice[]
+  sessionVersion   Int               @default(0)
+  mobileDevices    MobileDevice[]
+  appNotifications AppNotification[]
 
   // Task relations
-  createdTasks   Task[]         @relation("TaskCreatedBy")
-  assignedTasks  Task[]         @relation("TaskAssignedTo")
-  sizeApprovedTasks Task[]      @relation("TaskSizeApprovedBy")
-  taskNotes      TaskNote[]
-  taskPhotos     TaskPhoto[]
-  taskActivities TaskActivity[]
-  posts          Post[]
-  
+  createdTasks      Task[]         @relation("TaskCreatedBy")
+  assignedTasks     Task[]         @relation("TaskAssignedTo")
+  sizeApprovedTasks Task[]         @relation("TaskSizeApprovedBy")
+  taskNotes         TaskNote[]
+  taskPhotos        TaskPhoto[]
+  taskActivities    TaskActivity[]
+  posts             Post[]
+
   // Employee notes
-  receivedNotes  EmployeeNote[] @relation("NoteReceived")
-  givenNotes     EmployeeNote[] @relation("NoteGiven")
+  receivedNotes EmployeeNote[] @relation("NoteReceived")
+  givenNotes    EmployeeNote[] @relation("NoteGiven")
 
   // Laundry relations
   laundryRequested  LaundryOrder[] @relation("LaundryRequestedBy")
@@ -539,7 +540,7 @@ model AdminUser {
   laundryEvents     LaundryEvent[]
 
   // Maintenance relations
-  equipmentVisits   EquipmentVisit[]
+  equipmentVisits EquipmentVisit[]
 
   // Receptionist building scope
   assignedBuildings AdminUserBuilding[]
@@ -564,6 +565,24 @@ model MobileDevice {
   createdAt     DateTime  @default(now())
 
   @@index([adminUserId])
+}
+
+// A notification for one staff member: listed in the mobile app's inbox and
+// pushed to their phones. Title/body are stored in the person's language at
+// the time it was sent.
+model AppNotification {
+  id          String    @id @default(uuid())
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  type        String // e.g. "task_assigned", "task_completed"
+  title       String
+  body        String    @db.Text
+  url         String? // in-app path opened on tap, e.g. "/tasks/<id>"
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([adminUserId, readAt])
 }
 
 // Receptionist ↔ Building scope (many-to-many)
@@ -592,8 +611,8 @@ model Task {
 
   // Maintenance request details, set by the "New maintenance request" form
   // (category keys live in lib/maintenance/categories.ts). Null on older tasks.
-  category String? // EQUIPMENT | PLUMBING | ELECTRICAL | FURNITURE | PAINTING | INSTALLATION | DOORS_WINDOWS | GENERAL | OTHER
-  room     String? // room inside the unit (key), or the place when the request is for a common area
+  category    String? // EQUIPMENT | PLUMBING | ELECTRICAL | FURNITURE | PAINTING | INSTALLATION | DOORS_WINDOWS | GENERAL | OTHER
+  room        String? // room inside the unit (key), or the place when the request is for a common area
   guestInUnit Boolean? // is a guest staying in the unit right now? null = not asked (common area / older tasks)
   taskSize    String? // LARGE | MEDIUM | SMALL — derived from expectedHours (see lib/maintenance/taskSize.ts); null on older tasks
 
@@ -630,13 +649,13 @@ model Task {
   parentTaskId String?
 
   // Relations
-  building   Building  @relation(fields: [buildingId], references: [id])
+  building   Building      @relation(fields: [buildingId], references: [id])
   unit       BuildingUnit? @relation(fields: [unitId], references: [id])
   // (unitNumber is free text fallback)
-  createdBy  AdminUser @relation("TaskCreatedBy", fields: [createdById], references: [id])
-  assignedTo AdminUser @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  parentTask Task?     @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks   Task[]    @relation("SubTasks")
+  createdBy  AdminUser     @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignedTo AdminUser     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  parentTask Task?         @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks   Task[]        @relation("SubTasks")
 
   notes               TaskNote[]
   photos              TaskPhoto[]
@@ -907,16 +926,16 @@ model ChatbotConversation {
   channel    ChatChannel
   externalId String
 
-  customerName String?
+  customerName     String?
   // Detected customer language: "ar" | "en". Arabizi (Arabic in Latin script)
   // is stored as "ar" — the model mirrors the customer's script when replying.
-  language     String                 @default("ar")
-  status       ChatConversationStatus @default(ACTIVE)
+  language         String                 @default("ar")
+  status           ChatConversationStatus @default(ACTIVE)
   escalationReason String?
   // Follow-up status for escalated conversations
   escalatedAt      DateTime?
   // "NONE" | "PENDING" | "ASKED" | "CONTACTED" | "NOT_CONTACTED"
-  followUpStatus   String @default("NONE")
+  followUpStatus   String                 @default("NONE")
 
   // "Stop AI" switch (admin panel). When true, inbound customer messages are
   // still stored for the team to read, but the model is never called and no
@@ -1152,22 +1171,22 @@ enum CampaignCustomerStatus {
 }
 
 model CustomerCategory {
-  id                 String   @id @default(uuid())
-  name               String   @unique
+  id                 String  @id @default(uuid())
+  name               String  @unique
   whatsappTemplateId String?
 
-  customers          CampaignCustomer[]
+  customers CampaignCustomer[]
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CampaignCustomer {
-  id                 String   @id @default(uuid())
-  campaignId         String   @default("KHAREEF_2026")
+  id                 String    @id @default(uuid())
+  campaignId         String    @default("KHAREEF_2026")
   netsuiteCustomerId String?
   name               String
-  phone              String 
+  phone              String
   reservationNumber  String?
   building           String?
   unitType           String?
@@ -1177,16 +1196,16 @@ model CampaignCustomer {
   stayAmount         Float?
   nightRate          Float?
 
-  status             CampaignCustomerStatus @default(PENDING)
-  summary            String? @db.Text
-  categoryId         String?
-  category           CustomerCategory? @relation(fields: [categoryId], references: [id])
-  feedbackType       String?
-  subjects           String[] @default([])
-  sentimentScore     Int?
+  status         CampaignCustomerStatus @default(PENDING)
+  summary        String?                @db.Text
+  categoryId     String?
+  category       CustomerCategory?      @relation(fields: [categoryId], references: [id])
+  feedbackType   String?
+  subjects       String[]               @default([])
+  sentimentScore Int?
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([campaignId])
   @@index([status])
@@ -1198,77 +1217,77 @@ model CampaignCustomer {
 // ------------------------------------------------------
 
 model EquipmentType {
-  id        String @id @default(uuid())
-  nameEn    String?
-  nameAr    String
-  
+  id     String  @id @default(uuid())
+  nameEn String?
+  nameAr String
+
   equipments Equipment[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Equipment {
-  id         String @id @default(uuid())
-  qrCode     String @unique
-  
+  id     String @id @default(uuid())
+  qrCode String @unique
+
   buildingId String
   building   Building @relation(fields: [buildingId], references: [id])
-  
+
   unitNumber String?
-  
-  typeId     String
-  type       EquipmentType @relation(fields: [typeId], references: [id])
-  
+
+  typeId String
+  type   EquipmentType @relation(fields: [typeId], references: [id])
+
   brandModel String?
   status     EquipmentStatus @default(GOOD)
-  
-  visits     EquipmentVisit[]
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
+
+  visits EquipmentVisit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([buildingId])
   @@index([status])
   @@index([typeId])
 }
 
 model EquipmentVisit {
-  id               String @id @default(uuid())
-  equipmentId      String
-  equipment        Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  
-  technicianId     String
-  technician       AdminUser @relation(fields: [technicianId], references: [id])
-  
+  id          String    @id @default(uuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   AdminUser @relation(fields: [technicianId], references: [id])
+
   visitDate        DateTime
-  issueDescription String @db.Text
-  actionTaken      String @db.Text
+  issueDescription String               @db.Text
+  actionTaken      String               @db.Text
   status           EquipmentVisitStatus
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([equipmentId])
   @@index([technicianId])
 }
 
 model EmployeeNote {
-  id          String    @id @default(uuid())
-  
-  employeeId  String
-  employee    AdminUser @relation("NoteReceived", fields: [employeeId], references: [id])
-  
-  authorId    String
-  author      AdminUser @relation("NoteGiven", fields: [authorId], references: [id])
-  
-  criteria    String    // e.g. "timeAdherence", "workQuality", "docAndResponse", "productivity"
-  isPositive  Boolean   @default(true)
-  text        String    @db.Text
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id String @id @default(uuid())
+
+  employeeId String
+  employee   AdminUser @relation("NoteReceived", fields: [employeeId], references: [id])
+
+  authorId String
+  author   AdminUser @relation("NoteGiven", fields: [authorId], references: [id])
+
+  criteria   String // e.g. "timeAdherence", "workQuality", "docAndResponse", "productivity"
+  isPositive Boolean @default(true)
+  text       String  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([employeeId])
   @@index([authorId])
   @@index([createdAt])
@@ -1362,46 +1381,46 @@ model PurchaseRequestOwner {
 // none of them travel in the URL.
 
 enum StayRatingStatus {
-  SENT       // link created (and WhatsApp send attempted), not rated yet
-  SUBMITTED  // guest submitted the form
+  SENT // link created (and WhatsApp send attempted), not rated yet
+  SUBMITTED // guest submitted the form
 }
 
 enum StayRatingSyncStatus {
-  PENDING    // submitted, not yet written to the NetSuite reservation
+  PENDING // submitted, not yet written to the NetSuite reservation
   SYNCED
-  FAILED     // retried by /api/cron/stay-rating-sync
+  FAILED // retried by /api/cron/stay-rating-sync
 }
 
 model StayRating {
-  id                    String  @id @default(uuid())
-  token                 String  @unique
-  netsuiteReservationId String  @unique
+  id                    String    @id @default(uuid())
+  token                 String    @unique
+  netsuiteReservationId String    @unique
   reservationNumber     String?
   customerName          String
   phone                 String
   building              String?
   unitNumbers           String?
   checkoutDate          DateTime?
-  language              String  @default("ar")
+  language              String    @default("ar")
 
-  waSendStatus          String? // "SENT" | "FAILED" | "SKIPPED"
+  waSendStatus String? // "SENT" | "FAILED" | "SKIPPED"
 
-  status                StayRatingStatus @default(SENT)
-  cleanliness           Int?
-  reception             Int?
-  facilities            Int?
-  value                 Int?
-  wouldRecommend        Boolean?
-  comment               String? @db.Text
-  submittedAt           DateTime?
+  status         StayRatingStatus @default(SENT)
+  cleanliness    Int?
+  reception      Int?
+  facilities     Int?
+  value          Int?
+  wouldRecommend Boolean?
+  comment        String?          @db.Text
+  submittedAt    DateTime?
 
-  nsSyncStatus          StayRatingSyncStatus?
-  nsSyncError           String? @db.Text
-  nsSyncedAt            DateTime?
-  nsSyncAttempts        Int     @default(0)
+  nsSyncStatus   StayRatingSyncStatus?
+  nsSyncError    String?               @db.Text
+  nsSyncedAt     DateTime?
+  nsSyncAttempts Int                   @default(0)
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
   @@index([nsSyncStatus])
