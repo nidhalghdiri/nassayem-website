@@ -28,7 +28,12 @@ export function EmptyState({ message, icon: Icon = Inbox }: { message: string; i
 /** Translated message for any error thrown by the API client. */
 export function useErrorMessage() {
   const { t } = useTranslation();
-  return (error: unknown) => t(`errors.${error instanceof ApiError ? error.code : 'BAD_RESPONSE'}`);
+  return (error: unknown) => {
+    if (!(error instanceof ApiError)) return t('errors.BAD_RESPONSE');
+    // A business rule refused the action: the server's sentence says which one.
+    if (error.code === 'REJECTED' && error.message !== 'REJECTED') return error.message;
+    return t(`errors.${error.code}`);
+  };
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {

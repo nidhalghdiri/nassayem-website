@@ -1,3 +1,5 @@
 {
-  "CFBundleDisplayName": "نسائم"
+  "CFBundleDisplayName": "نسائم",
+  "NSCameraUsageDescription": "يستخدم تطبيق نسائم الكاميرا لالتقاط صور لعملك في المهمة.",
+  "NSPhotoLibraryUsageDescription": "يتيح لك تطبيق نسائم إرفاق صور من مكتبتك بالمهمة."
 }

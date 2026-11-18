@@ -44,3 +44,7 @@ example
 
 # local API URL
 .env
+
+# Firebase service account key (secret) — upload to EAS, never commit
+*firebase-adminsdk*.json
+service-account*.json

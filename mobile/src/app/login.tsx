@@ -2,20 +2,24 @@ import { Image } from 'expo-image';
 import { LogIn } from 'lucide-react-native';
 import { useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LanguageToggle } from '@/components/language-toggle';
 import { Button } from '@/components/ui/button';
-import { Screen } from '@/components/ui/screen';
+import { Card } from '@/components/ui/card';
 import { useErrorMessage } from '@/components/ui/states';
 import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
 import { useSession } from '@/lib/auth/session';
+import { APP_VERSION } from '@/lib/config';
+import { shadow } from '@/lib/theme';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { signIn } = useSession();
   const errorMessage = useErrorMessage();
+  const insets = useSafeAreaInsets();
   const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
 
   const [email, setEmail] = useState('');
@@ -40,62 +44,83 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen safeTop className="flex-grow justify-center">
-        <View className="items-end">
-          <LanguageToggle />
-        </View>
+    <KeyboardAvoidingView className="flex-1 bg-background" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <View className="overflow-hidden rounded-b-[40px] bg-brand px-5 pb-28" style={{ paddingTop: insets.top + 12 }}>
+          <View className="absolute -end-24 -top-20 h-72 w-72 rounded-full bg-white/10" />
+          <View className="absolute -start-16 bottom-4 h-40 w-40 rounded-full bg-white/5" />
 
-        <View className="items-center">
-          <Image
-            source={require('@/assets/images/logo.png')}
-            style={{ width: 170, height: 170 }}
-            contentFit="contain"
-            accessibilityLabel={t('common.appName')}
-          />
-        </View>
+          <View className="items-end">
+            <LanguageToggle />
+          </View>
 
-        <View className="gap-1">
-          <Text weight="bold" className="text-2xl">
-            {t('login.title')}
-          </Text>
-          <Text className="text-muted">{t('login.subtitle')}</Text>
-        </View>
-
-        <View className="gap-4">
-          <TextField
-            label={t('login.email')}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="username"
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            editable={!submitting}
-          />
-          <TextField
-            ref={passwordRef}
-            label={t('login.password')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="current-password"
-            textContentType="password"
-            returnKeyType="go"
-            onSubmitEditing={submit}
-            editable={!submitting}
-          />
-          {error ? (
-            <Text accessibilityLiveRegion="polite" className="text-danger">
-              {error}
+          <View className="mt-4 items-center gap-3">
+            <View className="rounded-3xl bg-white p-2" style={shadow.raised}>
+              <Image
+                source={require('@/assets/images/logo.png')}
+                style={{ width: 92, height: 92, borderRadius: 18 }}
+                contentFit="contain"
+                accessibilityLabel={t('common.appName')}
+              />
+            </View>
+            <Text weight="bold" className="text-3xl text-white">
+              {t('common.appName')}
             </Text>
-          ) : null}
-          <Button label={t('login.submit')} icon={LogIn} loading={submitting} onPress={submit} />
+            <Text className="text-sm text-white/80">{t('login.tagline')}</Text>
+          </View>
         </View>
-      </Screen>
+
+        <View className="-mt-20 px-4">
+          <Card className="gap-5 p-5" style={shadow.raised}>
+            <View className="gap-1">
+              <Text weight="bold" className="text-xl">
+                {t('login.title')}
+              </Text>
+              <Text className="text-sm leading-5 text-muted">{t('login.subtitle')}</Text>
+            </View>
+
+            <View className="gap-4">
+              <TextField
+                label={t('login.email')}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="username"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                editable={!submitting}
+              />
+              <TextField
+                ref={passwordRef}
+                label={t('login.password')}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="current-password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={submit}
+                editable={!submitting}
+              />
+              {error ? (
+                <View className="rounded-xl bg-red-50 px-3 py-2.5">
+                  <Text accessibilityLiveRegion="polite" className="text-sm text-danger">
+                    {error}
+                  </Text>
+                </View>
+              ) : null}
+              <Button label={t('login.submit')} icon={LogIn} loading={submitting} onPress={submit} />
+            </View>
+          </Card>
+        </View>
+
+        <Text className="mt-auto pt-8 text-center text-xs text-muted" style={{ paddingBottom: insets.bottom + 16 }}>
+          {t('profile.version', { version: APP_VERSION })}
+        </Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

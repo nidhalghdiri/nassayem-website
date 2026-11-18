@@ -1,3 +1,5 @@
 {
-  "CFBundleDisplayName": "Nassayem"
+  "CFBundleDisplayName": "Nassayem",
+  "NSCameraUsageDescription": "Nassayem uses the camera to take photos of your work for the task.",
+  "NSPhotoLibraryUsageDescription": "Nassayem lets you attach photos from your library to a task."
 }

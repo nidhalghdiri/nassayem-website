@@ -3,6 +3,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 
 import { configureApiClient } from '@/lib/api/client';
 import { fetchMe, login } from '@/lib/api/endpoints';
+import { unregisterForPush } from '@/lib/notifications/push';
 import type { MobileUser } from '@/lib/api/schemas';
 
 import { clearStoredSession, loadStoredSession, storeSession, storeUser } from './storage';
@@ -15,6 +16,7 @@ type SessionState =
 type SessionContextValue = {
   session: SessionState;
   signIn: (email: string, password: string) => Promise<void>;
+  /** The user signs out: this phone also stops receiving their notifications. */
   signOut: () => Promise<void>;
   /** Re-fetches the profile (role, buildings) from the server. */
   refreshUser: () => Promise<void>;
@@ -30,12 +32,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // A ref so the API client always reads the current token without re-registering.
   const tokenRef = useRef<string | null>(null);
 
-  const signOut = useCallback(async () => {
+  // Ends the session locally. Used directly when the server already rejected
+  // the token (401) — calling the API again then would only fail.
+  const endSession = useCallback(async () => {
     tokenRef.current = null;
     await clearStoredSession();
     queryClient.clear();
     setSession({ status: 'signedOut' });
   }, [queryClient]);
+
+  const signOut = useCallback(async () => {
+    // While the token is still valid, so the server accepts the request.
+    if (tokenRef.current) await unregisterForPush();
+    await endSession();
+  }, [endSession]);
 
   const setUser = useCallback((user: MobileUser) => {
     void storeUser(user);
@@ -54,9 +64,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     configureApiClient({
       getToken: () => tokenRef.current,
-      onUnauthorized: () => void signOut(),
+      onUnauthorized: () => void endSession(),
     });
-  }, [signOut]);
+  }, [endSession]);
 
   // Restore the stored session on launch.
   useEffect(() => {
@@ -79,13 +89,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(await fetchMe());
       } catch {
         // No cached profile and the server is unreachable or rejected the token.
-        if (!cancelled) await signOut();
+        if (!cancelled) await endSession();
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, setUser, signOut]);
+  }, [refreshUser, setUser, endSession]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {

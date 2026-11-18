@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "865496793411",
+    "project_id": "nassayem-33d7f",
+    "storage_bucket": "nassayem-33d7f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:865496793411:android:1ec0341fae43a8a6052ff6",
+        "android_client_info": {
+          "package_name": "com.nassayem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHQ8_Jo_P74CwexMmV7t0XKJZ5x0JJ03c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

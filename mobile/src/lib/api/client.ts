@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | 'TOO_MANY_ATTEMPTS'
   | 'VALIDATION'
   | 'NOT_FOUND'
+  | 'REJECTED'
   | 'NETWORK'
   | 'BAD_RESPONSE'
   | 'SERVER';
@@ -41,6 +42,8 @@ export function configureApiClient(options: {
 type RequestOptions<T> = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
+  /** Multipart body (photo uploads); sent instead of `body`. */
+  formData?: FormData;
   /** Validates the JSON response; the request fails with BAD_RESPONSE if it does not match. */
   schema: z.ZodType<T>;
   /** Send the stored token (default true). */
@@ -49,9 +52,10 @@ type RequestOptions<T> = {
 };
 
 const REQUEST_TIMEOUT_MS = 20_000;
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 export async function apiRequest<T>(path: string, options: RequestOptions<T>): Promise<T> {
-  const { method = 'GET', body, schema, auth = true, signal } = options;
+  const { method = 'GET', body, formData, schema, auth = true, signal } = options;
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -60,7 +64,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions<T>): P
 
   // Plain AbortController: AbortSignal.timeout/any are not reliable on Hermes.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Photo uploads on mobile data can take a while.
+  const timer = setTimeout(() => controller.abort(), formData ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort);
 
@@ -69,10 +74,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions<T>): P
     response = await fetch(`${API_URL}/api/mobile/v1${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // For FormData, fetch sets the multipart Content-Type with its boundary.
+      body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
       signal: controller.signal,
     });
-  } catch {
+  } catch (error) {
+    if (__DEV__) console.warn(`[api] ${method} ${path} failed before a response`, error);
     throw new ApiError('NETWORK', 0);
   } finally {
     clearTimeout(timer);
