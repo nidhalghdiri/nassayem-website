@@ -1,0 +1,11 @@
+import { withVisibleTask } from "@/lib/mobileApi";
+import { POST as uploadPhoto } from "@/app/api/tasks/[id]/photos/route";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+// ── POST /api/mobile/v1/tasks/:id/photos ── multipart: file, caption? ────────
+// Same R2 upload as the website; the app compresses photos before sending.
+export async function POST(request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  return withVisibleTask(id, () => uploadPhoto(request, context));
+}

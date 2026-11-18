@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import type { AdminUser } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
+import { canViewTask } from "@/lib/taskVisibility";
 
 /** Oldest app build the API still supports; raise it to force an update. */
 export const MIN_MOBILE_APP_VERSION = "1.0.0";
@@ -20,7 +21,9 @@ export type MobileErrorCode =
   | "INVALID_CREDENTIALS"
   | "TOO_MANY_ATTEMPTS"
   | "VALIDATION"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "REJECTED" // a valid request the business rules refused (e.g. blocked transition)
+  | "SERVER";
 
 export function mobileError(
   code: MobileErrorCode,
@@ -122,4 +125,41 @@ export function recordLoginFailure(key: string): void {
 
 export function clearLoginFailures(key: string): void {
   loginFailures.delete(key);
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+/**
+ * Runs a mobile task route for a task the caller is allowed to see. Returns
+ * 401 when signed out and 404 (not 403, so ids cannot be probed) when the task
+ * does not exist or is outside the caller's visibility.
+ */
+export async function withVisibleTask(
+  taskId: string,
+  handler: (user: AdminUser) => Promise<Response>,
+): Promise<Response> {
+  const user = await requireMobileUser();
+  if (user instanceof NextResponse) return user;
+  if (!(await canViewTask(user, taskId))) return mobileError("NOT_FOUND", 404);
+  return withMobileErrorCode(await handler(user));
+}
+
+/**
+ * The website's task handlers answer errors as `{ error }` only. Adds the
+ * mobile `code` from the HTTP status so the app can translate the error, and
+ * keeps the original message for cases it shows as-is (e.g. a blocked
+ * transition).
+ */
+export async function withMobileErrorCode(response: Response): Promise<Response> {
+  if (response.ok) return response;
+  const body = (await response.clone().json().catch(() => ({}))) as { error?: string; code?: string };
+  if (body.code) return response;
+  const code: MobileErrorCode =
+    response.status === 401 ? "UNAUTHORIZED"
+    : response.status === 403 ? "FORBIDDEN"
+    : response.status === 404 ? "NOT_FOUND"
+    : response.status === 400 ? "VALIDATION"
+    : response.status >= 500 ? "SERVER"
+    : "REJECTED";
+  return NextResponse.json({ error: body.error ?? code, code }, { status: response.status });
 }

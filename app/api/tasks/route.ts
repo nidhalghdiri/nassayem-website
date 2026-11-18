@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentAdminUser } from "@/lib/adminAuth";
-import { canOpenCreateTask, isSelfOnlyCreator, canSeeAllTasks, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { canOpenCreateTask, isSelfOnlyCreator, ASSIGNABLE_ROLES } from "@/lib/tasks/permissions";
+import { taskVisibilityWhere } from "@/lib/taskVisibility";
 import { getInitialStatus } from "@/lib/tasks/statuses";
 import type { TaskType, TaskPriority, StaffRole, CleaningType } from "@prisma/client";
 
@@ -26,22 +27,8 @@ export async function GET(request: Request) {
   const dueAfter   = searchParams.get("dueAfter");
   const search     = searchParams.get("search");
 
-  // Role-based visibility
-  let visibilityFilter: object = {};
-  if (canSeeAllTasks(adminUser.role)) {
-    visibilityFilter = {};
-  } else if (adminUser.role === "RECEPTIONIST") {
-    const assigned = await prisma.adminUserBuilding.findMany({
-      where: { adminUserId: adminUser.id },
-      select: { buildingId: true },
-    });
-    const buildingIds = assigned.map((b) => b.buildingId);
-    visibilityFilter = buildingIds.length > 0
-      ? { buildingId: { in: buildingIds } }
-      : { buildingId: { in: [] } };
-  } else {
-    visibilityFilter = { OR: [{ assignedToId: adminUser.id }, { createdById: adminUser.id }] };
-  }
+  // Role-based visibility (shared with the mobile app's task routes)
+  const visibilityFilter = await taskVisibilityWhere(adminUser);
 
   const tasks = await prisma.task.findMany({
     where: {
