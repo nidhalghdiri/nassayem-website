@@ -190,6 +190,9 @@ export default function PricingImportClient({
         </details>
       </div>
 
+      {/* CSV format guide */}
+      <CsvGuide isEn={isEn} buildings={buildings} />
+
       {/* Parse error */}
       {parseError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
@@ -369,6 +372,178 @@ export default function PricingImportClient({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const TEMPLATE_HEADER = "Building,Unit Type,Date,Daily Price";
+
+function CsvGuide({ isEn, buildings }: { isEn: boolean; buildings: BuildingHint[] }) {
+  const sampleBuilding = buildings[0]?.nameEn ?? "Building Name";
+  const quoted = /[",\n]/.test(sampleBuilding)
+    ? `"${sampleBuilding.replace(/"/g, '""')}"`
+    : sampleBuilding;
+  const exampleRows = [
+    [quoted, "Studio", "2026-12-01", "25.000"],
+    [quoted, "Studio", "2026-12-02", "27.500"],
+    [quoted, "1 Bedroom", "2026-12-01", "35"],
+    [quoted, "2 Bedrooms", "2026-12-01", "48.250"],
+  ];
+  const csvText = [TEMPLATE_HEADER, ...exampleRows.map((r) => r.join(","))].join("\n");
+
+  const downloadTemplate = () => {
+    // BOM so Excel opens it as UTF-8 (needed for Arabic building names).
+    const blob = new Blob(["﻿" + csvText + "\n"], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pricing-import-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const columns = [
+    {
+      name: "Building",
+      required: true,
+      desc: isEn
+        ? "Building name (English or Arabic) or its ID. Must match an existing building."
+        : "اسم المبنى (بالإنجليزية أو العربية) أو معرّفه. يجب أن يطابق مبنى موجودًا.",
+      example: sampleBuilding,
+    },
+    {
+      name: "Unit Type",
+      required: true,
+      desc: isEn
+        ? "One of: Studio, 1 Bedroom, 2 Bedrooms, 3 Bedrooms, Villa (case-insensitive)."
+        : "إحدى القيم: Studio، 1 Bedroom، 2 Bedrooms، 3 Bedrooms، Villa (غير حساس لحالة الأحرف).",
+      example: "1 Bedroom",
+    },
+    {
+      name: "Date",
+      required: true,
+      desc: isEn
+        ? "One calendar day in YYYY-MM-DD format. Other formats (e.g. 01/12/2026) are rejected."
+        : "يوم واحد بصيغة YYYY-MM-DD. الصيغ الأخرى (مثل 01/12/2026) تُرفض.",
+      example: "2026-12-01",
+    },
+    {
+      name: "Daily Price",
+      required: true,
+      desc: isEn
+        ? "Number only, use a dot for decimals (up to 3). No currency symbol or thousands separator. Between 0 and 10000."
+        : "رقم فقط، استخدم النقطة للكسور (حتى 3 خانات). بدون رمز عملة أو فاصل آلاف. بين 0 و10000.",
+      example: "25.000",
+    },
+  ];
+
+  const rules = isEn
+    ? [
+        "The first row must be the header with the 4 column names above (any letter case).",
+        "One row = one building + unit type + one date. Add a row for each day you want to price.",
+        "The same building + unit type + date cannot appear twice in the file.",
+        "Existing prices for the same building, unit type and date are updated; new ones are added.",
+        "If a building name contains a comma, wrap it in double quotes.",
+        "Save as “CSV UTF-8” so Arabic names display correctly.",
+      ]
+    : [
+        "يجب أن يكون الصف الأول عناوين الأعمدة الأربعة أعلاه (بأي حالة أحرف).",
+        "كل صف = مبنى + نوع وحدة + يوم واحد. أضف صفًا لكل يوم تريد تسعيره.",
+        "لا يمكن تكرار نفس المبنى + نوع الوحدة + التاريخ في الملف.",
+        "الأسعار الموجودة لنفس المبنى ونوع الوحدة والتاريخ يتم تحديثها، والجديدة تُضاف.",
+        "إذا كان اسم المبنى يحتوي على فاصلة، ضعه بين علامتي اقتباس مزدوجتين.",
+        "احفظ الملف بصيغة «CSV UTF-8» لعرض الأسماء العربية بشكل صحيح.",
+      ];
+
+  return (
+    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">
+            {isEn ? "CSV format guide" : "دليل تنسيق ملف CSV"}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {isEn
+              ? "Follow this format so every row imports without errors."
+              : "اتبع هذا التنسيق ليتم استيراد كل الصفوف دون أخطاء."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={downloadTemplate}
+          className="px-4 py-2.5 rounded-xl text-sm font-bold text-nassayem bg-nassayem/10 hover:bg-nassayem hover:text-white transition-colors inline-flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+          </svg>
+          {isEn ? "Download template" : "تحميل القالب"}
+        </button>
+      </div>
+
+      {/* Columns */}
+      <div className="overflow-x-auto border border-gray-100 rounded-xl">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <th className="px-4 py-3 text-start">{isEn ? "Column" : "العمود"}</th>
+              <th className="px-4 py-3 text-start">{isEn ? "Required" : "مطلوب"}</th>
+              <th className="px-4 py-3 text-start">{isEn ? "What to put" : "ما يجب إدخاله"}</th>
+              <th className="px-4 py-3 text-start">{isEn ? "Example" : "مثال"}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {columns.map((c) => (
+              <tr key={c.name}>
+                <td className="px-4 py-3 font-mono font-bold text-gray-900 whitespace-nowrap">{c.name}</td>
+                <td className="px-4 py-3">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600">
+                    {isEn ? "Yes" : "نعم"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600 min-w-[240px]">{c.desc}</td>
+                <td className="px-4 py-3 font-mono text-gray-800 whitespace-nowrap">{c.example}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Example file */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 mb-2">
+          {isEn ? "Example file" : "مثال على الملف"}
+        </h3>
+        <pre
+          dir="ltr"
+          className="bg-gray-900 text-green-300 text-xs md:text-sm font-mono rounded-xl p-4 overflow-x-auto text-left"
+        >
+          {csvText}
+        </pre>
+      </div>
+
+      {/* Rules */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 mb-2">
+          {isEn ? "Rules & tips" : "قواعد ونصائح"}
+        </h3>
+        <ul className="space-y-1.5 text-sm text-gray-600 list-disc ps-5">
+          {rules.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Allowed unit types */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-gray-500">
+          {isEn ? "Accepted Unit Type values:" : "قيم نوع الوحدة المقبولة:"}
+        </span>
+        {["Studio", "1 Bedroom", "2 Bedrooms", "3 Bedrooms", "Villa"].map((t) => (
+          <code key={t} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md font-mono">
+            {t}
+          </code>
+        ))}
+      </div>
     </div>
   );
 }
